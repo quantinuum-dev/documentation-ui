@@ -5,3 +5,4 @@ export { HelpCard as DocsHelpCard } from './components/helpcard'
 export * from './components/header'
 export * from './components/page'
 export * from './utils'
+export * from "./tailwindTheme";

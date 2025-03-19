@@ -1,4 +1,4 @@
-import { QuantinuumLogo } from "src/QuantinuumLogo";
+import { QuantinuumLogo } from "../..//QuantinuumLogo";
 import { Separator } from "@quantinuum/quantinuum-ui";
 
 const footerConfig = {
