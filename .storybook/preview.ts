@@ -1,8 +1,7 @@
-import type { Preview } from "@storybook/react";
-import "@quantinuum/quantinuum-ui/tokens.css"
-import "./styles.css"
+import "../src/tokens.css";
+import "./styles.css";
 
-const preview: Preview = {
+const preview = {
   parameters: {
     controls: {
       matchers: {
