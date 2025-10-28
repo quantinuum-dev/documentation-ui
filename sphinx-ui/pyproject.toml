@@ -1,0 +1,25 @@
+[project]
+name = "quantinuum-sphinx"
+version = "0.5.0rc1"
+description = ""
+authors = [
+  { name = "Aidan Keay", email = "aidan.keay@quantinuum.com" },
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+furo = "^2024.5.6"
+
+[tool.poetry]
+include = [
+    { path = "quantinuum-sphinx/page.html", format = ["sdist", "wheel"] },
+    { path = "quantinuum-sphinx/static", format = ["sdist", "wheel"] },
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[project.entry-points]
+"sphinx.html_themes" = { quantinuum-sphinx = "quantinuum-sphinx" }
