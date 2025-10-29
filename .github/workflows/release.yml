@@ -1,0 +1,57 @@
+name: Release library
+on:
+  push:
+    branches:
+      - main
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: write
+  pages: write
+  packages: write
+  id-token: write
+
+jobs:
+  release_node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+            node-version: 20
+            cache: 'npm'
+      - run: |
+          npm ci
+          npm run lint
+          npm run build
+
+      - run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release_pypi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          cd sphinx-ui
+          rm -rf ./dist
+          mkdir ./dist
+          cp -a quantinuum_sphinx/. dist/
+          echo "🔨 Generating UI assets..."
+          cd ./react
+          npm update @quantinuum/documentation-ui
+          npm install
+          npm run build
+          cp ./build/injectNav.global.js ../quantinuum_sphinx/static/injectNav.global.js
+          cp ./build/syncTheme.global.js ../quantinuum_sphinx/static/syncTheme.global.js
+          cp ./node_modules/@quantinuum/quantinuum-ui/dist/tokens.css ../quantinuum_sphinx/static/styles/quantinuum-ui-tokens.css
+          npx tailwindcss --postcss ./postcss.config.cjs -i ./index.css -o ../quantinuum_sphinx/static/styles/quantinuum-ui-tailwind.css
+          echo ✅ "Done. Added UI assets to dist."
+          
