@@ -30,7 +30,7 @@ function getDefaultCookieValues(categories: CookieCategory[]) {
   return Object.fromEntries(categories.map((category) => [category.name, category.alwaysOn]))
 }
 
-export const CookiePreferences = () => {
+export const CookiePreferencesDialog = () => {
   const form = useForm<CookieConsent>({
     defaultValues: getDefaultCookieValues(CookieCategories),
   })

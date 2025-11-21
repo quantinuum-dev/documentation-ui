@@ -5,9 +5,9 @@ import RenderOnClient from 'app/_components/misc/RenderOnClient'
 
 export const CookieBanner = ({
   isOpen,
+  onAccept,
   onReject,
   onSettings,
-  onAccept,
 }: {
   isOpen: boolean
   onAccept(): void

@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Cookie Preferences Component > should render as expected 1`] = `
+exports[`CookiePreferencesDialog component > should render as expected 1`] = `
 <div
   aria-describedby="radix-:r2:"
   aria-labelledby="cookies-preferences"
