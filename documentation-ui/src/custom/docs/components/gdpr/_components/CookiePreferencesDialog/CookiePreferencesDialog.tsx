@@ -30,17 +30,27 @@ function getDefaultCookieValues(categories: CookieCategory[]) {
   return Object.fromEntries(categories.map((category) => [category.name, category.alwaysOn]))
 }
 
-export const CookiePreferencesDialog = () => {
+export const CookiePreferencesDialog = ({
+  isOpen,
+  onClose,
+  acceptAll,
+  saveConsent,
+}: {
+  isOpen: boolean
+  onClose(): void
+  acceptAll(): void
+  saveConsent(consent: CookieConsent): void
+}) => {
   const form = useForm<CookieConsent>({
     defaultValues: getDefaultCookieValues(CookieCategories),
   })
 
-  const onSubmit: SubmitHandler<CookieConsent> = () => {
-    return
+  const onSubmit: SubmitHandler<CookieConsent> = (values) => {
+    saveConsent(values)
   }
 
   return (
-    <Dialog open>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         isDismissable
         className="w-full max-w-[90vw] max-h-[90vh] sm:max-w-xl md:max-w-2xl sm:max-h-[80vh] px-5"
@@ -146,11 +156,7 @@ export const CookiePreferencesDialog = () => {
               </div>
 
               <div className="flex flex-row-reverse sm:flex-row gap-4 mt-8 md:mt-10 px-1">
-                <Button
-                  className="flex-1 md:flex-initial"
-                  type="button"
-                  onClick={() => CookieCategories.forEach((category) => form.setValue(category.name, true))}
-                >
+                <Button className="flex-1 md:flex-initial" type="button" onClick={acceptAll}>
                   Accept All
                 </Button>
                 <Button className="flex-1 md:flex-initial" type="submit" variant="secondary">

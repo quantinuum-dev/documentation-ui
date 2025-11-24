@@ -2,6 +2,7 @@ import { type CookieCategory, CookieCategoryName } from '../gdpr/types'
 
 // Update the following value every time you change the categories or cookies.
 // Bumping the version will invalidate previous consents stored in users' browsers and prompt them to review and accept the updated cookie settings.
+export const isGDPRCookiesFlagEnabled = false // This value typically should come from feature flag or configuration for now will be hardcoded here.
 export const COOKIES_CONSENT_VERSION: number = 1.0
 export const COOKIES_CONSENT_COOKIE_NAME: string = 'cookies_consent'
 export const COOKIES_CONSENT_EXPIRY_DAYS: number = 365 // EU recommends 1 year according to this document https://www.edpb.europa.eu/system/files/2023-12/edpb_letter_out20230098_feedback_on_cookie_pledge_draft_principles_en.pdf.

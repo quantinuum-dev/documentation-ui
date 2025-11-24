@@ -67,14 +67,7 @@ export function rejectNonEssentialCookies() {
   saveConsentInCookies(consent)
 }
 
-// The function/logic below on how we enable/disable scripts might change, is pending testing to see if this approach will work
 export function isCookieCategoryEnabled(category: CookieCategoryName): boolean {
   const consent = retrieveConsent()
   return consent[category]
-}
-
-export function onGrantedConsent(category: CookieCategoryName, callback: () => void) {
-  if (isCookieCategoryEnabled(category)) {
-    callback()
-  }
 }
