@@ -76,7 +76,7 @@ exports[`Cookie Banner Component > desktop > should render as expected 1`] = `
               class="w-full"
               variant="outline"
             >
-              Manage Preferences
+              Manage Settings
             </button>
           </div>
           <div
@@ -96,15 +96,17 @@ exports[`Cookie Banner Component > desktop > should render as expected 1`] = `
               >
                 <button
                   aria-label="button"
+                  class="flex-1"
                   variant="secondary"
                 >
                   Required Only
                 </button>
                 <button
                   aria-label="button"
+                  class="flex-1"
                   variant="outline"
                 >
-                  Preferences
+                  Settings
                 </button>
               </div>
             </div>
@@ -192,7 +194,7 @@ exports[`Cookie Banner Component > mobile > should render as expected 1`] = `
               class="w-full"
               variant="outline"
             >
-              Manage Preferences
+              Manage Settings
             </button>
           </div>
           <div
@@ -212,15 +214,17 @@ exports[`Cookie Banner Component > mobile > should render as expected 1`] = `
               >
                 <button
                   aria-label="button"
+                  class="flex-1"
                   variant="secondary"
                 >
                   Required Only
                 </button>
                 <button
                   aria-label="button"
+                  class="flex-1"
                   variant="outline"
                 >
-                  Preferences
+                  Settings
                 </button>
               </div>
             </div>

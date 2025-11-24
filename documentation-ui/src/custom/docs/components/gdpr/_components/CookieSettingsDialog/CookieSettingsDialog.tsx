@@ -3,34 +3,34 @@
 import { CookieCategories } from '../../cookies-consent.config'
 import { type CookieCategory, CookieConsent } from '../../types'
 import {
-  Dialog,
-  DialogContent,
-  Switch,
-  Button,
   Accordion,
+  AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  AccordionContent,
+  Button,
+  Dialog,
+  DialogContent,
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  Switch,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormDescription,
 } from '@quantinuum/quantinuum-ui'
 import React from 'react'
-import { useForm, SubmitHandler } from 'react-hook-form'
+import { SubmitHandler, useForm } from 'react-hook-form'
 
 function getDefaultCookieValues(categories: CookieCategory[]) {
   return Object.fromEntries(categories.map((category) => [category.name, category.alwaysOn]))
 }
 
-export const CookiePreferencesDialog = ({
+export const CookieSettingsDialog = ({
   isOpen,
   onClose,
   acceptAll,
@@ -54,15 +54,15 @@ export const CookiePreferencesDialog = ({
       <DialogContent
         isDismissable
         className="w-full max-w-[90vw] max-h-[90vh] sm:max-w-xl md:max-w-2xl sm:max-h-[80vh] px-5"
-        aria-labelledby="cookies-preferences"
+        aria-labelledby="cookies-settings"
       >
         <article>
           <header className="px-1 mb-5">
-            <h2 className="text-lg font-semibold mb-1.5">Manage Consent Preferences</h2>
+            <h2 className="text-lg font-semibold mb-1.5">Manage Consent Settings</h2>
             <p>
               Please choose whether this site may use optional cookies. Optional cookies help us measure usage and
               improve performance. We only set optional cookies with your consent. You can withdraw consent at any time
-              in Cookie preferences.
+              in Cookie settings.
             </p>
             <a
               className="font-semibold hover:underline underline-offset-4 mt-1 block"
@@ -160,7 +160,7 @@ export const CookiePreferencesDialog = ({
                   Accept All
                 </Button>
                 <Button className="flex-1 md:flex-initial" type="submit" variant="secondary">
-                  Save Preferences
+                  Save Settings
                 </Button>
               </div>
             </form>

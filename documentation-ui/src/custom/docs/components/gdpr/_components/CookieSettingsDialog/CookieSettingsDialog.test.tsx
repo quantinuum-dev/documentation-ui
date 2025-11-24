@@ -1,7 +1,7 @@
-import { CookiePreferencesDialog } from './CookiePreferencesDialog'
+import { CookieSettingsDialog } from './CookieSettingsDialog'
 import { render } from '@testing-library/react'
 
-describe('CookiePreferencesDialog component', () => {
+describe('CookieSettingsDialog component', () => {
   it('should render as expected', () => {
     const mockProps = {
       isOpen: true,
@@ -10,7 +10,7 @@ describe('CookiePreferencesDialog component', () => {
       saveConsent: vi.fn(),
     }
 
-    render(<CookiePreferencesDialog {...mockProps} />)
+    render(<CookieSettingsDialog {...mockProps} />)
 
     const dialog = document.querySelector('[role="dialog"]') // We target like this because the Dialog component renders outside the main tree in a portal
     expect(dialog).toMatchSnapshot()

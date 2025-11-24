@@ -1,9 +1,9 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`CookiePreferencesDialog component > should render as expected 1`] = `
+exports[`CookieSettingsDialog component > should render as expected 1`] = `
 <div
   aria-describedby="radix-:r2:"
-  aria-labelledby="cookies-preferences"
+  aria-labelledby="cookies-settings"
   class="z-50 fixed grid gap-4 p-6 border bg-background duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] sm:rounded-lg shadow-lg data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] w-full max-w-[90vw] max-h-[90vh] sm:max-w-xl md:max-w-2xl sm:max-h-[80vh] px-5"
   data-state="open"
   id="radix-:r0:"
@@ -18,10 +18,10 @@ exports[`CookiePreferencesDialog component > should render as expected 1`] = `
       <h2
         class="text-lg font-semibold mb-1.5"
       >
-        Manage Consent Preferences
+        Manage Consent Settings
       </h2>
       <p>
-        Please choose whether this site may use optional cookies. Optional cookies help us measure usage and improve performance. We only set optional cookies with your consent. You can withdraw consent at any time in Cookie preferences.
+        Please choose whether this site may use optional cookies. Optional cookies help us measure usage and improve performance. We only set optional cookies with your consent. You can withdraw consent at any time in Cookie settings.
       </p>
       <a
         class="font-semibold hover:underline underline-offset-4 mt-1 block"
@@ -62,7 +62,7 @@ exports[`CookiePreferencesDialog component > should render as expected 1`] = `
               class="text-sm text-foreground"
               id=":r3:-form-item-description"
             >
-              Required for core functionality and security. Examples: sign-in and session management, fraud prevention, storing your cookie settings and basic preferences.
+              Required for core functionality and security. Examples: sign-in and session management, fraud prevention, storing your cookie settings and basic settings.
             </p>
             <div
               class="w-full"
@@ -236,7 +236,7 @@ exports[`CookiePreferencesDialog component > should render as expected 1`] = `
           class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 h-9 px-4 py-2 flex-1 md:flex-initial"
           type="submit"
         >
-          Save Preferences
+          Save Settings
         </button>
       </div>
     </form>

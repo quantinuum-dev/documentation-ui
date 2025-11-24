@@ -12,10 +12,10 @@ import { createContext, useContext, useEffect, useState } from 'react'
 
 type CookieConsentContextType = {
   acceptAll: () => void
-  closeCookiePreferencesDialog: () => void
+  closeCookieSettingsDialog: () => void
   isConsentSet: boolean
   isCookieBannerVisible: boolean
-  isCookiePreferencesDialogVisible: boolean
+  isCookieSettingsDialogVisible: boolean
   openSettings: () => void
   rejectNonEssential: () => void
   saveConsent: (consent: CookieConsent) => void
@@ -25,13 +25,13 @@ export const CookieConsentContext = createContext<CookieConsentContextType | nul
 
 export const CookieConsentProvider = ({ children }: { children: React.ReactNode }) => {
   const [isCookieBannerVisible, setIsCookieBannerVisible] = useState(false)
-  const [isCookiePreferencesDialogVisible, setIsCookiePreferencesDialogVisible] = useState(false)
+  const [isCookieSettingsDialogVisible, setIsCookieSettingsDialogVisible] = useState(false)
   const [isConsentSet, setIsConsentSet] = useState(false)
 
   function acceptAll() {
     acceptAllCookies()
     setIsCookieBannerVisible(false)
-    setIsCookiePreferencesDialogVisible(false)
+    setIsCookieSettingsDialogVisible(false)
     setIsConsentSet(true && isGDPRCookiesFlagEnabled) // Consent cannot be true if isGDPRCookiesFlagEnabled is false. If for whatever reason the banner is disabled then all non-non optional scripts should be off as well
   }
 
@@ -43,17 +43,17 @@ export const CookieConsentProvider = ({ children }: { children: React.ReactNode 
 
   function openSettings() {
     setIsCookieBannerVisible(false)
-    setIsCookiePreferencesDialogVisible(true && isGDPRCookiesFlagEnabled) // Dialog should not open if banner is disabled
+    setIsCookieSettingsDialogVisible(true && isGDPRCookiesFlagEnabled) // Dialog should not open if banner is disabled
   }
 
   function saveConsent(consent: CookieConsent) {
     saveConsentInCookies(consent)
-    setIsCookiePreferencesDialogVisible(false)
+    setIsCookieSettingsDialogVisible(false)
     setIsConsentSet(true && isGDPRCookiesFlagEnabled)
   }
 
-  function closeCookiePreferencesDialog() {
-    setIsCookiePreferencesDialogVisible(false)
+  function closeCookieSettingsDialog() {
+    setIsCookieSettingsDialogVisible(false)
     setIsCookieBannerVisible(true && isGDPRCookiesFlagEnabled)
   }
 
@@ -69,13 +69,13 @@ export const CookieConsentProvider = ({ children }: { children: React.ReactNode 
     <CookieConsentContext.Provider
       value={{
         isCookieBannerVisible,
-        isCookiePreferencesDialogVisible,
+        isCookieSettingsDialogVisible,
         isConsentSet,
         acceptAll,
         rejectNonEssential,
         openSettings,
         saveConsent,
-        closeCookiePreferencesDialog,
+        closeCookieSettingsDialog,
       }}
     >
       {children}

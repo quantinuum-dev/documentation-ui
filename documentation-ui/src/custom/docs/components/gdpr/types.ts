@@ -15,7 +15,7 @@ export type Cookie = {
   sameSite?: SameSite
 }
 
-export type PreferencesOverlayCookie = {
+export type SettingsOverlayCookie = {
   name: string
   description: string
   expiry: string
@@ -31,7 +31,7 @@ export type CookieCategory = {
   alwaysOn: boolean
   name: CookieCategoryName
   description: string
-  cookies: PreferencesOverlayCookie[]
+  cookies: SettingsOverlayCookie[]
 }
 
 export type CookieConsent = {

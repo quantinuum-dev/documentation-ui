@@ -1,13 +1,13 @@
 # GDPR Component - A lightweight cookie management solution
 
 This component manages user consent for cookies in compliance with GDPR regulations.
-It provides a user interface for users to accept or reject different categories of cookies and stores their preferences on the client side in a cookie called `cookie_consent`.
+It provides a user interface for users to accept or reject different categories of cookies and stores their settings on the client side in a cookie called `cookie_consent`.
 
 ## Architecture
 
 The GDPR component is organized into several directories within this folder:
 
-- **`_components/`** - Contains UI components used to build the GDPR interface (e.g., `CookieBanner`, `CookiePreferencesDialog`)
+- **`_components/`** - Contains UI components used to build the GDPR interface (e.g., `CookieBanner`, `CookieSettingsDialog`)
 - **`service/`** - Contains the core business logic for consent management (checking if consent is set, if specific categories are accepted, etc.)
 - **`contexts/`** - Manages UI state (whether the banner or dialog is open, etc.)
 - **`utils/`** - Utility functions for cookie manipulation and serialization
@@ -19,7 +19,7 @@ The GDPR component is configured through `cookies-consent.config.ts`, which defi
 ### Global Settings
 
 - **`COOKIES_CONSENT_VERSION`** - Version number that invalidates previous consents when changed (currently `1.0`)
-- **`COOKIES_CONSENT_COOKIE_NAME`** - Name of the cookie storing user preferences (`'cookies_consent'`)
+- **`COOKIES_CONSENT_COOKIE_NAME`** - Name of the cookie storing user settings (`'cookies_consent'`)
 - **`COOKIES_CONSENT_EXPIRY_DAYS`** - Cookie expiration period in days (`365` days, following EU recommendations)
 
 ### Cookie Categories
@@ -44,7 +44,7 @@ To integrate the GDPR component into your application:
 2. **Enable the isGDPRCookiesBannerEnabled flag** to true in the `CookieConsentContext` (this can be later extended to come from a feature flag or configuration)
 3. **Import the UI components** in a component that renders on every page (e.g., root layout):
    - `CookieBanner`
-   - `CookiePreferencesDialog`
+   - `CookieSettingsDialog`
 4. **Connect the components** by passing the necessary props from the `useCookieConsent` hook
 5. **Conditionally load scripts** by importing the `onGrantedConsent` function from the service and wrapping any scripts that should only run with user consent
 
@@ -53,7 +53,7 @@ To integrate the GDPR component into your application:
 ```tsx
 // In the root layout file
 import { CookieBanner } from './_components/CookieBanner/CookieBanner'
-import { CookiePreferencesDialog } from './_components/CookiePreferencesDialog/CookiePreferencesDialog'
+import { CookieSettingsDialog } from './_components/CookieSettingsDialog/CookieSettingsDialog'
 import { CookieConsentProvider } from './contexts/CookieConsentContext'
 import { useCookieConsent } from './contexts/CookieConsentContext'
 
@@ -69,12 +69,12 @@ export function Layout({ children }) {
 function AppComponents() {
   const {
     isCookieBannerVisible,
-    isCookiePreferencesDialogVisible,
+    isCookieSettingsDialogVisible,
     acceptAll,
     rejectNonEssential,
     openSettings,
     saveConsent,
-    closeCookiePreferencesDialog,
+    closeCookieSettingsDialog,
   } = useCookieConsent()
 
   return (
@@ -85,11 +85,11 @@ function AppComponents() {
         onReject={rejectNonEssential}
         onSettings={openSettings}
       />
-      <CookiePreferencesDialog
-        isOpen={isCookiePreferencesDialogVisible}
+      <CookieSettingsDialog
+        isOpen={isCookieSettingsDialogVisible}
         acceptAll={acceptAll}
         saveConsent={saveConsent}
-        onClose={closeCookiePreferencesDialog}
+        onClose={closeCookieSettingsDialog}
       />
     </>
   )

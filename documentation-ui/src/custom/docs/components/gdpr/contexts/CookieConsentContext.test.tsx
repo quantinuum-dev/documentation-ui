@@ -47,40 +47,40 @@ describe('CookieConsentContext', () => {
     })
   })
 
-  describe('isCookiePreferencesDialogVisible state', () => {
-    it('should have "isCookiePreferencesDialogVisible" to be false initially', () => {
+  describe('isCookieSettingsDialogVisible state', () => {
+    it('should have "isCookieSettingsDialogVisible" to be false initially', () => {
       vi.mocked(isConsentSetInCookies).mockReturnValue(false)
       const { result } = setup()
 
-      expect(result.current.isCookiePreferencesDialogVisible).toBe(false)
+      expect(result.current.isCookieSettingsDialogVisible).toBe(false)
     })
 
-    it('should open the cookie preferences dialog when openSettings is called', () => {
+    it('should open the cookie settings dialog when openSettings is called', () => {
       vi.mocked(isConsentSetInCookies).mockReturnValue(false)
       const { result } = setup()
-      expect(result.current.isCookiePreferencesDialogVisible).toBe(false)
+      expect(result.current.isCookieSettingsDialogVisible).toBe(false)
 
       act(() => {
         result.current.openSettings()
       })
 
-      expect(result.current.isCookiePreferencesDialogVisible).toBe(true)
+      expect(result.current.isCookieSettingsDialogVisible).toBe(true)
     })
 
-    it('should close the cookie preferences dialog when closeCookiePreferencesDialog is called', () => {
+    it('should close the cookie settings dialog when closeCookieSettingsDialog is called', () => {
       vi.mocked(isConsentSetInCookies).mockReturnValue(false)
       const { result } = setup()
 
       act(() => {
         result.current.openSettings()
       })
-      expect(result.current.isCookiePreferencesDialogVisible).toBe(true)
+      expect(result.current.isCookieSettingsDialogVisible).toBe(true)
 
       act(() => {
-        result.current.closeCookiePreferencesDialog()
+        result.current.closeCookieSettingsDialog()
       })
 
-      expect(result.current.isCookiePreferencesDialogVisible).toBe(false)
+      expect(result.current.isCookieSettingsDialogVisible).toBe(false)
     })
   })
 

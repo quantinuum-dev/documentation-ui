@@ -66,7 +66,7 @@ export const CookieBanner = ({
                   </Button>
                 </div>
                 <Button className="w-full" variant="outline" onClick={onSettings}>
-                  Manage Preferences
+                  Manage Settings
                 </Button>
               </div>
 
@@ -77,12 +77,12 @@ export const CookieBanner = ({
                   </Button>
 
                   <div className="flex md:flex-col lg:flex-row gap-3">
-                    <Button variant="secondary" onClick={onReject}>
+                    <Button variant="secondary" onClick={onReject} className="flex-1">
                       Required Only
                     </Button>
 
-                    <Button variant="outline" onClick={onSettings}>
-                      Preferences
+                    <Button variant="outline" onClick={onSettings} className="flex-1">
+                      Settings
                     </Button>
                   </div>
                 </div>
