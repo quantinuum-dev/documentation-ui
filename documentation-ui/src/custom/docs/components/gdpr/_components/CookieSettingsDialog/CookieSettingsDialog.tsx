@@ -1,6 +1,7 @@
 'use client'
 
 import { CookieCategories } from '../../cookies-consent.config'
+import { retrieveConsent } from '../../service/cookie-consent-service'
 import { type CookieCategory, CookieConsent } from '../../types'
 import {
   Accordion,
@@ -26,7 +27,10 @@ import {
 import React from 'react'
 import { SubmitHandler, useForm } from 'react-hook-form'
 
-function getDefaultCookieValues(categories: CookieCategory[]) {
+function getDefaultCookieValues(categories: CookieCategory[], existingConsent?: CookieConsent) {
+  if (existingConsent) {
+    return existingConsent
+  }
   return Object.fromEntries(categories.map((category) => [category.name, category.alwaysOn]))
 }
 
@@ -42,7 +46,7 @@ export const CookieSettingsDialog = ({
   saveConsent(consent: CookieConsent): void
 }) => {
   const form = useForm<CookieConsent>({
-    defaultValues: getDefaultCookieValues(CookieCategories),
+    defaultValues: getDefaultCookieValues(CookieCategories, retrieveConsent()),
   })
 
   const onSubmit: SubmitHandler<CookieConsent> = (values) => {
@@ -54,6 +58,7 @@ export const CookieSettingsDialog = ({
       <DialogContent
         isDismissable
         className="w-full max-w-[90vw] max-h-[90vh] sm:max-w-xl md:max-w-2xl sm:max-h-[80vh] px-5"
+        aria-label="Cookie settings dialog"
         aria-labelledby="cookies-settings"
       >
         <article>
@@ -85,7 +90,9 @@ export const CookieSettingsDialog = ({
                       <section aria-labelledby={category.name.toLowerCase()} className="mb-4 md:mb-5 last:mb-0">
                         <FormItem>
                           <div className="flex items-center">
-                            <FormLabel className="text-lg font-normal">{category.name}</FormLabel>
+                            <FormLabel id={category.name.toLowerCase()} className="text-lg font-normal">
+                              {category.name}
+                            </FormLabel>
                             {category.alwaysOn && (
                               <span className="text-primary text-sm font-semibold ml-2">Always on</span>
                             )}

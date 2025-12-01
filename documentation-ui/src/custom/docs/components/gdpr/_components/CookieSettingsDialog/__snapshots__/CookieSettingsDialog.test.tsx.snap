@@ -3,6 +3,7 @@
 exports[`CookieSettingsDialog component > should render as expected 1`] = `
 <div
   aria-describedby="radix-:r2:"
+  aria-label="Cookie settings dialog"
   aria-labelledby="cookies-settings"
   class="z-50 fixed grid gap-4 p-6 border bg-background duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] sm:rounded-lg shadow-lg data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] w-full max-w-[90vw] max-h-[90vh] sm:max-w-xl md:max-w-2xl sm:max-h-[80vh] px-5"
   data-state="open"
@@ -49,6 +50,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
               <label
                 class="peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-lg font-normal"
                 for=":r3:-form-item"
+                id="essential"
               >
                 Essential
               </label>
@@ -133,6 +135,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
               <label
                 class="peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-lg font-normal"
                 for=":r6:-form-item"
+                id="analytics"
               >
                 Analytics
               </label>

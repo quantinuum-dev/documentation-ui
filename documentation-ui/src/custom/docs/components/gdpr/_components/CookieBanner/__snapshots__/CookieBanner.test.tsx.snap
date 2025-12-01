@@ -9,6 +9,7 @@ exports[`Cookie Banner Component > desktop > should render as expected 1`] = `
       aria-label="dialog-content"
     >
       <div
+        aria-label="Cookie banner"
         class="max-w-5xl mx-auto"
       >
         <h3
@@ -22,32 +23,32 @@ exports[`Cookie Banner Component > desktop > should render as expected 1`] = `
           <p
             class="text-base md:w-9/12"
           >
-            We use essential cookies to ensure the website functions properly. With your permission, we will also use optional cookies to analyze site usage and improve the user experience. By using our website, you agree to our 
+            We use essential cookies to ensure the website functions properly. With your permission, we’ll also use optional cookies to analyze site usage and improve the user experience. For details of how we use cookies and your personal data, please read our 
             <a
-              class="font-semibold hover:underline underline-offset-4"
-              href="https://www.quantinuum.com/terms-conditions"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Terms of Use
-            </a>
-             and 
-            <a
-              class="font-semibold hover:underline underline-offset-4"
-              href="https://www.quantinuum.com/privacy"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Privacy Notice
-            </a>
-            . For details, including the list of cookies, purposes, vendors and retention periods, please read our 
-            <a
-              class="font-semibold hover:underline underline-offset-4"
+              class="font-semibold hover:underline underline-offset-4 underline"
               href="https://www.quantinuum.com/cookie-notice"
               rel="noopener noreferrer"
               target="_blank"
             >
-              Cookie Policy
+              Cookie Notice
+            </a>
+             and our 
+            <a
+              class="font-semibold hover:underline underline-offset-4 underline"
+              href="https://www.quantinuum.com/privacy"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Privacy Statement
+            </a>
+            . By using our website, you agree to our 
+            <a
+              class="font-semibold hover:underline underline-offset-4 underline"
+              href="https://www.quantinuum.com/terms-conditions"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Terms & Conditions
             </a>
             .
           </p>
@@ -127,6 +128,7 @@ exports[`Cookie Banner Component > mobile > should render as expected 1`] = `
       aria-label="dialog-content"
     >
       <div
+        aria-label="Cookie banner"
         class="max-w-5xl mx-auto"
       >
         <h3
@@ -140,32 +142,32 @@ exports[`Cookie Banner Component > mobile > should render as expected 1`] = `
           <p
             class="text-base md:w-9/12"
           >
-            We use essential cookies to ensure the website functions properly. With your permission, we will also use optional cookies to analyze site usage and improve the user experience. By using our website, you agree to our 
+            We use essential cookies to ensure the website functions properly. With your permission, we’ll also use optional cookies to analyze site usage and improve the user experience. For details of how we use cookies and your personal data, please read our 
             <a
-              class="font-semibold hover:underline underline-offset-4"
-              href="https://www.quantinuum.com/terms-conditions"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Terms of Use
-            </a>
-             and 
-            <a
-              class="font-semibold hover:underline underline-offset-4"
-              href="https://www.quantinuum.com/privacy"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Privacy Notice
-            </a>
-            . For details, including the list of cookies, purposes, vendors and retention periods, please read our 
-            <a
-              class="font-semibold hover:underline underline-offset-4"
+              class="font-semibold hover:underline underline-offset-4 underline"
               href="https://www.quantinuum.com/cookie-notice"
               rel="noopener noreferrer"
               target="_blank"
             >
-              Cookie Policy
+              Cookie Notice
+            </a>
+             and our 
+            <a
+              class="font-semibold hover:underline underline-offset-4 underline"
+              href="https://www.quantinuum.com/privacy"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Privacy Statement
+            </a>
+            . By using our website, you agree to our 
+            <a
+              class="font-semibold hover:underline underline-offset-4 underline"
+              href="https://www.quantinuum.com/terms-conditions"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Terms & Conditions
             </a>
             .
           </p>

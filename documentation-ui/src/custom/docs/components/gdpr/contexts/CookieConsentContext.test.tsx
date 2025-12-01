@@ -15,10 +15,6 @@ vi.mock('../service/cookie-consent-service', () => ({
   rejectNonEssentialCookies: vi.fn(),
 }))
 
-vi.mock('../cookies-consent.config', () => ({
-  isGDPRCookiesFlagEnabled: true,
-}))
-
 const setup = () =>
   renderHook(() => useCookieConsent(), {
     wrapper: ({ children }: { children: React.ReactNode }) => <CookieConsentProvider>{children}</CookieConsentProvider>,

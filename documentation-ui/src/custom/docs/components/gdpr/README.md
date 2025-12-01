@@ -42,20 +42,15 @@ To integrate the GDPR component into your application:
 
 1. **Wrap your component tree** with `CookieConsentProvider` where you want to use the GDPR functionality
 2. **Enable the isGDPRCookiesBannerEnabled flag** to true in the `CookieConsentContext` (this can be later extended to come from a feature flag or configuration)
-3. **Import the UI components** in a component that renders on every page (e.g., root layout):
-   - `CookieBanner`
-   - `CookieSettingsDialog`
-4. **Connect the components** by passing the necessary props from the `useCookieConsent` hook
-5. **Conditionally load scripts** by importing the `onGrantedConsent` function from the service and wrapping any scripts that should only run with user consent
+3. **Import the `CookieConsentManager` component** in a component that renders on every page (e.g., root layout):
+4. **Conditionally load scripts** by importing the `onGrantedConsent` function from the service and wrapping any scripts that should only run with user consent
 
 ### Example
 
 ```tsx
 // In the root layout file
-import { CookieBanner } from './_components/CookieBanner/CookieBanner'
-import { CookieSettingsDialog } from './_components/CookieSettingsDialog/CookieSettingsDialog'
+import { CookieConsentManager } from './_components/CookieConsentManager/CookieConsentManager'
 import { CookieConsentProvider } from './contexts/CookieConsentContext'
-import { useCookieConsent } from './contexts/CookieConsentContext'
 
 export function Layout({ children }) {
   return (
@@ -67,30 +62,10 @@ export function Layout({ children }) {
 }
 
 function AppComponents() {
-  const {
-    isCookieBannerVisible,
-    isCookieSettingsDialogVisible,
-    acceptAll,
-    rejectNonEssential,
-    openSettings,
-    saveConsent,
-    closeCookieSettingsDialog,
-  } = useCookieConsent()
-
   return (
     <>
-      <CookieBanner
-        isOpen={isCookieBannerVisible}
-        onAccept={acceptAll}
-        onReject={rejectNonEssential}
-        onSettings={openSettings}
-      />
-      <CookieSettingsDialog
-        isOpen={isCookieSettingsDialogVisible}
-        acceptAll={acceptAll}
-        saveConsent={saveConsent}
-        onClose={closeCookieSettingsDialog}
-      />
+      <CookieConsentManager />
+      {/* Other app components */}
     </>
   )
 }
