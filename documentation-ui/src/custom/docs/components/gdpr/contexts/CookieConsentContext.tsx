@@ -4,14 +4,17 @@ import {
   acceptAllCookies,
   isConsentSetInCookies,
   rejectNonEssentialCookies,
+  retrieveConsentCategoriesFromCookies,
   saveConsentInCookies,
 } from '../service/cookie-consent-service'
 import { type CookieConsent } from '../types'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { useFeaturesQuery } from 'app/(dashboard)/_root_layout/Features'
+import { createContext, useContext, useReducer } from 'react'
 
 type CookieConsentContextType = {
   acceptAll: () => void
   closeCookieSettingsDialog: () => void
+  consent: CookieConsent
   isConsentSet: boolean
   isCookieBannerVisible: boolean
   isCookieSettingsDialogVisible: boolean
@@ -22,50 +25,106 @@ type CookieConsentContextType = {
 
 export const CookieConsentContext = createContext<CookieConsentContextType | null>(null)
 
-export const CookieConsentProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isCookieBannerVisible, setIsCookieBannerVisible] = useState(false)
-  const [isCookieSettingsDialogVisible, setIsCookieSettingsDialogVisible] = useState(false)
-  const [isConsentSet, setIsConsentSet] = useState(false)
+type CookieState = {
+  isCookieBannerVisible: boolean
+  isCookieSettingsDialogVisible: boolean
+  isConsentSet: boolean
+  consent: CookieConsent
+}
+
+type CookieAction =
+  | { type: 'ACCEPT_ALL'; version: number }
+  | { type: 'REJECT_NON_ESSENTIAL'; version: number }
+  | { type: 'OPEN_SETTINGS' }
+  | { type: 'SAVE_CONSENT'; consent: CookieConsent; version: number }
+  | { type: 'CLOSE_SETTINGS' }
+  | { type: 'INITIALIZE'; version: number }
+
+function cookieStateReducer(state: CookieState, action: CookieAction): CookieState {
+  switch (action.type) {
+    case 'ACCEPT_ALL':
+      acceptAllCookies(action.version)
+      return {
+        ...state,
+        consent: retrieveConsentCategoriesFromCookies(),
+        isCookieBannerVisible: false,
+        isCookieSettingsDialogVisible: false,
+        isConsentSet: true,
+      }
+    case 'REJECT_NON_ESSENTIAL':
+      rejectNonEssentialCookies(action.version)
+      return {
+        ...state,
+        consent: retrieveConsentCategoriesFromCookies(),
+        isCookieBannerVisible: false,
+        isConsentSet: true,
+      }
+    case 'OPEN_SETTINGS':
+      return {
+        ...state,
+        isCookieBannerVisible: false,
+        isCookieSettingsDialogVisible: true,
+      }
+    case 'SAVE_CONSENT':
+      saveConsentInCookies(action.consent, action.version)
+      return {
+        ...state,
+        consent: retrieveConsentCategoriesFromCookies(),
+        isCookieSettingsDialogVisible: false,
+        isConsentSet: true,
+      }
+    case 'CLOSE_SETTINGS':
+      return {
+        ...state,
+        isCookieSettingsDialogVisible: false,
+        isCookieBannerVisible: !state.isConsentSet,
+      }
+    case 'INITIALIZE':
+      return {
+        ...state,
+        isConsentSet: isConsentSetInCookies(action.version),
+        isCookieBannerVisible: !isConsentSetInCookies(action.version),
+      }
+    default:
+      return state
+  }
+}
+
+const CookieConsentProviderInner = ({ children, version }: { children: React.ReactNode; version: number }) => {
+  const [state, dispatch] = useReducer(cookieStateReducer, {
+    isCookieBannerVisible: !isConsentSetInCookies(version),
+    isCookieSettingsDialogVisible: false,
+    isConsentSet: isConsentSetInCookies(version),
+    consent: retrieveConsentCategoriesFromCookies(),
+  })
 
   function acceptAll() {
-    acceptAllCookies()
-    setIsCookieBannerVisible(false)
-    setIsCookieSettingsDialogVisible(false)
-    setIsConsentSet(true)
+    dispatch({ type: 'ACCEPT_ALL', version })
   }
 
   function rejectNonEssential() {
-    rejectNonEssentialCookies()
-    setIsCookieBannerVisible(false)
-    setIsConsentSet(true)
+    dispatch({ type: 'REJECT_NON_ESSENTIAL', version })
   }
 
   function openSettings() {
-    setIsCookieBannerVisible(false)
-    setIsCookieSettingsDialogVisible(true)
+    dispatch({ type: 'OPEN_SETTINGS' })
   }
 
   function saveConsent(consent: CookieConsent) {
-    saveConsentInCookies(consent)
-    setIsCookieSettingsDialogVisible(false)
-    setIsConsentSet(true)
+    dispatch({ type: 'SAVE_CONSENT', consent, version })
   }
 
   function closeCookieSettingsDialog() {
-    setIsCookieSettingsDialogVisible(false)
-    setIsCookieBannerVisible(true && !isConsentSet)
+    dispatch({ type: 'CLOSE_SETTINGS' })
   }
-
-  useEffect(() => {
-    isConsentSetInCookies() ? setIsConsentSet(true) : setIsCookieBannerVisible(true)
-  }, [])
 
   return (
     <CookieConsentContext.Provider
       value={{
-        isCookieBannerVisible,
-        isCookieSettingsDialogVisible,
-        isConsentSet,
+        isCookieBannerVisible: state.isCookieBannerVisible,
+        isCookieSettingsDialogVisible: state.isCookieSettingsDialogVisible,
+        isConsentSet: state.isConsentSet,
+        consent: state.consent,
         acceptAll,
         rejectNonEssential,
         openSettings,
@@ -75,6 +134,20 @@ export const CookieConsentProvider = ({ children }: { children: React.ReactNode 
     >
       {children}
     </CookieConsentContext.Provider>
+  )
+}
+
+export const CookieConsentProvider = ({ children }: { children: React.ReactNode }) => {
+  const featuresQuery = useFeaturesQuery()
+
+  if (!featuresQuery.data?.cookies_consent_manager.version) {
+    return null
+  }
+
+  return (
+    <CookieConsentProviderInner version={featuresQuery.data.cookies_consent_manager.version}>
+      {children}
+    </CookieConsentProviderInner>
   )
 }
 

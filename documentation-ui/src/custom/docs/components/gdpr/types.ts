@@ -8,7 +8,7 @@ export enum SameSite {
 
 export type Cookie = {
   name: string
-  value?: string
+  value: string // Cookies values in the browser are always strings, we have to serialize/deserialize from other types
   path?: string
   domain?: string
   expires?: Date
@@ -32,6 +32,12 @@ export type CookieCategory = {
   name: CookieCategoryName
   description: string
   cookies: SettingsOverlayCookie[]
+}
+
+export type CookieValue = {
+  consentVersion: number
+  dateConsentWasGiven: string // ISO string representation of the date
+  consentCategories: CookieConsent
 }
 
 export type CookieConsent = {

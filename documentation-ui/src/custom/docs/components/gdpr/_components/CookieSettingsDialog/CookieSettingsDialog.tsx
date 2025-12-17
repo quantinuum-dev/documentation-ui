@@ -1,7 +1,7 @@
 'use client'
 
 import { CookieCategories } from '../../cookies-consent.config'
-import { retrieveConsent } from '../../service/cookie-consent-service'
+import { retrieveConsentCategoriesFromCookies } from '../../service/cookie-consent-service'
 import { type CookieCategory, CookieConsent } from '../../types'
 import {
   Accordion,
@@ -46,7 +46,7 @@ export const CookieSettingsDialog = ({
   saveConsent(consent: CookieConsent): void
 }) => {
   const form = useForm<CookieConsent>({
-    defaultValues: getDefaultCookieValues(CookieCategories, retrieveConsent()),
+    defaultValues: getDefaultCookieValues(CookieCategories, retrieveConsentCategoriesFromCookies()),
   })
 
   const onSubmit: SubmitHandler<CookieConsent> = (values) => {
@@ -63,7 +63,7 @@ export const CookieSettingsDialog = ({
       >
         <article>
           <header className="px-1 mb-5">
-            <h2 className="text-lg font-semibold mb-1.5">Manage Consent Settings</h2>
+            <h2 className="text-lg font-semibold mb-1.5">Manage Cookies Settings</h2>
             <p>
               Please choose whether this site may use optional cookies. Optional cookies help us measure usage and
               improve performance. We only set optional cookies with your consent. You can withdraw consent at any time
@@ -75,7 +75,7 @@ export const CookieSettingsDialog = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              More information about our Cookie Policy
+              More information about our Cookie Notice
             </a>
           </header>
 

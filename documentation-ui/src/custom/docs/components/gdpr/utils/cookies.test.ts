@@ -1,5 +1,5 @@
 import { SameSite } from '../types'
-import { serializeCookie, deserializeCookies, getCookie, setCookie } from './cookies'
+import { deleteCookie, deserializeCookies, getCookieValue, serializeCookie, setCookie } from './cookies'
 
 describe('Cookie Utils', () => {
   describe('serializeCookie', () => {
@@ -22,7 +22,7 @@ describe('Cookie Utils', () => {
     })
 
     it('should throw an error if name is missing', () => {
-      expect(() => serializeCookie({ name: '' })).toThrow('Cookie name is required')
+      expect(() => serializeCookie({ name: '', value: 'test' })).toThrow('Cookie name is required')
     })
   })
 
@@ -55,7 +55,7 @@ describe('Cookie Utils', () => {
     })
   })
 
-  describe('getCookie', () => {
+  describe('getCookieValue', () => {
     beforeEach(() => {
       Object.defineProperty(global.document, 'cookie', {
         writable: true,
@@ -64,7 +64,7 @@ describe('Cookie Utils', () => {
     })
 
     it('should retrieve correctly the value of the cookie', () => {
-      expect(getCookie('foo')).toBe('bar')
+      expect(getCookieValue('foo')).toBe('bar')
     })
   })
 
@@ -79,6 +79,21 @@ describe('Cookie Utils', () => {
     it('should set correctly a cookie', () => {
       setCookie({ name: 'foo', value: 'bar' })
       expect(document.cookie).toBe('foo=bar; Path=/; SameSite=lax')
+    })
+  })
+
+  describe('deleteCookie', () => {
+    beforeEach(() => {
+      Object.defineProperty(global.document, 'cookie', {
+        writable: true,
+        value: '',
+      })
+    })
+
+    it('should delete a cookie by setting expiry to past date', () => {
+      deleteCookie('foo')
+
+      expect(document.cookie).toBe('foo=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=lax')
     })
   })
 })

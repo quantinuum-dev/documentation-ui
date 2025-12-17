@@ -8,11 +8,23 @@ import { CookieConsentProvider, useCookieConsent } from './CookieConsentContext'
 import { act, renderHook } from '@testing-library/react'
 import React from 'react'
 
+vi.mock('app/(dashboard)/_root_layout/Features', () => ({
+  useFeaturesQuery: vi.fn(() => ({
+    data: {
+      cookies_consent_manager: {
+        enabled: true,
+        version: 1,
+      },
+    },
+  })),
+}))
+
 vi.mock('../service/cookie-consent-service', () => ({
   isConsentSetInCookies: vi.fn(),
   saveConsentInCookies: vi.fn(),
   acceptAllCookies: vi.fn(),
   rejectNonEssentialCookies: vi.fn(),
+  retrieveConsentCategoriesFromCookies: vi.fn(),
 }))
 
 const setup = () =>
@@ -135,7 +147,7 @@ describe('CookieConsentContext', () => {
       })
 
       expect(vi.mocked(saveConsentInCookies)).toHaveBeenCalledTimes(1)
-      expect(vi.mocked(saveConsentInCookies)).toHaveBeenCalledWith(mockConsent)
+      expect(vi.mocked(saveConsentInCookies)).toHaveBeenCalledWith(mockConsent, 1)
       expect(result.current.isConsentSet).toBe(true)
     })
   })

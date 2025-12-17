@@ -1,6 +1,7 @@
 import { CookieConsentManager } from './CookieConsentManager'
 import { render, screen } from '@testing-library/react'
 import * as CookieContext from 'app/_components/gdpr/contexts/CookieConsentContext'
+import { CookieCategoryName } from 'app/_components/gdpr/types'
 import { vi } from 'vitest'
 
 vi.mock('../CookieBanner/CookieBanner', () => ({ CookieBanner: () => <div data-testid="cookie-banner" /> }))
@@ -19,6 +20,7 @@ describe('CookieConsentManager', () => {
     openSettings: vi.fn(),
     saveConsent: vi.fn(),
     closeCookieSettingsDialog: vi.fn(),
+    consent: { [CookieCategoryName.Essential]: true, [CookieCategoryName.Analytics]: false },
   }
 
   beforeEach(() => {

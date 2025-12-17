@@ -1,18 +1,29 @@
 import { COOKIES_CONSENT_COOKIE_NAME } from '../cookies-consent.config'
 import { CookieCategoryName } from '../types'
-import { getCookie, setCookie } from '../utils/cookies'
+import { getCookieValue, setCookie } from '../utils/cookies'
 import {
-  retrieveConsent,
-  isConsentSetInCookies,
-  saveConsentInCookies,
   acceptAllCookies,
+  isConsentSetInCookies,
   rejectNonEssentialCookies,
+  retrieveConsentCategoriesFromCookies,
+  saveConsentInCookies,
 } from './cookie-consent-service'
 
-vi.mock('../utils/cookies', () => ({
-  getCookie: vi.fn(),
-  setCookie: vi.fn(),
-}))
+vi.mock('../cookies-consent.config', async () => {
+  const actual = await vi.importActual('../cookies-consent.config')
+  return {
+    ...actual,
+    COOKIES_CONSENT_VERSION: 1,
+  }
+})
+
+vi.mock('../utils/cookies', async () => {
+  return {
+    deleteCookie: vi.fn(),
+    getCookieValue: vi.fn(),
+    setCookie: vi.fn(),
+  }
+})
 
 describe('Cookie consent service', () => {
   const defaultConsent = {
@@ -32,40 +43,67 @@ describe('Cookie consent service', () => {
     vi.useRealTimers()
   })
 
-  describe('retrieveConsent', () => {
+  describe('retrieveConsentCategoriesFromCookies', () => {
     it('should return the default consent when no cookie exists', () => {
-      vi.mocked(getCookie).mockReturnValue(undefined)
+      vi.mocked(getCookieValue).mockReturnValue(undefined)
 
-      expect(retrieveConsent()).toEqual(defaultConsent)
-      expect(getCookie).toHaveBeenCalledTimes(1)
+      expect(retrieveConsentCategoriesFromCookies()).toEqual(defaultConsent)
+      expect(getCookieValue).toHaveBeenCalledTimes(1)
     })
 
-    it('should return the parsed cookie when cookie exists', () => {
+    it('should return the parsed cookie when cookie exists with valid schema', () => {
       const savedConsent = { Essential: true, Analytics: true }
-      vi.mocked(getCookie).mockReturnValue(JSON.stringify(savedConsent))
+      const validCookieValue = {
+        consentVersion: 1,
+        dateConsentWasGiven: '2025-11-19T12:00:00.000Z',
+        consentCategories: savedConsent,
+      }
+      vi.mocked(getCookieValue).mockReturnValue(JSON.stringify(validCookieValue))
 
-      expect(retrieveConsent()).toEqual(savedConsent)
+      expect(retrieveConsentCategoriesFromCookies()).toEqual(savedConsent)
     })
 
     it('should throw an error when cookie contains invalid JSON', () => {
-      vi.mocked(getCookie).mockReturnValue('invalid-json')
+      vi.mocked(getCookieValue).mockReturnValue('invalid-json')
 
-      expect(() => retrieveConsent()).toThrow('Invalid cookie consent data')
+      expect(() => retrieveConsentCategoriesFromCookies()).toThrow('Cookie contains invalid JSON')
     })
   })
 
   describe('isConsentSetInCookies', () => {
-    it('should return true when the cookie exists', () => {
-      vi.mocked(getCookie).mockReturnValue('some-value')
+    it('should return true when the cookie exists with valid version and schema', () => {
+      const validCookieValue = {
+        consentVersion: 1,
+        dateConsentWasGiven: '2025-11-19T12:00:00.000Z',
+        consentCategories: { Essential: true, Analytics: false },
+      }
+      vi.mocked(getCookieValue).mockReturnValue(JSON.stringify(validCookieValue))
 
-      expect(isConsentSetInCookies()).toBe(true)
-      expect(getCookie).toHaveBeenCalledTimes(1)
+      expect(isConsentSetInCookies(1)).toBe(true)
+      expect(getCookieValue).toHaveBeenCalledTimes(1)
     })
 
     it('should return false when the cookie does not exist', () => {
-      vi.mocked(getCookie).mockReturnValue(undefined)
+      vi.mocked(getCookieValue).mockReturnValue(undefined)
 
-      expect(isConsentSetInCookies()).toBe(false)
+      expect(isConsentSetInCookies(1)).toBe(false)
+    })
+
+    it('should return false when cookie has old version', () => {
+      const cookieWithOutdatedVersion = {
+        consentVersion: 2, // Above we always mock to version "1"
+        dateConsentWasGiven: '2025-11-19T12:00:00.000Z',
+        consentCategories: { Essential: true, Analytics: false },
+      }
+      vi.mocked(getCookieValue).mockReturnValue(JSON.stringify(cookieWithOutdatedVersion))
+
+      expect(isConsentSetInCookies(1)).toBe(false)
+    })
+
+    it('should return false when cookie has invalid schema', () => {
+      vi.mocked(getCookieValue).mockReturnValue(JSON.stringify({ invalid: 'data' }))
+
+      expect(isConsentSetInCookies(1)).toBe(false)
     })
   })
 
@@ -73,13 +111,17 @@ describe('Cookie consent service', () => {
     it('should call setCookie with the correct cookie data AND the expected expiry date', () => {
       const consent = { Essential: true, Analytics: true }
 
-      saveConsentInCookies(consent)
+      saveConsentInCookies(consent, 1)
 
       expect(setCookie).toHaveBeenCalledTimes(1)
       expect(setCookie).toHaveBeenCalledWith(
         expect.objectContaining({
           name: COOKIES_CONSENT_COOKIE_NAME,
-          value: JSON.stringify(consent),
+          value: JSON.stringify({
+            consentVersion: 1,
+            dateConsentWasGiven: frozenDate.toISOString(),
+            consentCategories: consent,
+          }),
           path: '/',
           sameSite: 'lax',
           expires: expectedExpiryDate,
@@ -90,14 +132,18 @@ describe('Cookie consent service', () => {
 
   describe('acceptAllCookies', () => {
     it('should set all cookie categories to true', () => {
-      acceptAllCookies()
+      acceptAllCookies(1)
 
       const expectedConsent = Object.fromEntries(Object.values(CookieCategoryName).map((category) => [category, true]))
 
       expect(setCookie).toHaveBeenCalledWith(
         expect.objectContaining({
           name: COOKIES_CONSENT_COOKIE_NAME,
-          value: JSON.stringify(expectedConsent),
+          value: JSON.stringify({
+            consentVersion: 1,
+            dateConsentWasGiven: frozenDate.toISOString(),
+            consentCategories: expectedConsent,
+          }),
           path: '/',
           sameSite: 'lax',
           expires: expectedExpiryDate,
@@ -109,7 +155,7 @@ describe('Cookie consent service', () => {
 
   describe('rejectNonEssentialCookies', () => {
     it('should set a cookie with only the "Essential" category as true', () => {
-      rejectNonEssentialCookies()
+      rejectNonEssentialCookies(1)
 
       const expectedConsent = Object.fromEntries(
         Object.values(CookieCategoryName).map((category) => [
@@ -121,7 +167,11 @@ describe('Cookie consent service', () => {
       expect(setCookie).toHaveBeenCalledWith(
         expect.objectContaining({
           name: COOKIES_CONSENT_COOKIE_NAME,
-          value: JSON.stringify(expectedConsent),
+          value: JSON.stringify({
+            consentVersion: 1,
+            dateConsentWasGiven: frozenDate.toISOString(),
+            consentCategories: expectedConsent,
+          }),
           path: '/',
           sameSite: 'lax',
           expires: expectedExpiryDate,

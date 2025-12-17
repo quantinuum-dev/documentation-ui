@@ -34,7 +34,7 @@ The above can be extended in the future as needed. To do so, just:
 1. Expand the `CookieCategories` object in the configuration file with the new category details.
 2. Update the `CookieCategoryName` enum in the types file accordingly.
 
-> **Important:** When adding new cookies or modifying existing ones, remember to increment `COOKIES_CONSENT_VERSION` to prompt existing users to review the updated cookie policy.
+> **Important:** When adding new cookies or modifying existing ones, remember to increment `COOKIES_CONSENT_VERSION` to prompt existing users to review the updated cookie notice.
 
 ## Usage
 

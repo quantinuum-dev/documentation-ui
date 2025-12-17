@@ -1,4 +1,4 @@
-import { type Cookie, SameSite, type CookieMap } from '../types'
+import { SameSite, type Cookie, type CookieMap } from '../types'
 
 // Cookies values cannot contain certain characters (;,=, whitespace), so we must encode(serialize) before storing the information in them.
 export function serializeCookie({
@@ -75,13 +75,33 @@ export function deserializeCookies(cookieString: string): CookieMap {
   return new Map(cookiePairs)
 }
 
-export function getCookie(name: string): string | undefined {
-  const cookies = deserializeCookies(document.cookie)
-  const value = cookies.get(name)
+function isOnServerSide(): boolean {
+  return typeof document === 'undefined'
+}
+
+export function getCookieValue(name: string): string | undefined {
+  if (isOnServerSide()) return
+  const listOfCookies = deserializeCookies(document.cookie)
+  const value = listOfCookies.get(name)
 
   return value || undefined
 }
 
 export function setCookie(cookie: Cookie) {
+  if (isOnServerSide()) return
   document.cookie = serializeCookie(cookie)
+}
+
+export function deleteCookie(name: string, options?: { path?: string; domain?: string }) {
+  if (isOnServerSide()) return
+
+  const cookie: Cookie = {
+    name,
+    value: '',
+    path: options?.path,
+    domain: options?.domain,
+    expires: new Date(0), // Setting the expiration date to a past date will delete the cookie
+  }
+
+  setCookie(cookie)
 }

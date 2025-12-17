@@ -18,7 +18,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
       <h2
         class="text-lg font-semibold mb-1.5"
       >
-        Manage Consent Settings
+        Manage Cookies Settings
       </h2>
       <p>
         Please choose whether this site may use optional cookies. Optional cookies help us measure usage and improve performance. We only set optional cookies with your consent. You can withdraw consent at any time in Cookie settings.
@@ -29,7 +29,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
         rel="noopener noreferrer"
         target="_blank"
       >
-        More information about our Cookie Policy
+        More information about our Cookie Notice
       </a>
     </header>
     <form>
