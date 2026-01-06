@@ -10,15 +10,15 @@ const defaultConsent: CookieConsent = {
 }
 
 // Auto-generated schema based on CookieCategoryName enum
-export const CookieConsentSchema = z.object(mapValues(CookieCategoryName, () => z.boolean()))
+const CookieConsentSchema = z.object(mapValues(CookieCategoryName, () => z.boolean()))
 
-export const CookieValueSchema = z.object({
+const CookieValueSchema = z.object({
   consentVersion: z.number(),
   dateConsentWasGiven: z.string().datetime(),
   consentCategories: CookieConsentSchema,
 })
 
-export function matchesConsentCookieSchema(parsedCookieValue: unknown): boolean {
+function matchesConsentCookieSchema(parsedCookieValue: unknown): boolean {
   return CookieValueSchema.safeParse(parsedCookieValue).success
 }
 
@@ -45,7 +45,7 @@ export function retrieveConsentCategoriesFromCookies(): CookieConsent {
   }
 }
 
-export function hasCorrectConsentVersion(cookieValue: CookieValue, currentVersion: number): boolean {
+function hasCorrectConsentVersion(cookieValue: CookieValue, currentVersion: number): boolean {
   if (cookieValue.consentVersion === currentVersion) {
     return true
   }
@@ -72,7 +72,7 @@ export function isConsentSetInCookies(currentVersion: number): boolean {
   return hasCorrectConsentVersion(parsedCookieValue, currentVersion) && matchesConsentCookieSchema(parsedCookieValue)
 }
 
-export function constructConsentCookieValue(consent: CookieConsent, currentVersion: number): CookieValue {
+function constructConsentCookieValue(consent: CookieConsent, currentVersion: number): CookieValue {
   const cookieValue: CookieValue = {
     consentVersion: currentVersion,
     dateConsentWasGiven: new Date().toISOString(),
