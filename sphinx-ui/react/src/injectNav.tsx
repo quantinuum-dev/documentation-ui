@@ -1,6 +1,6 @@
 
 import {createRoot} from "react-dom/client" 
-import { DocsNavBar } from "../../../src";
+import { DocsNavBar } from "@quantinuum/quantinuum-ui";
 import { ComponentProps } from "react"; // do not remove
 
   (() => {
