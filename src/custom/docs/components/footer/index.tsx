@@ -17,18 +17,30 @@ const footerConfig = {
         {
           name: "InQuanto",
           href: "/inquanto"
+        }, 
+        {
+          name: "Quantum Origin",
+          href: "/origin"
         }
       ]
     }, {
       name: "Opensource",
       items: [
         {
-          name: "TKET",
+          name: "pytket",
           href: "/tket"
         },
         {
-          name: "\u03BBambeq",
-          href: "/lambeq"
+          name: "guppy",
+          href: "/guppy"
+        },
+        {
+          name: "selene",
+          href: "/selene"
+        },
+        {
+          name: "qnexus",
+          href: "https://docs.quantinuum.com/nexus/trainings/notebooks/basics/getting_started.html"
         }
       ]
     },{
@@ -37,12 +49,18 @@ const footerConfig = {
         {
           name: "About", 
           href: "https://www.quantinuum.com/about",
-        }, {
+        },{
           name: "Careers",
           href: "https://www.quantinuum.com/careers",
         },{
           name: "Events", 
           href: "https://www.quantinuum.com/events"
+        },{
+          name: "Q-NET",
+          href: "https://www.quantinuum.com/q-net#get-started"
+        },{
+          name: "Startup Partner Program",
+          href: "https://www.quantinuum.com/startup-partner-program#join"
         }
       ]
     }

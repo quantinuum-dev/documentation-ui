@@ -61,11 +61,11 @@ const navConfig = {
       },]
     }, 
     {
-      title: "Developer Tools",
+      title: "Platform Tools",
       href: "",
       pathMatch: "",
       logo: <></>,
-      description: "Opensource developer tools empower users to build and experiment with quantum algorithms.",
+      description: "Platform tools empower users to build and experiment with quantum algorithms.",
       dropDown: [{
         title: 'Pytket',
         href: '/tket/',
@@ -76,9 +76,15 @@ const navConfig = {
         title: "Selene",
         href: "/selene/"
       }, {
-        title: "\u03BBambeq",
-        href: "/lambeq/"
-      }, 
+        title: "qnexus",
+        href: "https://docs.quantinuum.com/nexus/trainings/notebooks/basics/getting_started.html"
+      }, {
+        title: "Q-NET",
+        href: "https://www.quantinuum.com/q-net#get-started"
+      }, {
+        title: "Startup Partner Program",
+        href: "https://www.quantinuum.com/startup-partner-program#join"
+      }
     ]
     }, {
       title: "Solutions",
@@ -105,7 +111,7 @@ export const NavBar = (props: {
 }) => {
   return (
     <div className="bg-background text-foreground border-border sticky top-0 z-[100] w-full border-b shadow text-sm">
-      <div className=" bg-background px-3 md:px-4 flex h-12 items-center">
+      <div className=" bg-background px-3 md:px-4 flex h-12 items-center justify-between mx-auto max-w-[90rem]">
         <div className="mr-4 flex items-center">
           <div className='block md:hidden mr-3'>
             <MobileMenu {...navConfig}/>
@@ -132,7 +138,7 @@ export const NavBar = (props: {
           {props.enableModeSelector ? <> <div className='w-px h-6 bg-muted-foreground/50'></div><ModeSelector /> </>: null}
         </div>
         <div className='relative flex items-center gap-2'>
-          <svg
+          {/* <svg
             width="24"
             height="24"
             fill="none"
@@ -145,17 +151,22 @@ export const NavBar = (props: {
           >
             <path d="m19 19-3.5-3.5"></path>
             <circle cx="11" cy="11" r="6"></circle>
-          </svg>
-          <Input
+          </svg> */}
+          {/* <Input
             id="sphinx-searchbox"
             type="search"
             className="pl-10 pb-1.5"
             placeholder="Search documentation..."
-          />
+          /> */}
           <Button 
           variant="outline"
           className='bg-black text-white border border-border/60 shadow-md rounded-md hover:bg-white hover:text-black hover:border-black'
           ><a href="https://nexus.quantinuum.com/auth/login">Nexus Portal</a>
+          </Button>
+          <Button 
+          variant="outline"
+          className='bg-black text-white border border-border/60 shadow-md rounded-md hover:bg-white hover:text-black hover:border-black'
+          ><a href="https://nexus.quantinuum.com/auth/login">Product Updates</a>
           </Button>
         </div>
       </div>
