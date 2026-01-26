@@ -1,5 +1,5 @@
 {
-  "name": "@quantinuum/dui",
+  "name": "@quantinuum/documentation-ui",
   "version": "1.0.0",
   "description": "Quantinuum design tokens and React components for product documentation.",
   "private": false,
