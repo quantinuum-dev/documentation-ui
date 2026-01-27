@@ -21,4 +21,3 @@ templates_path = ['_templates']
 
 html_theme = 'quantinuum_sphinx'
 html_static_path = ['_static']
-html_favicon = 'quantinuum-sphinx/_static/assets/quantinuum_favicon.svg'
