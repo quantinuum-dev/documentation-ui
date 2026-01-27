@@ -96,7 +96,7 @@ const navConfig = {
         title: 'InQuanto',
         href: '/inquanto/',
       },{
-        title: 'Origin',
+        title: 'Quantum Origin',
         href: "/origin/",
       }
     ]
