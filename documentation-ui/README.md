@@ -15,3 +15,15 @@ npm run build # Build component library with rollup.
 
 ### Design Tokens
 CSS variables are declared in `src/tokens.css`. Dark mode is enabled when using the attribute `data-theme="dark"` higher up in the DOM tree. See `src/tokens.css` for more details.
+
+
+### Semantic release
+
+This package uses semantic-release for creating releases. So that the version numbers are incremented appropriately, commits should conform to the Angular Commit Message Conventions.
+
+A pre-commit hook that enforces this can be installed by running:
+
+```bash
+pipx install prek
+prek install --hook-type commit-msg
+```
