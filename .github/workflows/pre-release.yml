@@ -12,11 +12,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4 
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
             node-version: 20
             cache: 'npm'
+            # Path to the lock file needs to be specified explicitly as it is not in the root of the repository
+            cache-dependency-path: 'documentation-ui/package-lock.json'
       - run: |
           cd documentation-ui
           npm ci
