@@ -23,6 +23,7 @@ jobs:
             # Path to the lock file needs to be specified explicitly as it is not in the root of the repository
             cache-dependency-path: 'documentation-ui/package-lock.json'
       - run: |
+          cd documentation-ui
           npm ci
           npm run lint
           npm run build
