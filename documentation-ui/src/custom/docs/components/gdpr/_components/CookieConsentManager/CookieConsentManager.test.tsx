@@ -1,7 +1,7 @@
 import { CookieConsentManager } from './CookieConsentManager'
 import { render, screen } from '@testing-library/react'
-import * as CookieContext from 'app/_components/gdpr/contexts/CookieConsentContext'
-import { CookieCategoryName } from 'app/_components/gdpr/types'
+import * as CookieContext from 'src/custom/docs/components/gdpr/contexts/CookieConsentContext'
+import { CookieCategoryName } from 'src/custom/docs/components/gdpr/types'
 import { vi } from 'vitest'
 
 vi.mock('../CookieBanner/CookieBanner', () => ({ CookieBanner: () => <div data-testid="cookie-banner" /> }))

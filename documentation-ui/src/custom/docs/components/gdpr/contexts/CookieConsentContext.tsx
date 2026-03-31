@@ -8,7 +8,6 @@ import {
   saveConsentInCookies,
 } from '../service/cookie-consent-service'
 import { type CookieConsent } from '../types'
-import { useFeaturesQuery } from 'app/(dashboard)/_root_layout/Features'
 import { createContext, useContext, useReducer } from 'react'
 
 type CookieConsentContextType = {
@@ -90,7 +89,7 @@ function cookieStateReducer(state: CookieState, action: CookieAction): CookieSta
   }
 }
 
-const CookieConsentProviderInner = ({ children, version }: { children: React.ReactNode; version: number }) => {
+export const CookieConsentProvider = ({ children, version }: { children: React.ReactNode; version: number }) => {
   const [state, dispatch] = useReducer(cookieStateReducer, {
     isCookieBannerVisible: !isConsentSetInCookies(version),
     isCookieSettingsDialogVisible: false,
@@ -134,20 +133,6 @@ const CookieConsentProviderInner = ({ children, version }: { children: React.Rea
     >
       {children}
     </CookieConsentContext.Provider>
-  )
-}
-
-export const CookieConsentProvider = ({ children }: { children: React.ReactNode }) => {
-  const featuresQuery = useFeaturesQuery()
-
-  if (!featuresQuery.data?.cookies_consent_manager.version) {
-    return null
-  }
-
-  return (
-    <CookieConsentProviderInner version={featuresQuery.data.cookies_consent_manager.version}>
-      {children}
-    </CookieConsentProviderInner>
   )
 }
 

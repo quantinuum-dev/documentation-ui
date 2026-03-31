@@ -1,7 +1,7 @@
-import { CookieBanner } from 'app/_components/gdpr/_components/CookieBanner/CookieBanner'
-import { CookieSettingsButton } from 'app/_components/gdpr/_components/CookieSettingsButton/CookieSettingsButton'
-import { CookieSettingsDialog } from 'app/_components/gdpr/_components/CookieSettingsDialog/CookieSettingsDialog'
-import { useCookieConsent } from 'app/_components/gdpr/contexts/CookieConsentContext'
+import { CookieBanner } from 'src/custom/docs/components/gdpr/_components/CookieBanner/CookieBanner'
+import { CookieSettingsButton } from 'src/custom/docs/components/gdpr/_components/CookieSettingsButton/CookieSettingsButton'
+import { CookieSettingsDialog } from 'src/custom/docs/components/gdpr/_components/CookieSettingsDialog/CookieSettingsDialog'
+import { useCookieConsent } from 'src/custom/docs/components/gdpr/contexts/CookieConsentContext'
 
 export function CookieConsentManager() {
   const {
