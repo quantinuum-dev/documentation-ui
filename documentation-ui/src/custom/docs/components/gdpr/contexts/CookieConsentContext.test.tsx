@@ -29,7 +29,9 @@ vi.mock('../service/cookie-consent-service', () => ({
 
 const setup = () =>
   renderHook(() => useCookieConsent(), {
-    wrapper: ({ children }: { children: React.ReactNode }) => <CookieConsentProvider>{children}</CookieConsentProvider>,
+    wrapper: ({ children }: { children: React.ReactNode }) => (
+      <CookieConsentProvider version={1}>{children}</CookieConsentProvider>
+    ),
   })
 
 describe('CookieConsentContext', () => {

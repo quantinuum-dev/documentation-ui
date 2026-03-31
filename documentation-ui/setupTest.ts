@@ -22,11 +22,11 @@ if (typeof window !== 'undefined') {
   window.HTMLElement.prototype.scrollIntoView = vi.fn()
   window.HTMLElement.prototype.releasePointerCapture = vi.fn()
   window.HTMLElement.prototype.hasPointerCapture = vi.fn()
-  const ResizeObserverMock = vi.fn(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  }))
+  const ResizeObserverMock = vi.fn(class {
+    observe = vi.fn()
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+  })
   const MatchMediaMock = vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
