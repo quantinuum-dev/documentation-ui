@@ -1,7 +1,20 @@
-import { CookieBanner } from 'src/custom/docs/components/gdpr/_components/CookieBanner/CookieBanner'
+import dynamic from 'next/dynamic'
 import { CookieSettingsButton } from 'src/custom/docs/components/gdpr/_components/CookieSettingsButton/CookieSettingsButton'
 import { CookieSettingsDialog } from 'src/custom/docs/components/gdpr/_components/CookieSettingsDialog/CookieSettingsDialog'
 import { useCookieConsent } from 'src/custom/docs/components/gdpr/contexts/CookieConsentContext'
+
+type CookieBannerProps = {
+  isOpen: boolean
+  onAccept(): void
+  onReject(): void
+  onSettings(): void
+}
+
+const CookieBanner = dynamic<CookieBannerProps>(
+  () =>
+    import('src/custom/docs/components/gdpr/_components/CookieBanner/CookieBanner').then((module) => module.CookieBanner),
+  { ssr: false }
+)
 
 export function CookieConsentManager() {
   const {

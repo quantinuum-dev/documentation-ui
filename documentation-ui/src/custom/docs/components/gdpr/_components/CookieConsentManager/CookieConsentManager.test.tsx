@@ -27,7 +27,7 @@ describe('CookieConsentManager', () => {
     vi.clearAllMocks()
   })
 
-  it('should render cookie banner when banner is visible', () => {
+  it('should render cookie banner when banner is visible', async () => {
     mockUseCookieConsent.mockReturnValue({
       ...defaultMockActions,
       isCookieBannerVisible: true,
@@ -37,7 +37,7 @@ describe('CookieConsentManager', () => {
 
     render(<CookieConsentManager />)
 
-    expect(screen.getByTestId('cookie-banner')).toBeDefined()
+    expect(await screen.findByTestId('cookie-banner')).toBeDefined()
     expect(screen.queryByTestId('cookie-settings-dialog')).toBe(null)
     expect(screen.queryByTestId('settings-button-persistent')).toBe(null)
   })
