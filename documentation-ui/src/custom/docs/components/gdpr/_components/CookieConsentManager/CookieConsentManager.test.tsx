@@ -1,6 +1,7 @@
 import { CookieConsentManager } from './CookieConsentManager'
 import { render, screen } from '@testing-library/react'
-import * as CookieContext from 'src/custom/docs/components/gdpr/contexts/CookieConsentContext'
+import * as CookieContext from 'src/custom/docs/components/gdpr/contexts/useCookieConsent'
+
 import { CookieCategoryName } from 'src/custom/docs/components/gdpr/types'
 import { vi } from 'vitest'
 

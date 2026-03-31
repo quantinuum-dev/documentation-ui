@@ -39,7 +39,7 @@ export function retrieveConsentCategoriesFromCookies(): CookieConsent {
       deleteCookie(COOKIES_CONSENT_COOKIE_NAME)
       throw new Error('Cookie does not match expected schema')
     }
-  } catch (error) {
+  } catch {
     deleteCookie(COOKIES_CONSENT_COOKIE_NAME)
     throw new Error('Cookie contains invalid JSON')
   }
@@ -95,7 +95,7 @@ export function saveConsentInCookies(newConsent: CookieConsent, currentVersion: 
 }
 
 export function acceptAllCookies(currentVersion: number) {
-  const consent: Record<CookieCategoryName, true> = mapValues(CookieCategoryName, (_) => true as const)
+  const consent: Record<CookieCategoryName, true> = mapValues(CookieCategoryName, () => true as const)
 
   saveConsentInCookies(consent, currentVersion)
 }

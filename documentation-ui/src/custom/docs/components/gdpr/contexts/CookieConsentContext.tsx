@@ -8,21 +8,8 @@ import {
   saveConsentInCookies,
 } from '../service/cookie-consent-service'
 import { type CookieConsent } from '../types'
-import { createContext, useContext, useReducer } from 'react'
-
-type CookieConsentContextType = {
-  acceptAll: () => void
-  closeCookieSettingsDialog: () => void
-  consent: CookieConsent
-  isConsentSet: boolean
-  isCookieBannerVisible: boolean
-  isCookieSettingsDialogVisible: boolean
-  openSettings: () => void
-  rejectNonEssential: () => void
-  saveConsent: (consent: CookieConsent) => void
-}
-
-export const CookieConsentContext = createContext<CookieConsentContextType | null>(null)
+import { useReducer } from 'react'
+import { CookieConsentContext } from './CookieConsentShared'
 
 type CookieState = {
   isCookieBannerVisible: boolean
@@ -134,14 +121,4 @@ export const CookieConsentProvider = ({ children, version }: { children: React.R
       {children}
     </CookieConsentContext.Provider>
   )
-}
-
-export const useCookieConsent = (): CookieConsentContextType => {
-  const ctx = useContext(CookieConsentContext)
-
-  if (!ctx) {
-    throw new Error('"useCookieConsent" hook was called outside of CookieConsentProvider')
-  }
-
-  return ctx
 }

@@ -1,11 +1,10 @@
-import { LucideIcon } from 'lucide-react'
 import React from 'react'
 import { cn } from 'src'
 
 const CardTitle = React.forwardRef<
   HTMLParagraphElement,
-  React.InputHTMLAttributes<HTMLParagraphElement>
->(({ className, type, ...props }, ref) => {
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
   return (
     <p
       className={cn(
@@ -22,8 +21,8 @@ CardTitle.displayName = 'CardTitle'
 
 const CardSubtitle = React.forwardRef<
   HTMLParagraphElement,
-  React.InputHTMLAttributes<HTMLParagraphElement>
->(({ className, type, ...props }, ref) => {
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
   return (
     <p
       className={cn('text-muted-foreground mb-6 mt-4 text-sm', className)}
@@ -37,8 +36,8 @@ CardSubtitle.displayName = 'CardSubtitle'
 
 const Card = React.forwardRef<
   HTMLParagraphElement,
-  React.InputHTMLAttributes<HTMLParagraphElement>
->(({ className, type, ...props }, ref) => {
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
   return (
     <div
       className={cn(
@@ -55,8 +54,8 @@ Card.displayName = 'Card'
 
 const IconBar = React.forwardRef<
   HTMLParagraphElement,
-  React.InputHTMLAttributes<HTMLParagraphElement>
->(({ className, type, ...props }, ref) => {
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
   return (
     <div
       className={cn('mb-4 flex items-center justify-between', className)}

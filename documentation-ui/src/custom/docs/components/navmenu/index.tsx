@@ -7,13 +7,7 @@ import { QuantinuumIdent } from './QuantinuumIdent'
 import { ModeSelector } from './ModeSelector'
 import { SystemsLogo } from '../logos/SystemsLogo'
 import { NexusLogo } from '../logos/NexusLogo'
-import { TKETLogo } from '../logos/TKETLogo'
-import { InquantoLogo } from '../logos/InQuantoLogo'
-import { LambeqLogo } from '../logos/LambeqLogo'
 import { Button } from '@quantinuum/quantinuum-ui'
-import Link from 'next/link'
-
-import { Input } from '@quantinuum/quantinuum-ui'
 
 
 const navConfig = {

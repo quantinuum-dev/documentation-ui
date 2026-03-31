@@ -3,7 +3,6 @@
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules", "dist", "storybook-static", "sphinx-ui"],
   "compilerOptions": {
-    "baseUrl": "./",
     "target": "es2016",
     "strict": true,
     "noImplicitAny": true,
@@ -12,10 +11,15 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "declaration": true,
+    "types": ["vitest/globals"],
 
     "sourceMap": true,
     "outDir": "dist",
-    "moduleResolution": "node",
+    "baseUrl": ".",
+    "moduleResolution": "bundler",
+    "paths": {
+      "src/*": ["./src/*"]
+    },
     "allowSyntheticDefaultImports": true,
     "emitDeclarationOnly": true
   }

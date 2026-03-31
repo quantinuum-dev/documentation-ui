@@ -1,5 +1,4 @@
-const modes = ["system", "dark", "light"] as const;
-type Mode = (typeof modes)[number];
+type Mode = "system" | "dark" | "light";
 const isMode = (mode: string): mode is Mode => {
   return ["system", "dark", "light"].includes(mode);
 };

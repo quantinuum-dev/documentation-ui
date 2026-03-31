@@ -1,15 +1,19 @@
 import { CookieBanner } from './CookieBanner'
 import { render } from '@testing-library/react'
 import { vi, describe, beforeEach, afterEach, it, expect } from 'vitest'
+import type { PropsWithChildren, ButtonHTMLAttributes, HTMLAttributes } from 'react'
+
+type MockButtonProps = PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement>>
+type MockDialogProps = PropsWithChildren<HTMLAttributes<HTMLDivElement>>
 
 vi.mock('@quantinuum/quantinuum-ui', () => ({
-  Button: (props: any) => (
+  Button: (props: MockButtonProps) => (
     <button aria-label="button" {...props}>
       {props.children}
     </button>
   ),
-  Dialog: (props: any) => <div aria-label="dialog">{props.children}</div>,
-  DialogContent: (props: any) => <div aria-label="dialog-content">{props.children}</div>,
+  Dialog: (props: MockDialogProps) => <div aria-label="dialog">{props.children}</div>,
+  DialogContent: (props: MockDialogProps) => <div aria-label="dialog-content">{props.children}</div>,
 }))
 
 const defaultProps = {

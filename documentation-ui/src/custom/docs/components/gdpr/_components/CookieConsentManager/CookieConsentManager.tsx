@@ -1,7 +1,7 @@
 import dynamic from 'next/dynamic'
 import { CookieSettingsButton } from 'src/custom/docs/components/gdpr/_components/CookieSettingsButton/CookieSettingsButton'
 import { CookieSettingsDialog } from 'src/custom/docs/components/gdpr/_components/CookieSettingsDialog/CookieSettingsDialog'
-import { useCookieConsent } from 'src/custom/docs/components/gdpr/contexts/CookieConsentContext'
+import { useCookieConsent } from 'src/custom/docs/components/gdpr/contexts/useCookieConsent'
 
 type CookieBannerProps = {
   isOpen: boolean

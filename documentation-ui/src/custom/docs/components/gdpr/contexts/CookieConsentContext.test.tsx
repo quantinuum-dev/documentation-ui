@@ -4,7 +4,8 @@ import {
   rejectNonEssentialCookies,
   saveConsentInCookies,
 } from '../service/cookie-consent-service'
-import { CookieConsentProvider, useCookieConsent } from './CookieConsentContext'
+import { CookieConsentProvider } from './CookieConsentContext'
+import { useCookieConsent } from './useCookieConsent'
 import { act, renderHook } from '@testing-library/react'
 import React from 'react'
 
