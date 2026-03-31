@@ -61,7 +61,7 @@ const navConfig = {
       },]
     }, 
     {
-      title: "Platform Tools",
+      title: "Developer Suite",
       href: "",
       pathMatch: "",
       logo: <></>,
@@ -79,11 +79,15 @@ const navConfig = {
         title: "qnexus",
         href: "https://docs.quantinuum.com/nexus/trainings/notebooks/basics/getting_started.html"
       }, {
+        title: "Lambeq",
+        href: "/lambeq/"
+      }, {
         title: "Q-NET",
         href: "https://www.quantinuum.com/q-net#get-started"
       }, {
         title: "Startup Partner Program",
         href: "https://www.quantinuum.com/startup-partner-program#join"
+      }, {
       }
     ]
     }, {
