@@ -41,9 +41,8 @@ The above can be extended in the future as needed. To do so, just:
 To integrate the GDPR component into your application:
 
 1. **Wrap your component tree** with `CookieConsentProvider` where you want to use the GDPR functionality
-2. **Enable the isGDPRCookiesBannerEnabled flag** to true in the `CookieConsentContext` (this can be later extended to come from a feature flag or configuration)
-3. **Import the `CookieConsentManager` component** in a component that renders on every page (e.g., root layout):
-4. **Conditionally load scripts** by importing the `onGrantedConsent` function from the service and wrapping any scripts that should only run with user consent
+2. **Import the `CookieConsentManager` component** in a component that renders on every page (e.g., root layout):
+3. **Conditionally load scripts** by importing the `useCookieConsent` function from the service and wrapping any scripts that should only run with user consent
 
 ### Example
 
