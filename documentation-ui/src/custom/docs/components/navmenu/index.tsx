@@ -7,13 +7,7 @@ import { QuantinuumIdent } from './QuantinuumIdent'
 import { ModeSelector } from './ModeSelector'
 import { SystemsLogo } from '../logos/SystemsLogo'
 import { NexusLogo } from '../logos/NexusLogo'
-import { TKETLogo } from '../logos/TKETLogo'
-import { InquantoLogo } from '../logos/InQuantoLogo'
-import { LambeqLogo } from '../logos/LambeqLogo'
 import { Button } from '@quantinuum/quantinuum-ui'
-import Link from 'next/link'
-
-import { Input } from '@quantinuum/quantinuum-ui'
 
 
 const navConfig = {
@@ -61,11 +55,11 @@ const navConfig = {
       },]
     }, 
     {
-      title: "Platform Tools",
+      title: "Developer Suite",
       href: "",
       pathMatch: "",
       logo: <></>,
-      description: "Platform tools empower users to build and experiment with quantum algorithms.",
+      description: "Developer tools empower users to build and experiment with quantum algorithms.",
       dropDown: [{
         title: 'Pytket',
         href: '/tket/',
@@ -78,6 +72,9 @@ const navConfig = {
       }, {
         title: "qnexus",
         href: "https://docs.quantinuum.com/nexus/trainings/notebooks/basics/getting_started.html"
+      }, {
+        title: "Lambeq",
+        href: "/lambeq/"
       }, {
         title: "Q-NET",
         href: "https://www.quantinuum.com/q-net#get-started"
