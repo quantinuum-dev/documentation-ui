@@ -7,13 +7,7 @@ import { QuantinuumIdent } from './QuantinuumIdent'
 import { ModeSelector } from './ModeSelector'
 import { SystemsLogo } from '../logos/SystemsLogo'
 import { NexusLogo } from '../logos/NexusLogo'
-import { TKETLogo } from '../logos/TKETLogo'
-import { InquantoLogo } from '../logos/InQuantoLogo'
-import { LambeqLogo } from '../logos/LambeqLogo'
 import { Button } from '@quantinuum/quantinuum-ui'
-import Link from 'next/link'
-
-import { Input } from '@quantinuum/quantinuum-ui'
 
 
 const navConfig = {
@@ -65,7 +59,7 @@ const navConfig = {
       href: "",
       pathMatch: "",
       logo: <></>,
-      description: "Platform tools empower users to build and experiment with quantum algorithms.",
+      description: "Developer tools empower users to build and experiment with quantum algorithms.",
       dropDown: [{
         title: 'Pytket',
         href: '/tket/',
@@ -87,7 +81,6 @@ const navConfig = {
       }, {
         title: "Startup Partner Program",
         href: "https://www.quantinuum.com/startup-partner-program#join"
-      }, {
       }
     ]
     }, {
