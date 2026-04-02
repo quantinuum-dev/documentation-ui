@@ -5,16 +5,16 @@ import { useCookieConsent } from '../../contexts/useCookieConsent'
 import { type CookieCategoryName } from '../../types'
 
 type CookieConditionalProps = PropsWithChildren<{
-	category: CookieCategoryName
-	fallback?: ReactNode
+  category: CookieCategoryName
+  fallback?: ReactNode
 }>
 
 export function CookieConditional({ category, fallback = null, children }: CookieConditionalProps) {
-	const { consent } = useCookieConsent()
+  const { consent } = useCookieConsent()
 
-	if (!consent[category]) {
-		return <>{fallback}</>
-	}
+  if (!consent[category]) {
+    return <>{fallback}</>
+  }
 
-	return <>{children}</>
+  return <>{children}</>
 }
