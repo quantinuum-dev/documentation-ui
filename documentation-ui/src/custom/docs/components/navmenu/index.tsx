@@ -55,11 +55,11 @@ const navConfig = {
       },]
     }, 
     {
-      title: "Platform Tools",
+      title: "Developer Suite",
       href: "",
       pathMatch: "",
       logo: <></>,
-      description: "Platform tools empower users to build and experiment with quantum algorithms.",
+      description: "Developer tools empower users to build and experiment with quantum algorithms.",
       dropDown: [{
         title: 'Pytket',
         href: '/tket/',
@@ -72,6 +72,9 @@ const navConfig = {
       }, {
         title: "qnexus",
         href: "https://docs.quantinuum.com/nexus/trainings/notebooks/basics/getting_started.html"
+      }, {
+        title: "Lambeq",
+        href: "/lambeq/"
       }, {
         title: "Q-NET",
         href: "https://www.quantinuum.com/q-net#get-started"

@@ -54,6 +54,8 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
     "@chromatic-com/storybook": "^3.2.6",
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
     "@eslint/js": "^9.25.1",
     "@rollup/plugin-commonjs": "^29.0.2",
     "@rollup/plugin-node-resolve": "^16.0.3",
