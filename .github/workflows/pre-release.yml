@@ -19,7 +19,7 @@ jobs:
             cache: 'npm'
             # Path to the lock file needs to be specified explicitly as it is not in the root of the repository
             cache-dependency-path: 'documentation-ui/package-lock.json'
-      - name: Lint and build documentation UI JS package
+      - name: Lint documentation UI JS package
         working-directory: documentation-ui
         run: |
           npm ci
@@ -39,7 +39,7 @@ jobs:
             cache: 'npm'
             # Path to the lock file needs to be specified explicitly as it is not in the root of the repository
             cache-dependency-path: 'documentation-ui/package-lock.json'
-      - name: Lint and build documentation UI JS package
+      - name: Build documentation UI JS package
         working-directory: documentation-ui
         run: |
           npm ci
