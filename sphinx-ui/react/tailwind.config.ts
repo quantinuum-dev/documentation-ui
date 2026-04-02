@@ -1,12 +1,13 @@
 import path from 'path'
 import { Config } from 'tailwindcss'
 import plugin from 'tailwindcss/plugin'
-import { tailwindTheme } from '@quantinuum/quantinuum-ui'
+import { tailwindTheme } from '@quantinuum/documentation-ui'
+
 export default {
     content: [
         './src/**/*.{js,ts,jsx,tsx,mdx,html}',
         path.join(
-          path.dirname(require.resolve('@quantinuum/quantinuum-ui')),
+          path.dirname(require.resolve('@quantinuum/documentation-ui')),
           '**/*.{js,ts,jsx,tsx,mdx}'
         ),
     ],
