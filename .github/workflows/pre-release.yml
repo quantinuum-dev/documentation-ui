@@ -8,7 +8,7 @@ on:
         - '!main'   # excludes main
 
 jobs:
-  release:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,6 +24,25 @@ jobs:
         run: |
           npm ci
           npm run lint
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+            node-version: 20
+            cache: 'npm'
+            # Path to the lock file needs to be specified explicitly as it is not in the root of the repository
+            cache-dependency-path: 'documentation-ui/package-lock.json'
+      - name: Lint and build documentation UI JS package
+        working-directory: documentation-ui
+        run: |
+          npm ci
           npm run build
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
