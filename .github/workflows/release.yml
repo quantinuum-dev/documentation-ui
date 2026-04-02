@@ -22,13 +22,17 @@ jobs:
             cache: 'npm'
             # Path to the lock file needs to be specified explicitly as it is not in the root of the repository
             cache-dependency-path: 'documentation-ui/package-lock.json'
-      - run: |
-          cd documentation-ui
+      - name: Lint and build documentation UI JS package
+        working-directory: documentation-ui
+        run: |
           npm ci
           npm run lint
           npm run build
 
-      - run: npx semantic-release
+      - name: Release documentation UI JS package
+        working-directory: documentation-ui
+        run: |
+          npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -43,8 +47,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Generate UI Assets
+        working-directory: sphinx-ui/react
         run: |
-          cd sphinx-ui/react/
           echo "🔨 Generating UI assets..."
           npm update @quantinuum/documentation-ui
           npm install
@@ -55,6 +59,7 @@ jobs:
           npx tailwindcss --postcss ./postcss.config.cjs -i ./index.css -o ../quantinuum_sphinx/static/styles/quantinuum-ui-tailwind.css
           echo ✅ "Done. Generated UI assets."
       - name: Build and Publish to PyPI
+        working-directory: sphinx-ui
         env:
           PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
           PYPI_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
