@@ -1,6 +1,5 @@
 
 import {createRoot} from "react-dom/client" 
-import { ComponentProps } from "react";
 import { NavBar } from "../../components/navmenu";
 
   (() => {

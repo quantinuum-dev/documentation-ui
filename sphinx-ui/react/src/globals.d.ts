@@ -10,3 +10,4 @@ type Icon = {
 declare const navTextLinks: Link[]
 declare const navProductName: string
 declare const navIconLinks: (Icon & Link)[]
+declare const __NEXT_PUBLIC_GA_ID__: string | undefined
