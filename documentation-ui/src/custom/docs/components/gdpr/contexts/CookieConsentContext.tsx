@@ -66,23 +66,35 @@ function cookieStateReducer(state: CookieState, action: CookieAction): CookieSta
         isCookieBannerVisible: !state.isConsentSet,
       }
     case 'INITIALIZE':
+      const isConsentSet = isConsentSetInCookies(action.version)
       return {
         ...state,
-        isConsentSet: isConsentSetInCookies(action.version),
-        isCookieBannerVisible: !isConsentSetInCookies(action.version),
+        isConsentSet,
+        isCookieBannerVisible: !isConsentSet,
       }
     default:
       return state
   }
 }
 
-export const CookieConsentProvider = ({ children, version }: { children: React.ReactNode; version: number }) => {
-  const [state, dispatch] = useReducer(cookieStateReducer, {
-    isCookieBannerVisible: !isConsentSetInCookies(version),
+function initCookieState(version: number): CookieState {
+  const isConsentSet = isConsentSetInCookies(version)
+  return {
+    isCookieBannerVisible: !isConsentSet,
     isCookieSettingsDialogVisible: false,
-    isConsentSet: isConsentSetInCookies(version),
+    isConsentSet,
     consent: retrieveConsentCategoriesFromCookies(),
-  })
+  }
+}
+
+export const CookieConsentProvider = ({
+  children,
+  version,
+}: {
+  children: React.ReactNode
+  version: number
+}) => {
+  const [state, dispatch] = useReducer(cookieStateReducer, version, initCookieState)
 
   function acceptAll() {
     dispatch({ type: 'ACCEPT_ALL', version })

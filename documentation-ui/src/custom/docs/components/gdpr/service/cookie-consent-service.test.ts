@@ -39,10 +39,6 @@ describe('Cookie consent service', () => {
     vi.setSystemTime(frozenDate)
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
   describe('retrieveConsentCategoriesFromCookies', () => {
     it('should return the default consent when no cookie exists', () => {
       vi.mocked(getCookieValue).mockReturnValue(undefined)
@@ -63,10 +59,10 @@ describe('Cookie consent service', () => {
       expect(retrieveConsentCategoriesFromCookies()).toEqual(savedConsent)
     })
 
-    it('should throw an error when cookie contains invalid JSON', () => {
+    it('should return the default consent when cookie contains invalid JSON', () => {
       vi.mocked(getCookieValue).mockReturnValue('invalid-json')
 
-      expect(() => retrieveConsentCategoriesFromCookies()).toThrow('Cookie contains invalid JSON')
+      expect(retrieveConsentCategoriesFromCookies()).toEqual(defaultConsent)
     })
   })
 
@@ -134,7 +130,9 @@ describe('Cookie consent service', () => {
     it('should set all cookie categories to true', () => {
       acceptAllCookies(1)
 
-      const expectedConsent = Object.fromEntries(Object.values(CookieCategoryName).map((category) => [category, true]))
+      const expectedConsent = Object.fromEntries(
+        Object.values(CookieCategoryName).map((category) => [category, true])
+      )
 
       expect(setCookie).toHaveBeenCalledWith(
         expect.objectContaining({

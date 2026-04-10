@@ -23,10 +23,10 @@ repos:
         exclude: '(node_modules|sphinx-ui/demo/build)'
 
       - id: documentation-ui-format
-        name: Biome format check (documentation-ui)
+        name: Biome format (documentation-ui)
         language: system
-        entry: bash -c 'cd documentation-ui && npx biome format src stories'
-        pass_filenames: false
+        entry: bash -c 'cd documentation-ui && npx biome format --write "${@/#documentation-ui\//}"' --
+        pass_filenames: true
         files: '^documentation-ui/(src|stories)/.*\.(ts|tsx|js|jsx|css|json)$'
 
       - id: commitlint

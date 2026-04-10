@@ -1,5 +1,11 @@
 import { COOKIES_CONSENT_COOKIE_NAME, COOKIES_CONSENT_EXPIRY_DAYS } from '../cookies-consent.config'
-import { type Cookie, CookieCategoryName, type CookieConsent, type CookieValue, SameSite } from '../types'
+import {
+  type Cookie,
+  CookieCategoryName,
+  type CookieConsent,
+  type CookieValue,
+  SameSite,
+} from '../types'
 import { deleteCookie, getCookieValue, setCookie } from '../utils/cookies'
 import { mapValues } from 'remeda'
 import { z } from 'zod'
@@ -37,11 +43,11 @@ export function retrieveConsentCategoriesFromCookies(): CookieConsent {
       // If the cookie does not match the expected schema
       // then we delete it to avoid keeping invalid data
       deleteCookie(COOKIES_CONSENT_COOKIE_NAME)
-      throw new Error('Cookie does not match expected schema')
+      return defaultConsent
     }
   } catch {
     deleteCookie(COOKIES_CONSENT_COOKIE_NAME)
-    throw new Error('Cookie contains invalid JSON')
+    return defaultConsent
   }
 }
 
@@ -67,9 +73,17 @@ export function isConsentSetInCookies(currentVersion: number): boolean {
     return false
   }
 
-  const parsedCookieValue = JSON.parse(cookieValue)
+  try {
+    const parsedCookieValue = JSON.parse(cookieValue)
 
-  return hasCorrectConsentVersion(parsedCookieValue, currentVersion) && matchesConsentCookieSchema(parsedCookieValue)
+    return (
+      hasCorrectConsentVersion(parsedCookieValue, currentVersion) &&
+      matchesConsentCookieSchema(parsedCookieValue)
+    )
+  } catch {
+    deleteCookie(COOKIES_CONSENT_COOKIE_NAME)
+    return false
+  }
 }
 
 function constructConsentCookieValue(consent: CookieConsent, currentVersion: number): CookieValue {
@@ -95,7 +109,10 @@ export function saveConsentInCookies(newConsent: CookieConsent, currentVersion: 
 }
 
 export function acceptAllCookies(currentVersion: number) {
-  const consent: Record<CookieCategoryName, true> = mapValues(CookieCategoryName, () => true as const)
+  const consent: Record<CookieCategoryName, true> = mapValues(
+    CookieCategoryName,
+    () => true as const
+  )
 
   saveConsentInCookies(consent, currentVersion)
 }
