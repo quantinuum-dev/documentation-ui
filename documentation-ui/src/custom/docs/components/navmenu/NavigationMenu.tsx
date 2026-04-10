@@ -22,9 +22,6 @@ export const Navigation = (props: {
     }[],
   }[];
 } ) => {
-  const isActivePath = (activePath: string, path: string) => {
-    return activePath.startsWith(path)
-  }
   return (
     <NavigationMenu className="place-self-center sm:block">
       <NavigationMenuList className="hidden md:flex">

@@ -4,18 +4,20 @@ import typescript from "@rollup/plugin-typescript";
 import copy from "rollup-plugin-copy";
 import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import preserveDirectives from "rollup-plugin-preserve-directives";
-import { terser } from "rollup-plugin-terser";
+import terser from "@rollup/plugin-terser";
+
+const suppressUseClientWarning = (warning, warn) => {
+  if (
+    warning.code === "MODULE_LEVEL_DIRECTIVE" &&
+    (warning.message.includes("'use client'") || warning.message.includes('"use client"'))
+  ) {
+    return;
+  }
+  warn(warning);
+};
 
 export default [{
-  onwarn(warning, warn) {
-    if (
-      warning.code === "MODULE_LEVEL_DIRECTIVE" &&
-      warning.message.includes(`'use client'`)
-    ) {
-      return;
-    }
-    warn(warning);
-  },
+  onwarn: suppressUseClientWarning,
   input: "src/index.ts",
   output: [
     {
@@ -41,6 +43,7 @@ export default [{
   ],
 
 }, {
+  onwarn: suppressUseClientWarning,
   input: "src/utils/syncTheme.ts",
   output: [
     {
