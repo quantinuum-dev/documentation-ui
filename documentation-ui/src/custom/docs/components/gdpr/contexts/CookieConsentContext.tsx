@@ -65,13 +65,14 @@ function cookieStateReducer(state: CookieState, action: CookieAction): CookieSta
         isCookieSettingsDialogVisible: false,
         isCookieBannerVisible: !state.isConsentSet,
       }
-    case 'INITIALIZE':
+    case 'INITIALIZE': {
       const isConsentSet = isConsentSetInCookies(action.version)
       return {
         ...state,
         isConsentSet,
         isCookieBannerVisible: !isConsentSet,
       }
+    }
     default:
       return state
   }

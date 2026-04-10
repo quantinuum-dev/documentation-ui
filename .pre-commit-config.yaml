@@ -29,6 +29,13 @@ repos:
         pass_filenames: true
         files: '^documentation-ui/(src|stories)/.*\.(ts|tsx|js|jsx|css|json)$'
 
+      - id: documentation-ui-lint
+        name: Lint (documentation-ui)
+        language: system
+        entry: bash -c 'cd documentation-ui && npm run lint'
+        pass_filenames: false
+        files: '^documentation-ui/src/.*\.(ts|tsx|js|jsx)$'
+
       - id: commitlint
         name: commitlint
         language: system
