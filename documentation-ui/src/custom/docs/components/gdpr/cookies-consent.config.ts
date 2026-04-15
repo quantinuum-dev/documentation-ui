@@ -11,19 +11,7 @@ export const CookieCategories: CookieCategory[] = [
     name: CookieCategoryName.Essential,
     description:
       'Required for core functionality and security. Examples: sign-in and session management, fraud prevention, storing your cookie settings and basic preferences.',
-    cookies: [
-      {
-        name: 'myqos_id',
-        description: "Stores a JSON Web Token (JWT) used to identify and authenticate the user's session securely.",
-        expiry: 'Session',
-      },
-      {
-        name: 'myqos_oat',
-        description:
-          'A longer-lived token used to obtain new access tokens (a refresh mechanism). It may also store extra OAuth-related session data, like authorization scope or tenant info.',
-        expiry: '1 month',
-      },
-    ],
+    cookies: [],
   },
   {
     alwaysOn: false,
