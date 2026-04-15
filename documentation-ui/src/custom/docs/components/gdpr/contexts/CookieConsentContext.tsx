@@ -8,7 +8,7 @@ import {
   saveConsentInCookies,
 } from '../service/cookie-consent-service'
 import { type CookieConsent } from '../types'
-import { useReducer } from 'react'
+import { type ReactNode, useReducer } from 'react'
 import { CookieConsentContext } from './CookieConsentShared'
 
 type CookieState = {
@@ -92,7 +92,7 @@ export const CookieConsentProvider = ({
   children,
   version,
 }: {
-  children: React.ReactNode
+  children: ReactNode
   version: number
 }) => {
   const [state, dispatch] = useReducer(cookieStateReducer, version, initCookieState)

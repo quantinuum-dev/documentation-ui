@@ -1,7 +1,7 @@
 # GDPR Component - A lightweight cookie management solution
 
 This component manages user consent for cookies in compliance with GDPR regulations.
-It provides a user interface for users to accept or reject different categories of cookies and stores their settings on the client side in a cookie called `cookie_consent`.
+It provides a user interface for users to accept or reject different categories of cookies and stores their settings on the client side in a cookie called `cookies_consent`.
 
 ## Architecture
 
