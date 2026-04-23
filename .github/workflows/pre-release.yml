@@ -65,6 +65,10 @@ jobs:
           node-version: 22
           cache: 'npm'
           cache-dependency-path: 'sphinx-ui/react/package-lock.json'
+      - name: Install documentation UI dependencies for local file package
+        working-directory: documentation-ui
+        run: |
+          npm ci
       - name: Download documentation UI dist artifact
         uses: actions/download-artifact@v8
         with:
@@ -74,8 +78,7 @@ jobs:
         working-directory: sphinx-ui/react
         run: |
           echo "🔨 Generating UI assets..."
-          npm update @quantinuum/documentation-ui
-          npm install
+          npm ci
           npm run build
           cp ./build/injectNav.global.js ../quantinuum_sphinx/static/injectNav.global.js
           cp ./build/syncTheme.global.js ../quantinuum_sphinx/static/syncTheme.global.js
