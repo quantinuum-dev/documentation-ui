@@ -7,9 +7,10 @@ authors = [
   { name = "Irfan Khan", email = "irfan.khan@quantinuum.com" }
 ]
 readme = "README.md"
+requires-python = ">=3.11"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.11"
 furo = "^2024.5.6"
 
 [tool.poetry]
