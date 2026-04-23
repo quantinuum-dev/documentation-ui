@@ -81,7 +81,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "dependencies": {
-    "@quantinuum/quantinuum-ui": "^2.4.0",
+    "@quantinuum/quantinuum-ui": "^3.6.1",
     "@radix-ui/react-icons": "^1.0.0",
     "@radix-ui/react-navigation-menu": "^1.1.4",
     "@vitejs/plugin-react": "^4.3.4",
