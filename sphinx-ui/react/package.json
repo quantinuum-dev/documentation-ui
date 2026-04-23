@@ -27,7 +27,7 @@
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "lucide-react": "^0.395.0",
+    "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.2.1",
