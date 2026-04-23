@@ -34,7 +34,7 @@
     "zod": "^3.23.8"
   },
   "dependencies": {
-    "@quantinuum/documentation-ui": "file:../..",
+    "@quantinuum/documentation-ui": "file:../../documentation-ui",
     "react": "^18.3.1"
   }
 }

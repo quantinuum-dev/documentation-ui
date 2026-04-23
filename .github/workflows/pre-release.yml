@@ -42,3 +42,41 @@ jobs:
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  build_sphinx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install poetry
+        run: pipx install poetry
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: 'poetry'
+          cache-dependency-path: 'sphinx-ui/pyproject.toml'
+      - name: Set up Node.js for UI Assets
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: 'sphinx-ui/react/package-lock.json'
+      - name: Generate UI Assets
+        working-directory: sphinx-ui/react
+        run: |
+          echo "🔨 Generating UI assets..."
+          npm update @quantinuum/documentation-ui
+          npm install
+          npm run build
+          cp ./build/injectNav.global.js ../quantinuum_sphinx/static/injectNav.global.js
+          cp ./build/syncTheme.global.js ../quantinuum_sphinx/static/syncTheme.global.js
+          cp ./node_modules/@quantinuum/quantinuum-ui/dist/tokens.css ../quantinuum_sphinx/static/styles/quantinuum-ui-tokens.css
+          npx tailwindcss --postcss ./postcss.config.cjs -i ./index.css -o ../quantinuum_sphinx/static/styles/quantinuum-ui-tailwind.css
+          echo ✅ "Done. Generated UI assets."
+      - name: Build
+        working-directory: sphinx-ui
+        run: |
+          echo "📦 Building..."
+          poetry config http-basic.pypi_local ${{ secrets.PYPI_USERNAME }} ${{ secrets.PYPI_API_TOKEN }}
+          poetry build
+          echo ✅ "Done."
