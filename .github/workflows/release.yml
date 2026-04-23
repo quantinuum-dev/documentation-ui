@@ -70,19 +70,20 @@ jobs:
           node-version: 22
           cache: 'npm'
           cache-dependency-path: 'sphinx-ui/react/package-lock.json'
-      - name: Install documentation UI dependencies for local file package
+      - name: Build documentation UI JS package
         working-directory: documentation-ui
         run: |
           npm ci
+          npm run build
       - name: Generate UI Assets
         working-directory: sphinx-ui/react
         run: |
           echo "🔨 Generating UI assets..."
-          npm ci
+          npm install
           npm run build
           cp ./build/injectNav.global.js ../quantinuum_sphinx/static/injectNav.global.js
           cp ./build/syncTheme.global.js ../quantinuum_sphinx/static/syncTheme.global.js
-          cp ./node_modules/@quantinuum/quantinuum-ui/dist/tokens.css ../quantinuum_sphinx/static/styles/quantinuum-ui-tokens.css
+          cp ./node_modules/@quantinuum/documentation-ui/dist/tokens.css ../quantinuum_sphinx/static/styles/quantinuum-ui-tokens.css
           npx tailwindcss --postcss ./postcss.config.cjs -i ./index.css -o ../quantinuum_sphinx/static/styles/quantinuum-ui-tailwind.css
           echo ✅ "Done. Generated UI assets."
       - name: Build and Publish to PyPI
