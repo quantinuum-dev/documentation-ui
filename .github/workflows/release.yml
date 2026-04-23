@@ -44,6 +44,12 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: Upload documentation UI dist artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentation-ui-dist
+          path: documentation-ui/dist
+          if-no-files-found: error
       - name: Release documentation UI JS package
         working-directory: documentation-ui
         run: |
@@ -71,6 +77,11 @@ jobs:
           node-version: 22
           cache: 'npm'
           cache-dependency-path: 'sphinx-ui/react/package-lock.json'
+      - name: Download documentation UI dist artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: documentation-ui-dist
+          path: documentation-ui/dist
       - name: Generate UI Assets
         working-directory: sphinx-ui/react
         run: |
