@@ -4,16 +4,44 @@ import { Separator } from "@quantinuum/quantinuum-ui";
 const footerConfig = {
   columns: [
     {
-      name: "Products",
+      name: "User Community",
       items: [
         {
-          name: "Systems",
-          href: "/systems"
-      },
+          name: "Compute Platform Updates",
+          href: "/product-updates"
+        },{
+          name: "Q-NET",
+          href: "https://www.quantinuum.com/q-net#get-started"
+        },{
+          name: "Quantinuum Startup Partner Program",
+          href: "https://www.quantinuum.com/startup-partner-program#join"
+        }
+      ]
+    }
+    ,
+    {
+      name: "Compute Platform",
+      items: [
         {
-          name: "Nexus",
-          href: "/nexus"
-        },
+        name: "Quantinuum Systems",
+        href: "/systems"
+      }, {
+        name: "Quantinuum Nexus",
+        href: "/nexus"
+      },{
+        name: "Guppy",
+        href: "/guppy"
+      },{
+        name: "Selene",
+        href: "/selene"
+      }, {
+        name: "Pytket",
+        href: "/tket"
+      },
+      ]
+    }, {
+      name: "Applications",
+      items: [
         {
           name: "InQuanto",
           href: "/inquanto"
@@ -21,27 +49,10 @@ const footerConfig = {
         {
           name: "Quantum Origin",
           href: "/origin"
-        }
-      ]
-    }, {
-      name: "Opensource",
-      items: [
-        {
-          name: "pytket",
-          href: "/tket"
-        },
-        {
-          name: "guppy",
-          href: "/guppy"
-        },
-        {
-          name: "selene",
-          href: "/selene"
-        },
-        {
-          name: "qnexus",
-          href: "https://docs.quantinuum.com/nexus/trainings/notebooks/basics/getting_started.html"
-        }
+        },{
+          name: "\u03BBambeq",
+          href: "/lambeq/"
+        }, 
       ]
     },{
       name: "Quantinuum",
@@ -55,12 +66,6 @@ const footerConfig = {
         },{
           name: "Events", 
           href: "https://www.quantinuum.com/events"
-        },{
-          name: "Q-NET",
-          href: "https://www.quantinuum.com/q-net#get-started"
-        },{
-          name: "Startup Partner Program",
-          href: "https://www.quantinuum.com/startup-partner-program#join"
         }
       ]
     }

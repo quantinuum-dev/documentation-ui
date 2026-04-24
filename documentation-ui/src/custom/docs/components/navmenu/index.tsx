@@ -73,9 +73,6 @@ const navConfig = {
         title: "qnexus",
         href: "https://docs.quantinuum.com/nexus/trainings/notebooks/basics/getting_started.html"
       }, {
-        title: "Lambeq",
-        href: "/lambeq/"
-      }, {
         title: "Q-NET",
         href: "https://www.quantinuum.com/q-net#get-started"
       }, {
@@ -95,7 +92,10 @@ const navConfig = {
       },{
         title: 'Quantum Origin',
         href: "/origin/",
-      }
+      }, {
+        title: "\u03BBambeq",
+        href: "/lambeq/"
+      }, 
     ]
     },
   ],
@@ -163,7 +163,7 @@ export const NavBar = (props: {
           <Button 
           variant="outline"
           className='bg-black text-white border border-border/60 shadow-md rounded-md hover:bg-white hover:text-black hover:border-black'
-          ><a href="https://nexus.quantinuum.com/auth/login">Product Updates</a>
+          ><a href="/product-updates">Platform Updates</a>
           </Button>
         </div>
       </div>
