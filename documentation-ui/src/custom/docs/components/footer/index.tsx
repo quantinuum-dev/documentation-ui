@@ -102,7 +102,7 @@ export const Footer = () => {
           </a><div>/</div>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-16 md:grid-cols-3 md:gap-24">
+      <div className="grid grid-cols-1 gap-16 md:grid-cols-4 md:gap-24">
         {footerConfig.columns.map((col) => {
           return (
             <div key={col.name} className="flex flex-col md:items-end">
