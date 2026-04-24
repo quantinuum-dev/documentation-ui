@@ -17,9 +17,7 @@ const footerConfig = {
           href: "https://www.quantinuum.com/startup-partner-program#join"
         }
       ]
-    }
-    ,
-    {
+    }, {
       name: "Compute Platform",
       items: [
         {
