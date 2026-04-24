@@ -21,21 +21,21 @@ const footerConfig = {
       name: "Compute Platform",
       items: [
         {
-        name: "Quantinuum Systems",
-        href: "/systems"
-      }, {
-        name: "Quantinuum Nexus",
-        href: "/nexus"
-      },{
-        name: "Guppy",
-        href: "/guppy"
-      },{
-        name: "Selene",
-        href: "/selene"
-      }, {
-        name: "Pytket",
-        href: "/tket"
-      },
+          name: "Quantinuum Systems",
+          href: "/systems"
+        }, {
+          name: "Quantinuum Nexus",
+          href: "/nexus"
+        }, {
+          name: "Guppy",
+          href: "/guppy"
+        }, {
+          name: "Selene",
+          href: "/selene"
+        }, {
+          name: "Pytket",
+          href: "/tket"
+        },
       ]
     }, {
       name: "Applications",
