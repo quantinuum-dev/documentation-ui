@@ -51,7 +51,7 @@ const footerConfig = {
           href: "/origin"
         },{
           name: "\u03BBambeq",
-          href: "/lambeq/"
+          href: "/lambeq"
         }, 
       ]
     },{
