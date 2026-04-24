@@ -1,7 +1,7 @@
 import path from 'path'
 import { Config } from 'tailwindcss'
 import plugin from 'tailwindcss/plugin'
-import { tailwindTheme } from '@quantinuum/documentation-ui'
+import { tailwindTheme } from '@quantinuum/documentation-ui/tailwindTheme'
 
 export default {
     content: [
