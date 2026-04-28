@@ -1,7 +1,6 @@
 
 import { cn } from '@quantinuum/quantinuum-ui'
 import React from 'react'
-import { CodeCopy } from './CodeCopy'
 
 const DocsHeaderTitle = React.forwardRef<
 HTMLHeadingElement,
@@ -67,4 +66,4 @@ DocsHeaderWrapper.displayName = 'DocsHeaderWrapper'
 
 
 
-export {DocsHeaderWrapper, DocsHeaderRight, DocsHeaderLeft, DocsHeaderTitle, DocsHeaderSubtitle, CodeCopy}
+export {DocsHeaderWrapper, DocsHeaderRight, DocsHeaderLeft, DocsHeaderTitle, DocsHeaderSubtitle}

@@ -1,10 +1,21 @@
 import commonjs from "@rollup/plugin-commonjs";
 import resolve from "@rollup/plugin-node-resolve";
 import typescript from "@rollup/plugin-typescript";
+import { createRequire } from "module";
 import copy from "rollup-plugin-copy";
 import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import preserveDirectives from "rollup-plugin-preserve-directives";
 import { terser } from "rollup-plugin-terser";
+
+const require = createRequire(import.meta.url);
+const pkg = require("./package.json");
+const externalPackages = [
+  ...Object.keys(pkg.dependencies || {}),
+  ...Object.keys(pkg.peerDependencies || {}),
+];
+
+const isExternalDependency = (id) =>
+  externalPackages.some((dependency) => id === dependency || id.startsWith(`${dependency}/`));
 
 export default [{
   onwarn(warning, warn) {
@@ -17,6 +28,7 @@ export default [{
     warn(warning);
   },
   input: "src/index.ts",
+  external: isExternalDependency,
   output: [
     {
       dir: "dist/",
@@ -42,6 +54,7 @@ export default [{
 
 }, {
   input: "src/utils/syncTheme.ts",
+  external: isExternalDependency,
   output: [
     {
       dir: "dist/src/utils/",
