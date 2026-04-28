@@ -86,11 +86,9 @@ jobs:
       - name: Build and Publish to PyPI
         working-directory: sphinx-ui
         env:
-          PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          PYPI_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           echo "📦 Building and publishing to PyPI..."
-          poetry config http-basic.pypi_local ${{ secrets.PYPI_USERNAME }} ${{ secrets.PYPI_API_TOKEN }}
           poetry build
           poetry publish
           echo ✅ "Done. Published Package to PyPI."
