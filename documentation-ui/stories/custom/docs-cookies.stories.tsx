@@ -6,7 +6,7 @@ import { CookieConsentManager, CookieConsentProvider } from 'src';
 
 export function DocsCookiesDemo() {
     return (
-    <CookieConsentProvider>
+    <CookieConsentProvider version={1}>
       <CookieConsentManager />
     </CookieConsentProvider>
     )
