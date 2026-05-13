@@ -3,6 +3,7 @@ import React from "react"
 
 import {Button, cn} from '@quantinuum/quantinuum-ui'
 import { Check, Copy } from "lucide-react"
+
 export const CodeCopy = (props: {textToCopy: string, className?: string}) => {
 
     const [copied, setHasCopied] = React.useState(false)
