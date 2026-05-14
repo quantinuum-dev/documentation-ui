@@ -11,7 +11,7 @@ export default defineConfig([
   platform: "browser",
   format: ["iife"],
   clean: true,
-}, 
+},
 // Script for syncing dark mode preference
 {
   entry: ['./src/syncTheme.ts'],

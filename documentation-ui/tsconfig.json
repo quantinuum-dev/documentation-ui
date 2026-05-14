@@ -11,14 +11,18 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "declaration": true,
+    "types": ["vitest/globals"],
+
+    "sourceMap": true,
+    "outDir": "dist",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "moduleResolution": "bundler",
     "paths": {
       "src": ["./src/index.ts"],
       "src/*": ["./src/*"]
     },
 
-    "sourceMap": true,
-    "outDir": "dist",
-    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "emitDeclarationOnly": true
   }

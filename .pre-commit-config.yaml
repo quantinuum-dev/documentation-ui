@@ -1,6 +1,41 @@
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+
 repos:
+  - repo: builtin
+    hooks:
+      - id: trailing-whitespace
+        exclude: '^sphinx-ui/demo/'
+      - id: end-of-file-fixer
+        exclude: '^sphinx-ui/demo/'
+      - id: check-yaml
+      - id: check-json
+        exclude: 'tsconfig.*\.json$'
+
   - repo: local
     hooks:
+      - id: no-tabs
+        name: No tabs in source files
+        language: pygrep
+        entry: '\t'
+        types_or: [ts, tsx, javascript, jsx, python, css]
+        exclude: '(node_modules|sphinx-ui/demo/build)'
+
+      - id: documentation-ui-format
+        name: Biome format (documentation-ui)
+        language: system
+        entry: bash -c 'cd documentation-ui && npx biome format --write "${@/#documentation-ui\//}"' --
+        pass_filenames: true
+        files: '^documentation-ui/(src|stories)/.*\.(ts|tsx|js|jsx|css|json)$'
+
+      - id: documentation-ui-lint
+        name: Lint (documentation-ui)
+        language: system
+        entry: bash -c 'cd documentation-ui && npm run lint'
+        pass_filenames: false
+        files: '^documentation-ui/src/.*\.(ts|tsx|js|jsx)$'
+
       - id: commitlint
         name: commitlint
         language: system

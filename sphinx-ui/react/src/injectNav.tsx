@@ -1,5 +1,5 @@
 
-import {createRoot} from "react-dom/client" 
+import {createRoot} from "react-dom/client"
 import { DocsNavBar } from "@quantinuum/documentation-ui";
 import { ComponentProps } from "react"; // do not remove
 
@@ -8,7 +8,7 @@ import { ComponentProps } from "react"; // do not remove
     if (!mountElement) return
     const renderIn = document.createElement('div')
     mountElement.appendChild(renderIn)
-  
+
     const root = createRoot(renderIn)
 
     root.render(

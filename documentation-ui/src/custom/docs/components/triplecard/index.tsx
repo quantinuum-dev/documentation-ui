@@ -1,29 +1,25 @@
 import { Card,  CardTitle, CardSubtitle  } from './Card'
-import NextImage from 'next/image'
-import NextLink from 'next/link'
-import { z } from 'zod'
-import { ComponentProps } from 'react'
+import { type ComponentProps, type ComponentType } from 'react'
 
-const linkSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  link: z.string(),
-})
+type TripleCardLink = {
+  title: string
+  description: string
+  link: string
+}
 
-const cardSchema = z.array(
-  z.object({
-    title: z.string(),
-    subtitle: z.string(),
-    icon: z.string(),
-    image_link: z.string(),
-    image_description: z.string(),
-    links: z.array(linkSchema),
-  }))
+type TripleCardItem = {
+  title: string
+  subtitle: string
+  icon: string
+  image_link: string
+  image_description: string
+  links: TripleCardLink[]
+}
 
+type ImageComponent = ComponentType<ComponentProps<'img'> & { priority?: boolean }>
+type LinkComponent = ComponentType<ComponentProps<'a'>>
 
-  const RegularLink = (props: ComponentProps<'a'>) => <a {...props}></a>
-const RegularImage =  (props: ComponentProps<'img'>) => <img {...props}></img>
-export const TripleCard = (props: {cards: z.infer<typeof cardSchema>, imageComponent: typeof NextImage | typeof RegularImage, linkComponent:  typeof NextLink  | typeof RegularLink }) => {
+export const TripleCard = (props: { cards: TripleCardItem[]; imageComponent: ImageComponent; linkComponent: LinkComponent }) => {
 
   return (
     <section className="shadow-lg rounded-xl grid grid-cols-1 items-stretch md:grid-cols-3 ">

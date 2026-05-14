@@ -1,0 +1,239 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Cookie Banner Component > desktop > should render as expected 1`] = `
+<DocumentFragment>
+  <div
+    aria-label="dialog"
+  >
+    <div
+      aria-label="dialog-content"
+    >
+      <div
+        aria-label="Cookie banner"
+        class="max-w-5xl mx-auto"
+      >
+        <h3
+          class="text-lg font-semibold capitalize"
+        >
+          We value your privacy
+        </h3>
+        <div
+          class="pt-1.5 flex flex-col md:flex-row gap-8"
+        >
+          <p
+            class="text-base md:w-9/12"
+          >
+            We use essential cookies to ensure the website functions properly. With your permission, we’ll also use optional cookies to analyze site usage and improve the user experience. For details of how we use cookies and your personal data, please read our 
+            <a
+              class="font-semibold hover:underline underline-offset-4 underline"
+              href="https://www.quantinuum.com/cookie-notice"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Cookie Notice
+            </a>
+             and our 
+            <a
+              class="font-semibold hover:underline underline-offset-4 underline"
+              href="https://www.quantinuum.com/privacy"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Privacy Statement
+            </a>
+            . By using our website, you agree to our 
+            <a
+              class="font-semibold hover:underline underline-offset-4 underline"
+              href="https://www.quantinuum.com/terms-conditions"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Terms & Conditions
+            </a>
+            .
+          </p>
+          <div
+            class="flex flex-col md:hidden"
+          >
+            <div
+              class="flex mb-4 gap-4"
+            >
+              <button
+                aria-label="button"
+                class="w-full"
+                variant="secondary"
+              >
+                Required Only
+              </button>
+              <button
+                aria-label="button"
+                class="w-full"
+              >
+                Accept All
+              </button>
+            </div>
+            <button
+              aria-label="button"
+              class="w-full"
+              variant="outline"
+            >
+              Manage Settings
+            </button>
+          </div>
+          <div
+            class="hidden md:block w-3/12"
+          >
+            <div
+              class="flex flex-col gap-3"
+            >
+              <button
+                aria-label="button"
+                class="w-full"
+              >
+                Accept All
+              </button>
+              <div
+                class="flex md:flex-col lg:flex-row gap-3"
+              >
+                <button
+                  aria-label="button"
+                  class="flex-1"
+                  variant="secondary"
+                >
+                  Required Only
+                </button>
+                <button
+                  aria-label="button"
+                  class="flex-1"
+                  variant="outline"
+                >
+                  Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`Cookie Banner Component > mobile > should render as expected 1`] = `
+<DocumentFragment>
+  <div
+    aria-label="dialog"
+  >
+    <div
+      aria-label="dialog-content"
+    >
+      <div
+        aria-label="Cookie banner"
+        class="max-w-5xl mx-auto"
+      >
+        <h3
+          class="text-lg font-semibold capitalize"
+        >
+          We value your privacy
+        </h3>
+        <div
+          class="pt-1.5 flex flex-col md:flex-row gap-8"
+        >
+          <p
+            class="text-base md:w-9/12"
+          >
+            We use essential cookies to ensure the website functions properly. With your permission, we’ll also use optional cookies to analyze site usage and improve the user experience. For details of how we use cookies and your personal data, please read our 
+            <a
+              class="font-semibold hover:underline underline-offset-4 underline"
+              href="https://www.quantinuum.com/cookie-notice"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Cookie Notice
+            </a>
+             and our 
+            <a
+              class="font-semibold hover:underline underline-offset-4 underline"
+              href="https://www.quantinuum.com/privacy"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Privacy Statement
+            </a>
+            . By using our website, you agree to our 
+            <a
+              class="font-semibold hover:underline underline-offset-4 underline"
+              href="https://www.quantinuum.com/terms-conditions"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Terms & Conditions
+            </a>
+            .
+          </p>
+          <div
+            class="flex flex-col md:hidden"
+          >
+            <div
+              class="flex mb-4 gap-4"
+            >
+              <button
+                aria-label="button"
+                class="w-full"
+                variant="secondary"
+              >
+                Required Only
+              </button>
+              <button
+                aria-label="button"
+                class="w-full"
+              >
+                Accept All
+              </button>
+            </div>
+            <button
+              aria-label="button"
+              class="w-full"
+              variant="outline"
+            >
+              Manage Settings
+            </button>
+          </div>
+          <div
+            class="hidden md:block w-3/12"
+          >
+            <div
+              class="flex flex-col gap-3"
+            >
+              <button
+                aria-label="button"
+                class="w-full"
+              >
+                Accept All
+              </button>
+              <div
+                class="flex md:flex-col lg:flex-row gap-3"
+              >
+                <button
+                  aria-label="button"
+                  class="flex-1"
+                  variant="secondary"
+                >
+                  Required Only
+                </button>
+                <button
+                  aria-label="button"
+                  class="flex-1"
+                  variant="outline"
+                >
+                  Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;

@@ -8,18 +8,18 @@ as="style">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
 <link rel="shortcut icon" href="_static/styles/quantinuum_favicon.svg">
 
-<style>  
+<style>
   .sidebar-sticky {
     top: calc(3.5rem - 0px);
     height: calc(100vh - 3.5rem);
   }
-  
+
   @media (min-width: 97em) {
     html {
       font-size: 100% !important;
     }
   }
-  
+
 </style>
 {% endblock %}
 
@@ -198,7 +198,7 @@ as="style">
             {% trans %}
             <a href="https://github.com/pradyunsg/furo">Furo</a>
             {% endtrans %}
-           
+
             {%- if last_updated -%}
             <div class="last-updated">
               {% trans last_updated=last_updated|e -%}

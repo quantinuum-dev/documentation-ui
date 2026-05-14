@@ -5,7 +5,17 @@ import { createRequire } from "module";
 import copy from "rollup-plugin-copy";
 import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import preserveDirectives from "rollup-plugin-preserve-directives";
-import { terser } from "rollup-plugin-terser";
+import terser from "@rollup/plugin-terser";
+
+const suppressUseClientWarning = (warning, warn) => {
+  if (
+    warning.code === "MODULE_LEVEL_DIRECTIVE" &&
+    (warning.message.includes("'use client'") || warning.message.includes('"use client"'))
+  ) {
+    return;
+  }
+  warn(warning);
+};
 
 const require = createRequire(import.meta.url);
 const pkg = require("./package.json");
@@ -18,15 +28,7 @@ const isExternalDependency = (id) =>
   externalPackages.some((dependency) => id === dependency || id.startsWith(`${dependency}/`));
 
 export default [{
-  onwarn(warning, warn) {
-    if (
-      warning.code === "MODULE_LEVEL_DIRECTIVE" &&
-      warning.message.includes(`'use client'`)
-    ) {
-      return;
-    }
-    warn(warning);
-  },
+  onwarn: suppressUseClientWarning,
   input: "src/index.ts",
   external: isExternalDependency,
   output: [
@@ -53,6 +55,7 @@ export default [{
   ],
 
 }, {
+  onwarn: suppressUseClientWarning,
   input: "src/utils/syncTheme.ts",
   external: isExternalDependency,
   output: [
