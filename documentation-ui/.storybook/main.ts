@@ -19,7 +19,10 @@ const config = {
   staticDirs: ["../dist"],
 
   typescript: {
-    reactDocgen: "react-docgen-typescript"
+    reactDocgen: "react-docgen-typescript",
+    reactDocgenTypescriptOptions: {
+      tsconfigPath: "./tsconfig.storybook.json"
+    }
   }
 };
 export default config;
