@@ -39,6 +39,9 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: Build storybook site
+        working-directory: documentation-ui
+        run: npm run build-storybook
 
   build_sphinx:
     runs-on: ubuntu-latest
