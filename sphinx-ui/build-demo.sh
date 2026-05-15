@@ -1,5 +1,5 @@
 rm -rf ./demo/build/html
 ./build-dist.sh
-poetry install
-cd ./demo && poetry run make html
+uv sync
+cd ./demo && uv run make html
 cd ../
