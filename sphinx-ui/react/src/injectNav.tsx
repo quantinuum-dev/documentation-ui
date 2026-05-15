@@ -9,6 +9,8 @@ const GA_ID = __NEXT_PUBLIC_GA_ID__;
 const tailwindScopeClassName = 'use-tailwind';
 
 (() => {
+  document.body.classList.add(tailwindScopeClassName)
+
   const mountElement = document.querySelector('.nexus-nav')
   if (!mountElement) return
 
