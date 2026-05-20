@@ -47,14 +47,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Install poetry
-        run: pipx install poetry
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-          cache: 'poetry'
-          cache-dependency-path: 'sphinx-ui/pyproject.toml'
+      - name: Install UV
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - name: Set up Node.js for UI Assets
         uses: actions/setup-node@v6
         with:
@@ -81,6 +81,5 @@ jobs:
         working-directory: sphinx-ui
         run: |
           echo "📦 Building..."
-          poetry config http-basic.pypi_local ${{ secrets.PYPI_USERNAME }} ${{ secrets.PYPI_API_TOKEN }}
-          poetry build
+          uv build
           echo ✅ "Done."
