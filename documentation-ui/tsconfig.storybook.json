@@ -1,0 +1,24 @@
+{
+  "include": ["src/**/*.ts", "src/**/*.tsx", "stories/**/*.ts", "stories/**/*.tsx"],
+  "exclude": ["node_modules", "dist", "storybook-static", "sphinx-ui"],
+  "compilerOptions": {
+    "target": "es2016",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "types": ["vitest/globals"],
+    "sourceMap": true,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "moduleResolution": "bundler",
+    "paths": {
+      "src": ["./src/index.ts"],
+      "src/*": ["./src/*"]
+    },
+    "allowSyntheticDefaultImports": true,
+    "noEmit": true
+  }
+}

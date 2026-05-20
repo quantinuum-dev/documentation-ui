@@ -53,13 +53,14 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Build storybook site
+        working-directory: documentation-ui
         run: npm run build-storybook
 
       - name: Upload static files as artifact
         id: deployment
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
-          path: storybook-static/
+          path: documentation-ui/storybook-static/
 
   deploy-site:
     environment:
@@ -70,7 +71,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   release_pypi:
     runs-on: ubuntu-latest
