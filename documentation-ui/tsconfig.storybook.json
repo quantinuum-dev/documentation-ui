@@ -15,6 +15,7 @@
     "baseUrl": ".",
     "moduleResolution": "bundler",
     "paths": {
+      "@/*": ["./src/*"],
       "src": ["./src/index.ts"],
       "src/*": ["./src/*"]
     },
