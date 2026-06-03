@@ -1,3 +1,5 @@
+'use client'
+
 import dynamic from 'next/dynamic'
 import { CookieSettingsButton } from 'src/custom/docs/components/gdpr/_components/CookieSettingsButton/CookieSettingsButton'
 import { CookieSettingsDialog } from 'src/custom/docs/components/gdpr/_components/CookieSettingsDialog/CookieSettingsDialog'
@@ -12,7 +14,9 @@ type CookieBannerProps = {
 
 const CookieBanner = dynamic<CookieBannerProps>(
   () =>
-    import('src/custom/docs/components/gdpr/_components/CookieBanner/CookieBanner').then((module) => module.CookieBanner),
+    import('src/custom/docs/components/gdpr/_components/CookieBanner/CookieBanner').then(
+      (module) => module.CookieBanner
+    ),
   { ssr: false }
 )
 
@@ -44,7 +48,14 @@ export function CookieConsentManager() {
   }
 
   if (isCookieBannerVisible) {
-    return <CookieBanner isOpen onAccept={acceptAll} onReject={rejectNonEssential} onSettings={openSettings} />
+    return (
+      <CookieBanner
+        isOpen
+        onAccept={acceptAll}
+        onReject={rejectNonEssential}
+        onSettings={openSettings}
+      />
+    )
   }
 
   return null
