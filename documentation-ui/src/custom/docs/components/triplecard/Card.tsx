@@ -1,5 +1,5 @@
 import React from 'react'
-import { cn } from 'src'
+import { cn } from '@/utils'
 
 const CardTitle = React.forwardRef<
   HTMLParagraphElement,

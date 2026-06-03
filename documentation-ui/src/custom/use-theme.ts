@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { getTheme, setTheme, subscribeToTheme } from 'src/utils/darkMode'
+import { getTheme, setTheme, subscribeToTheme } from '@/utils/darkMode'
 
 export const useTheme = () => {
   const [theme, setLocalTheme] = React.useState(

@@ -1,8 +1,8 @@
 'use client'
 
-import { CookieCategories } from '../../cookies-consent.config'
-import { retrieveConsentCategoriesFromCookies } from '../../service/cookie-consent-service'
-import { type CookieCategory, CookieConsent } from '../../types'
+import { CookieCategories } from '@/custom/docs/components/gdpr/cookies-consent.config'
+import { retrieveConsentCategoriesFromCookies } from '@/custom/docs/components/gdpr/service/cookie-consent-service'
+import { type CookieCategory, CookieConsent } from '@/custom/docs/components/gdpr/types'
 import {
   Accordion,
   AccordionContent,
