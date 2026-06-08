@@ -141,13 +141,15 @@ jobs:
       - name: Build PyPI distributions
         working-directory: sphinx-ui
         env:
+          PYPI_VERSION: ${{ needs.build_and_release_node.outputs.version }}
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.build_and_release_node.outputs.version }}
           SETUPTOOLS_SCM_PRETEND_VERSION_FOR_QUANTINUUM_SPHINX: ${{ needs.build_and_release_node.outputs.version }}
         run: |
-          echo "📦 Building quantinuum_sphinx ${SETUPTOOLS_SCM_PRETEND_VERSION_FOR_QUANTINUUM_SPHINX}..."
+          echo "📦 Building quantinuum_sphinx ${PYPI_VERSION}..."
           uv build
           ls -l dist
-          test -f "dist/quantinuum_sphinx-${SETUPTOOLS_SCM_PRETEND_VERSION_FOR_QUANTINUUM_SPHINX}.tar.gz"
-          test -f "dist/quantinuum_sphinx-${SETUPTOOLS_SCM_PRETEND_VERSION_FOR_QUANTINUUM_SPHINX}-py3-none-any.whl"
+          test -f "dist/quantinuum_sphinx-${PYPI_VERSION}.tar.gz"
+          test -f "dist/quantinuum_sphinx-${PYPI_VERSION}-py3-none-any.whl"
           echo ✅ "Done. Built PyPI distributions."
       - name: Publish PyPI distributions
         working-directory: sphinx-ui
