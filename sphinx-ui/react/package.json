@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@next/third-parties": "^16.2.2",
-    "@quantinuum/documentation-ui": "file:../../documentation-ui",
+    "@quantinuum/documentation-ui": "workspace:*",
     "@quantinuum/quantinuum-ui": "^3.6.1",
     "baseline-browser-mapping": "^2.10.13",
     "caniuse-lite": "^1.0.30001784",
