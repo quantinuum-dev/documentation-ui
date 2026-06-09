@@ -6,7 +6,7 @@ const config = {
     "@storybook/addon-essentials",
     "@storybook/addon-onboarding",
     "@storybook/addon-interactions",
-    "@chromatic-com/storybook"
+    "@chromatic-com/storybook",
   ],
 
   framework: {
@@ -19,10 +19,7 @@ const config = {
   staticDirs: ["../dist"],
 
   typescript: {
-    reactDocgen: "react-docgen-typescript",
-    reactDocgenTypescriptOptions: {
-      tsconfigPath: "./tsconfig.storybook.json"
-    }
-  }
+    reactDocgen: "react-docgen",
+  },
 };
 export default config;

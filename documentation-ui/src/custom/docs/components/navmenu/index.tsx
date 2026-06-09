@@ -1,14 +1,13 @@
 'use client'
 
-import React from 'react' // do not remove
-import { Navigation } from './NavigationMenu'
-import { QuantinuumLogo } from './QuantinuumLogo'
-import { MobileMenu } from './MobileMenu'
-import { QuantinuumIdent } from './QuantinuumIdent'
-import { ModeSelector } from './ModeSelector'
-import { SystemsLogo } from '../logos/SystemsLogo'
-import { NexusLogo } from '../logos/NexusLogo'
 import { Button } from '@quantinuum/quantinuum-ui'
+import { NexusLogo } from '../logos/NexusLogo'
+import { SystemsLogo } from '../logos/SystemsLogo'
+import { MobileMenu } from './MobileMenu'
+import { ModeSelector } from './ModeSelector'
+import { Navigation } from './NavigationMenu'
+import { QuantinuumIdent } from './QuantinuumIdent'
+import { QuantinuumLogo } from './QuantinuumLogo'
 
 const navConfig = {
   navTextLinks: [
@@ -183,14 +182,13 @@ export const NavBar = (props: { activePath: string; enableModeSelector?: boolean
             placeholder="Search documentation..."
           /> */}
           <Button
-            variant="outline"
-            className="bg-black text-white border border-border/60 shadow-md rounded-md hover:bg-white hover:text-black hover:border-black"
+            variant="secondary"
+
           >
             <a href="https://nexus.quantinuum.com/auth/login">Nexus Portal</a>
           </Button>
           <Button
-            variant="outline"
-            className="bg-black text-white border border-border/60 shadow-md rounded-md hover:bg-white hover:text-black hover:border-black"
+            variant="secondary"
           >
             <a href="/product-updates">Platform Updates</a>
           </Button>
