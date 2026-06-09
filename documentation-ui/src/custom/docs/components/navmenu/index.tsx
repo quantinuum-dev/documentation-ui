@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react' // do not remove
 import { Navigation } from './NavigationMenu'
 import { QuantinuumLogo } from './QuantinuumLogo'
 import { MobileMenu } from './MobileMenu'

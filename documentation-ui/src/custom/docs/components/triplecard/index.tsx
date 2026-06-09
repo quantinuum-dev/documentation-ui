@@ -1,6 +1,13 @@
 import { Card, CardTitle, CardSubtitle } from './Card'
 import { type ComponentProps, type JSXElementConstructor } from 'react'
-import type { ImageProps as NextImageProps } from 'next/image'
+
+// Minimal subset of next/image's ImageProps so this library doesn't depend on Next.
+// Consumers can still pass a next/image component as `imageComponent` — its props are a superset.
+type NextImageCompatProps = {
+  height?: number | `${number}`
+  width?: number | `${number}`
+  priority?: boolean
+}
 
 type TripleCardLink = {
   title: string
@@ -19,8 +26,8 @@ type TripleCardItem = {
 
 type TripleCardImageProps = Pick<ComponentProps<'img'>, 'style'> &
   Required<Pick<ComponentProps<'img'>, 'alt' | 'src'>> &
-  Required<Pick<NextImageProps, 'height' | 'width'>> &
-  Pick<NextImageProps, 'priority'>
+  Required<Pick<NextImageCompatProps, 'height' | 'width'>> &
+  Pick<NextImageCompatProps, 'priority'>
 
 type TripleCardLinkProps = Pick<ComponentProps<'a'>, 'children' | 'className'> &
   Required<Pick<ComponentProps<'a'>, 'href'>>

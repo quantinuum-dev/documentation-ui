@@ -45,28 +45,4 @@ if (typeof window !== 'undefined') {
   vi.stubGlobal('matchMedia', MatchMediaMock)
 }
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    refresh: vi.fn(),
-    back: vi.fn(),
-    forward: vi.fn(),
-    prefetch: vi.fn(),
-    push: vi.fn(),
-    replace: vi.fn(),
-  }),
-  usePathname: () => ({}),
-  useSelectedLayoutSegment: () => {},
-}))
-
-vi.mock('next/router', () => ({
-  useRouter: () => ({
-    refresh: vi.fn(),
-    back: vi.fn(),
-    forward: vi.fn(),
-    prefetch: vi.fn(),
-    push: vi.fn(),
-    replace: vi.fn(),
-  }),
-  usePathname: () => ({}),
-}))
 vi.useFakeTimers({ shouldAdvanceTime: true })

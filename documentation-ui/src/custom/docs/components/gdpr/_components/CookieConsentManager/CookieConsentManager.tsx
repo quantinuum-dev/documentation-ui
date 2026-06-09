@@ -1,26 +1,23 @@
 'use client'
 
-import dynamic from 'next/dynamic'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { CookieSettingsButton } from 'src/custom/docs/components/gdpr/_components/CookieSettingsButton/CookieSettingsButton'
 import { CookieSettingsDialog } from 'src/custom/docs/components/gdpr/_components/CookieSettingsDialog/CookieSettingsDialog'
 import { useCookieConsent } from 'src/custom/docs/components/gdpr/contexts/useCookieConsent'
 
-type CookieBannerProps = {
-  isOpen: boolean
-  onAccept(): void
-  onReject(): void
-  onSettings(): void
-}
-
-const CookieBanner = dynamic<CookieBannerProps>(
-  () =>
-    import('src/custom/docs/components/gdpr/_components/CookieBanner/CookieBanner').then(
-      (module) => module.CookieBanner
-    ),
-  { ssr: false }
+const CookieBanner = lazy(() =>
+  import('src/custom/docs/components/gdpr/_components/CookieBanner/CookieBanner').then(
+    (module) => ({ default: module.CookieBanner })
+  )
 )
 
 export function CookieConsentManager() {
+  // Guard against SSR: only render the lazy-loaded banner after client mount.
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   const {
     isCookieBannerVisible,
     isCookieSettingsDialogVisible,
@@ -48,13 +45,18 @@ export function CookieConsentManager() {
   }
 
   if (isCookieBannerVisible) {
+    if (!isMounted) {
+      return null
+    }
     return (
-      <CookieBanner
-        isOpen
-        onAccept={acceptAll}
-        onReject={rejectNonEssential}
-        onSettings={openSettings}
-      />
+      <Suspense fallback={null}>
+        <CookieBanner
+          isOpen
+          onAccept={acceptAll}
+          onReject={rejectNonEssential}
+          onSettings={openSettings}
+        />
+      </Suspense>
     )
   }
 
