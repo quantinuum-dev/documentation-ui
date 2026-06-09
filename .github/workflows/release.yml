@@ -22,7 +22,7 @@ jobs:
           node-version: 22
           cache: "pnpm"
           # Path to the lock file needs to be specified explicitly as it is not in the root of the repository
-          cache-dependency-path: "documentation-ui/pnpm-lock.json"
+          cache-dependency-path: "documentation-ui/pnpm-lock.yaml"
       - name: Lint documentation UI JS package
         working-directory: documentation-ui
         run: |
@@ -38,7 +38,7 @@ jobs:
         with:
           node-version: 22
           cache: "pnpm"
-          cache-dependency-path: "documentation-ui/pnpm-lock.json"
+          cache-dependency-path: "documentation-ui/pnpm-lock.yaml"
       - name: Test documentation UI JS package
         working-directory: documentation-ui
         run: |
@@ -61,7 +61,7 @@ jobs:
           node-version: 22
           cache: "pnpm"
           # Path to the lock file needs to be specified explicitly as it is not in the root of the repository
-          cache-dependency-path: "documentation-ui/pnpm-lock.json"
+          cache-dependency-path: "documentation-ui/pnpm-lock.yaml"
       - name: Capture latest tag before release
         id: before_release
         run: |
@@ -138,7 +138,7 @@ jobs:
         with:
           node-version: 22
           cache: "pnpm"
-          cache-dependency-path: "sphinx-ui/react/pnpm-lock.json"
+          cache-dependency-path: "sphinx-ui/react/pnpm-lock.yaml"
       - name: Build documentation UI JS package
         working-directory: documentation-ui
         run: |
