@@ -1,20 +1,23 @@
 'use client'
-import React from "react"
+import React from 'react'
 
-import {Button, cn} from '@quantinuum/quantinuum-ui'
-import { Check, Copy } from "lucide-react"
+import { Button, cn } from '@quantinuum/quantinuum-ui'
+import { Check, Copy } from 'lucide-react'
 
-export const CodeCopy = (props: {textToCopy: string, className?: string}) => {
+export const CodeCopy = (props: { textToCopy: string; className?: string }) => {
+  const [copied, setHasCopied] = React.useState(false)
 
-    const [copied, setHasCopied] = React.useState(false)
- 
-    return <div className="dark:text-foreground text-background w-full flex  items-center justify-center self-start whitespace-nowrap rounded bg-gradient-to-r from-zinc-600 to-slate-600  py-0.5 pl-4 text-center text-sm font-semibold  dark:from-zinc-600 dark:to-slate-600">
-        <code className="font-mono">{props.textToCopy}</code>
+  return (
+    <div className="dark:text-foreground text-background w-full flex  items-center justify-center self-start whitespace-nowrap rounded bg-gradient-to-r from-zinc-600 to-slate-600  py-0.5 pl-4 text-center text-sm font-semibold  dark:from-zinc-600 dark:to-slate-600">
+      <code className="font-mono">{props.textToCopy}</code>
 
-        <Button
+      <Button
         variant="ghost"
         size="icon"
-        className={cn(`${copied ? ' hover:bg-transparent' : 'hover:bg-background/50 hover:text-foreground/75'} ml-1`, props.className)}
+        className={cn(
+          `${copied ? ' hover:bg-transparent' : 'hover:bg-background/50 hover:text-foreground/75'} ml-1`,
+          props.className
+        )}
         onClick={() => {
           window.navigator.clipboard.writeText(props.textToCopy)
           setHasCopied(true)
@@ -29,5 +32,6 @@ export const CodeCopy = (props: {textToCopy: string, className?: string}) => {
           <Copy className="aspect-square h-4 w-4"></Copy>
         )}
       </Button>
-      </div>
+    </div>
+  )
 }

@@ -12,7 +12,7 @@ export default defineConfig([
       alwaysBundle: [/./],
       onlyBundle: false,
     },
-    target: "es2015",
+    target: "es2020",
     platform: "browser",
     define: {
       '__NEXT_PUBLIC_GA_ID__': NEXT_PUBLIC_GA_ID,
@@ -29,7 +29,7 @@ export default defineConfig([
       alwaysBundle: [/./],
       onlyBundle: false,
     },
-    target: "es2015",
+    target: "es2020",
     platform: "browser",
     define: {
       '__NEXT_PUBLIC_GA_ID__': NEXT_PUBLIC_GA_ID,

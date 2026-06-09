@@ -21,9 +21,9 @@ export const CookieBanner = ({
 
           <div className="pt-1.5 flex flex-col md:flex-row gap-8">
             <p className="text-base md:w-9/12">
-              We use essential cookies to ensure the website functions properly. With your permission, we’ll also use
-              optional cookies to analyze site usage and improve the user experience. For details of how we use
-              cookies and your personal data, please read our{' '}
+              We use essential cookies to ensure the website functions properly. With your
+              permission, we’ll also use optional cookies to analyze site usage and improve the user
+              experience. For details of how we use cookies and your personal data, please read our{' '}
               <a
                 className="font-semibold hover:underline underline-offset-4 underline"
                 href="https://www.quantinuum.com/cookie-notice"

@@ -1,58 +1,45 @@
-type Mode = "system" | "dark" | "light";
+type Mode = 'system' | 'dark' | 'light'
 const isMode = (mode: string): mode is Mode => {
-  return ["system", "dark", "light"].includes(mode);
-};
+  return ['system', 'dark', 'light'].includes(mode)
+}
 
-const mode_storage_key = "data-theme" as const;
+const mode_storage_key = 'data-theme' as const
 
 const isDark = (mode: Mode): boolean => {
   return (
-    (mode === "system" &&
-      window?.matchMedia?.("(prefers-color-scheme: dark)").matches) ||
-    mode === "dark"
-  );
-};
+    (mode === 'system' && window?.matchMedia?.('(prefers-color-scheme: dark)').matches) ||
+    mode === 'dark'
+  )
+}
 
 const getTheme = () => {
-  const localMode = localStorage.getItem(mode_storage_key);
+  const localMode = localStorage.getItem(mode_storage_key)
   // Default to dark mode if none specified.
-  const resolvedMode =
-    localMode !== null && isMode(localMode) ? localMode : ("light" as const);
+  const resolvedMode = localMode !== null && isMode(localMode) ? localMode : ('light' as const)
   return {
     mode: resolvedMode,
     isDark: isDark(resolvedMode),
-  };
-};
+  }
+}
 
 const setTheme = (mode: Mode) => {
-  localStorage.setItem(mode_storage_key, mode);
-  window.dispatchEvent(new Event("storage"));
-};
+  localStorage.setItem(mode_storage_key, mode)
+  window.dispatchEvent(new Event('storage'))
+}
 
-
-
-const subscribeToTheme = (callback: (state: {isDark: boolean, mode: Mode}) => void) => {
+const subscribeToTheme = (callback: (state: { isDark: boolean; mode: Mode }) => void) => {
   const _callback = () => {
-    const theme = getTheme();
-    callback(theme);
+    const theme = getTheme()
+    callback(theme)
   }
   _callback()
-  window.addEventListener("storage", _callback);
-  window
-    .matchMedia("(prefers-color-scheme: dark)")
-    .addEventListener("change", _callback);
+  window.addEventListener('storage', _callback)
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', _callback)
 
   return () => {
-    window.removeEventListener("storage", _callback);
-    window
-      .matchMedia("(prefers-color-scheme: dark)")
-      .removeEventListener("change", _callback);
-  };
-};
+    window.removeEventListener('storage', _callback)
+    window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', _callback)
+  }
+}
 
-export {
-  getTheme, 
-  setTheme,
-  subscribeToTheme,
-};
-
+export { getTheme, setTheme, subscribeToTheme }

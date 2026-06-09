@@ -5,7 +5,10 @@ type CookieSettingsButtonProps = Omit<ComponentProps<'button'>, 'onClick'> & {
   onCookiesSettingsButtonClick: () => void
 }
 
-export function CookieSettingsButton({ onCookiesSettingsButtonClick, ...props }: CookieSettingsButtonProps) {
+export function CookieSettingsButton({
+  onCookiesSettingsButtonClick,
+  ...props
+}: CookieSettingsButtonProps) {
   return (
     <button
       {...props}
