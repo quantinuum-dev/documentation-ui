@@ -158,11 +158,16 @@ describe('CookieConsentContext', () => {
   describe('CookieConsentContext hook error handling', () => {
     it('should throw an error when "useCookieConsent" is used outside of CookieConsentProvider', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      // React 18 also re-dispatches render-time throws as a window 'error' event;
+      // swallow it so Vitest doesn't print an "unhandled error" for this expected throw.
+      const errorHandler = (event: ErrorEvent) => event.preventDefault()
+      window.addEventListener('error', errorHandler)
 
       expect(() => renderHook(() => useCookieConsent())).toThrow(
         '"useCookieConsent" hook was called outside of CookieConsentProvider'
       )
 
+      window.removeEventListener('error', errorHandler)
       consoleSpy.mockRestore()
     })
   })
