@@ -1,10 +1,12 @@
-import React from "react"
+import React from 'react'
 
 export const DocsPageLayout = React.forwardRef<
-HTMLDivElement,
-React.HTMLAttributes<HTMLDivElement>
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
 >(({ ...props }, ref) => {
-    return <main className="container mx-auto py-6 md:py-4" ref={ref}>{props.children}</main>
- 
+  return (
+    <main className="container mx-auto py-6 md:py-4" ref={ref}>
+      {props.children}
+    </main>
+  )
 })
-

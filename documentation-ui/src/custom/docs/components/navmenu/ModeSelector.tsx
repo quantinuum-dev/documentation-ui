@@ -1,4 +1,3 @@
-
 import { Check, MoonIcon, SunIcon } from 'lucide-react'
 import {
   Button,
@@ -14,20 +13,14 @@ export const ModeSelector = () => {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          className="aspect-square w-9 px-0"
-          aria-label="theme-selector"
-        >
+        <Button variant="outline" className="aspect-square w-9 px-0" aria-label="theme-selector">
           <SunIcon className="h-[1.15rem] w-[1.15rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <MoonIcon className="absolute h-[1.15rem] w-[1.15rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <div className="text-muted-foreground mb-1 ml-2 mt-1  text-xs">
-          Select Theme
-        </div>
+        <div className="text-muted-foreground mb-1 ml-2 mt-1  text-xs">Select Theme</div>
         <DropdownMenuItem onClick={() => theme.setMode('light')}>
           Light
           {theme.theme.mode === 'light' ? (

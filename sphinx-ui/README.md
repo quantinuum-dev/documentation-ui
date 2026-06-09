@@ -16,7 +16,7 @@ html_theme = 'quantinuum_sphinx'
 html_favicon = '<path to your favicon file>'
 ```
 
-Create a file `./_static/nav-config.js` containing: 
+Create a file `./_static/nav-config.js` containing:
 
 ```js
 const navConfig = {
