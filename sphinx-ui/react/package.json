@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "npx tsdown",
+    "build": "pnpm exec tsdown",
     "format": "prettier --write --config='../../libraries/ui/.prettierrc'  --ignore-path='.prettierignore' ."
   },
   "author": "",
