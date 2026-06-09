@@ -1,4 +1,3 @@
-
 import { NavigationMenuLink, cn } from '@quantinuum/quantinuum-ui'
 import React from 'react'
 export const ListItem = React.forwardRef<
@@ -17,9 +16,7 @@ export const ListItem = React.forwardRef<
           {...props}
         >
           <div className="text-sm font-medium leading-none">{title}</div>
-          <p className="text-muted-foreground line-clamp-2 text-sm leading-snug">
-            {children}
-          </p>
+          <p className="text-muted-foreground line-clamp-2 text-sm leading-snug">{children}</p>
         </a>
       </NavigationMenuLink>
     </li>

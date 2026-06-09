@@ -1,41 +1,42 @@
-
 import {
   NavigationMenu,
+  NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuLink,
-  NavigationMenuTrigger,
   NavigationMenuList,
-  NavigationMenuContent,
+  NavigationMenuTrigger,
 } from '@quantinuum/quantinuum-ui'
-
+import { JSX } from 'react'
 
 export const Navigation = (props: {
-  activePath: string,
+  activePath: string
   navTextLinks: {
-    href: string,
-    title: string,
-    logo: JSX.Element,
-    description: string,
+    href: string
+    title: string
+    logo: JSX.Element
+    description: string
     dropDown: {
-      href: string,
-      title: string, 
-    }[],
-  }[];
-} ) => {
+      href: string
+      title: string
+    }[]
+  }[]
+}) => {
   return (
     <NavigationMenu className="place-self-center sm:block">
       <NavigationMenuList className="hidden md:flex">
-        { props.navTextLinks.map((item) => {
+        {props.navTextLinks.map((item) => {
           return (
             <NavigationMenuItem key={item.title}>
-              <NavigationMenuTrigger className='hover:bg-black hover:text-white'>{item.title}</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  {item.description && !item.href && (
-                    <p className="p-4 text-sm leading-tight text-muted-foreground py-2 hidden md:block lg:block">
-                      {item.description}
-                    </p>
-                  )}
-                  <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
+              <NavigationMenuTrigger className="hover:bg-black hover:text-white">
+                {item.title}
+              </NavigationMenuTrigger>
+              <NavigationMenuContent>
+                {item.description && !item.href && (
+                  <p className="p-4 text-sm leading-tight text-muted-foreground py-2 hidden md:block lg:block">
+                    {item.description}
+                  </p>
+                )}
+                <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
                   {item.href && (
                     <li className="row-span-4">
                       <NavigationMenuLink asChild>
@@ -52,20 +53,24 @@ export const Navigation = (props: {
                     </li>
                   )}
 
-                  {item.dropDown && item.dropDown.length > 0 && item.dropDown.map((subtitle) => (
-                    <li key={subtitle.title}> {/* Add a unique key */}
-                      <NavigationMenuLink asChild>
-                        <a
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-black hover:text-white focus:bg-accent focus:text-accent-foreground"
-                          href={subtitle.href}
-                        >
-                          <div className="text-sm font-medium leading-none">{subtitle.title}</div>
-                        </a>
-                      </NavigationMenuLink>
-                    </li>
-                  ))}
+                  {item.dropDown &&
+                    item.dropDown.length > 0 &&
+                    item.dropDown.map((subtitle) => (
+                      <li key={subtitle.title}>
+                        {' '}
+                        {/* Add a unique key */}
+                        <NavigationMenuLink asChild>
+                          <a
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-black hover:text-white focus:bg-accent focus:text-accent-foreground"
+                            href={subtitle.href}
+                          >
+                            <div className="text-sm font-medium leading-none">{subtitle.title}</div>
+                          </a>
+                        </NavigationMenuLink>
+                      </li>
+                    ))}
                 </ul>
-                </NavigationMenuContent>
+              </NavigationMenuContent>
             </NavigationMenuItem>
           )
         })}

@@ -12,7 +12,6 @@
     "module": "ESNext",
     "declaration": true,
     "types": ["vitest/globals"],
-
     "sourceMap": true,
     "outDir": "dist",
     "ignoreDeprecations": "6.0",
@@ -22,7 +21,6 @@
       "src": ["./src/index.ts"],
       "src/*": ["./src/*"]
     },
-
     "allowSyntheticDefaultImports": true,
     "emitDeclarationOnly": true
   }

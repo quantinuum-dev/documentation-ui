@@ -1,20 +1,12 @@
 import { ComponentProps } from 'react'
 
 type LogoVariants = { variant?: 'logo' | 'horizontal' | 'vertical' | 'favicon' }
-export const NexusLogo = ({
-  variant = 'logo',
-  ...props
-}: ComponentProps<'svg'> & LogoVariants) => {
+export const NexusLogo = ({ variant = 'logo', ...props }: ComponentProps<'svg'> & LogoVariants) => {
   switch (variant) {
     default:
     case 'logo':
       return (
-        <svg
-          viewBox="0 0 147 124"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          {...props}
-        >
+        <svg viewBox="0 0 147 124" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
           <path
             d="M23.1399 95.8288V95.8117H0V123.983L30.141 124L60.9526 92.6968L43.842 75.4136L23.1399 95.8288Z"
             fill="currentColor"
@@ -61,11 +53,7 @@ export const NexusLogo = ({
       )
     case 'horizontal':
       return (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 1143.43 219.61"
-          {...props}
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1143.43 219.61" {...props}>
           <g fill="currentColor">
             <g>
               <polygon points="461.09 191.9 370.81 103.07 346.04 103.07 346.04 218 367.53 218 367.53 129.77 454.59 218.02 482.59 218 482.59 103.07 461.09 103.07 461.09 191.9" />
