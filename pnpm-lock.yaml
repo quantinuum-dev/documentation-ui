@@ -220,8 +220,8 @@ importers:
         specifier: ^16.2.2
         version: 16.2.6(next@16.2.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
       '@quantinuum/documentation-ui':
-        specifier: file:../../documentation-ui
-        version: file:documentation-ui(@hookform/resolvers@3.10.0(react-hook-form@7.76.1(react@18.3.1)))(@tailwindcss/typography@0.5.19(tailwindcss@3.4.19))(@tanstack/react-table@8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(next@16.2.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react-hook-form@7.76.1(react@18.3.1))(react@18.3.1)(tailwindcss-animate@1.0.7(tailwindcss@3.4.19))(tailwindcss@3.4.19)(vite@8.0.14(@types/node@20.19.41)(jiti@2.6.1)(terser@5.48.0))
+        specifier: workspace:*
+        version: link:../../documentation-ui
       '@quantinuum/quantinuum-ui':
         specifier: ^3.6.1
         version: 3.6.1(@hookform/resolvers@3.10.0(react-hook-form@7.76.1(react@18.3.1)))(@tailwindcss/typography@0.5.19(tailwindcss@3.4.19))(@tanstack/react-table@8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(date-fns@3.6.0)(lucide-react@0.468.0(react@18.3.1))(next@16.2.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react-hook-form@7.76.1(react@18.3.1))(react-icons@5.6.0(react@18.3.1))(react@18.3.1)(tailwindcss-animate@1.0.7(tailwindcss@3.4.19))(tailwindcss@3.4.19)(zod@3.25.76)
@@ -1250,17 +1250,6 @@ packages:
 
   '@quansync/fs@1.0.0':
     resolution: {integrity: sha512-4TJ3DFtlf1L5LDMaM6CanJ/0lckGNtJcMjQ1NAV6zDmA0tEHKZtxNKin8EgPaVX1YzljbxckyT2tJrpQKAtngQ==}
-
-  '@quantinuum/documentation-ui@file:documentation-ui':
-    resolution: {directory: documentation-ui, type: directory}
-    peerDependencies:
-      '@hookform/resolvers': ^3.9.0
-      '@tailwindcss/typography': ^0.5.15
-      react: ^18.2.0
-      react-dom: ^18.2.0
-      react-hook-form: ^7.50.1
-      tailwindcss: ^3.4.15
-      tailwindcss-animate: ^1.0.7
 
   '@quantinuum/quantinuum-ui@3.6.1':
     resolution: {integrity: sha512-ITHup5r34sFNDoeKv9Wm3S/P5bxg2I1lTUrKyJZ9GwiypYo83/6gBVK3G1H1wwBtsFQMp2dtxJRFbWUHz367yw==}
@@ -7174,40 +7163,6 @@ snapshots:
     dependencies:
       quansync: 1.0.0
 
-  '@quantinuum/documentation-ui@file:documentation-ui(@hookform/resolvers@3.10.0(react-hook-form@7.76.1(react@18.3.1)))(@tailwindcss/typography@0.5.19(tailwindcss@3.4.19))(@tanstack/react-table@8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(next@16.2.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react-hook-form@7.76.1(react@18.3.1))(react@18.3.1)(tailwindcss-animate@1.0.7(tailwindcss@3.4.19))(tailwindcss@3.4.19)(vite@8.0.14(@types/node@20.19.41)(jiti@2.6.1)(terser@5.48.0))':
-    dependencies:
-      '@hookform/resolvers': 3.10.0(react-hook-form@7.76.1(react@18.3.1))
-      '@quantinuum/quantinuum-ui': 3.6.1(@hookform/resolvers@3.10.0(react-hook-form@7.76.1(react@18.3.1)))(@tailwindcss/typography@0.5.19(tailwindcss@3.4.19))(@tanstack/react-table@8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(date-fns@3.6.0)(lucide-react@0.468.0(react@18.3.1))(next@16.2.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react-hook-form@7.76.1(react@18.3.1))(react-icons@5.6.0(react@18.3.1))(react@18.3.1)(tailwindcss-animate@1.0.7(tailwindcss@3.4.19))(tailwindcss@3.4.19)(zod@3.25.76)
-      '@radix-ui/react-icons': 1.3.2(react@18.3.1)
-      '@radix-ui/react-navigation-menu': 1.2.14(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@tailwindcss/typography': 0.5.19(tailwindcss@3.4.19)
-      '@vitejs/plugin-react': 4.7.0(vite@8.0.14(@types/node@20.19.41)(jiti@2.6.1)(terser@5.48.0))
-      class-variance-authority: 0.7.1
-      clsx: 2.1.1
-      cmdk: 0.2.1(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      date-fns: 3.6.0
-      input-otp: 1.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      lucide-react: 0.468.0(react@18.3.1)
-      react: 18.3.1
-      react-day-picker: 8.10.2(date-fns@3.6.0)(react@18.3.1)
-      react-dom: 18.3.1(react@18.3.1)
-      react-hook-form: 7.76.1(react@18.3.1)
-      react-icons: 5.6.0(react@18.3.1)
-      react-resizable-panels: 1.0.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      remeda: 2.36.0
-      tailwind-merge: 2.6.1
-      tailwindcss: 3.4.19
-      tailwindcss-animate: 1.0.7(tailwindcss@3.4.19)
-      vaul: 0.8.9(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - '@tanstack/react-table'
-      - '@types/react'
-      - '@types/react-dom'
-      - next
-      - supports-color
-      - vite
-
   '@quantinuum/quantinuum-ui@3.6.1(@hookform/resolvers@3.10.0(react-hook-form@7.76.1(react@18.3.1)))(@tailwindcss/typography@0.5.19(tailwindcss@3.4.19))(@tanstack/react-table@8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(date-fns@3.6.0)(lucide-react@0.468.0(react@18.3.1))(next@16.2.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react-hook-form@7.76.1(react@18.3.1))(react-icons@5.6.0(react@18.3.1))(react@18.3.1)(tailwindcss-animate@1.0.7(tailwindcss@3.4.19))(tailwindcss@3.4.19)(zod@3.25.76)':
     dependencies:
       '@hookform/resolvers': 3.10.0(react-hook-form@7.76.1(react@18.3.1))
@@ -9493,18 +9448,6 @@ snapshots:
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
       vite: 8.0.14(@types/node@20.19.41)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.48.0)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@vitejs/plugin-react@4.7.0(vite@8.0.14(@types/node@20.19.41)(jiti@2.6.1)(terser@5.48.0))':
-    dependencies:
-      '@babel/core': 7.29.7
-      '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7)
-      '@babel/plugin-transform-react-jsx-source': 7.29.7(@babel/core@7.29.7)
-      '@rolldown/pluginutils': 1.0.0-beta.27
-      '@types/babel__core': 7.20.5
-      react-refresh: 0.17.0
-      vite: 8.0.14(@types/node@20.19.41)(jiti@2.6.1)(terser@5.48.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -12639,15 +12582,6 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vaul@0.8.9(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
-    dependencies:
-      '@radix-ui/react-dialog': 1.1.15(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-    transitivePeerDependencies:
-      - '@types/react'
-      - '@types/react-dom'
-
   vaul@0.8.9(@types/react-dom@18.3.7(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       '@radix-ui/react-dialog': 1.1.15(@types/react-dom@18.3.7(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -12679,19 +12613,6 @@ snapshots:
       esbuild: 0.25.12
       fsevents: 2.3.3
       jiti: 1.21.7
-      terser: 5.48.0
-
-  vite@8.0.14(@types/node@20.19.41)(jiti@2.6.1)(terser@5.48.0):
-    dependencies:
-      lightningcss: 1.32.0
-      picomatch: 4.0.4
-      postcss: 8.5.15
-      rolldown: 1.0.2
-      tinyglobby: 0.2.16
-    optionalDependencies:
-      '@types/node': 20.19.41
-      fsevents: 2.3.3
-      jiti: 2.6.1
       terser: 5.48.0
 
   vitest@4.1.7(@types/node@20.19.41)(jsdom@29.1.1)(vite@8.0.14(@types/node@20.19.41)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.48.0)):
