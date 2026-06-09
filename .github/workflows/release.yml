@@ -138,7 +138,7 @@ jobs:
         with:
           node-version: 22
           cache: "pnpm"
-          cache-dependency-path: "sphinx-ui/react/pnpm-lock.yaml"
+          cache-dependency-path: "sphinx-ui/react/package.lock.json"
       - name: Build documentation UI JS package
         working-directory: documentation-ui
         run: |
