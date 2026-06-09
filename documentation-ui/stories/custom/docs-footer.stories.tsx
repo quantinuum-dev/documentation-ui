@@ -1,17 +1,16 @@
-import { Meta, StoryObj } from "@storybook/react";
-import { DocsFooter } from "src";
-
+import { Meta, StoryObj } from '@storybook/react'
+import { DocsFooter } from 'src'
 
 export function DocsFooterDemo() {
-  return <DocsFooter />;
+  return <DocsFooter />
 }
 
 const meta: Meta<typeof DocsFooterDemo> = {
   component: DocsFooterDemo,
-};
+}
 
-export default meta;
+export default meta
 
 export const Default: StoryObj<typeof DocsFooterDemo> = {
   args: {},
-};
+}

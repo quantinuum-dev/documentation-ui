@@ -4,26 +4,34 @@ import React from 'react'
 import { Button } from '@quantinuum/quantinuum-ui'
 import { type useTheme } from './use-theme'
 
-export const ThemeSelector = React.forwardRef<HTMLButtonElement, ReturnType<typeof useTheme>>(({ theme, setMode }, ref) => {
-
-  const stateMap = {
-    light: {
-      icon: <SunIcon className="h-4 w-4" />,
-    },
-    dark: {
-      icon: <MoonIcon className="h-4 w-4" />,
-    },
-    system: {
-      icon: <ComputerIcon className="h-4 w-4" />,
-    },
-  } satisfies Record<typeof theme.mode, unknown>
-  return (
-    <Button className="aspect-square" variant="outline" size="icon" aria-label={`mode-${theme.mode}`} onClick={() => {
-      if (theme.mode === 'dark') setMode('light')
-      if (theme.mode === 'light') setMode('system')
-      if (theme.mode === 'system') setMode('dark')
-    }} ref={ref}>
-      {stateMap[theme.mode].icon}
-    </Button>
-  )
-})
+export const ThemeSelector = React.forwardRef<HTMLButtonElement, ReturnType<typeof useTheme>>(
+  ({ theme, setMode }, ref) => {
+    const stateMap = {
+      light: {
+        icon: <SunIcon className="h-4 w-4" />,
+      },
+      dark: {
+        icon: <MoonIcon className="h-4 w-4" />,
+      },
+      system: {
+        icon: <ComputerIcon className="h-4 w-4" />,
+      },
+    } satisfies Record<typeof theme.mode, unknown>
+    return (
+      <Button
+        className="aspect-square"
+        variant="outline"
+        size="icon"
+        aria-label={`mode-${theme.mode}`}
+        onClick={() => {
+          if (theme.mode === 'dark') setMode('light')
+          if (theme.mode === 'light') setMode('system')
+          if (theme.mode === 'system') setMode('dark')
+        }}
+        ref={ref}
+      >
+        {stateMap[theme.mode].icon}
+      </Button>
+    )
+  }
+)

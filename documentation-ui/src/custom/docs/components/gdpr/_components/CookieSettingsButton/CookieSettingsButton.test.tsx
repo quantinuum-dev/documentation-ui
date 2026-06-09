@@ -9,7 +9,9 @@ describe('CookieSettingsButton', () => {
   })
 
   it('should render as  expected', () => {
-    const { container } = render(<CookieSettingsButton onCookiesSettingsButtonClick={mockOnClick} />)
+    const { container } = render(
+      <CookieSettingsButton onCookiesSettingsButtonClick={mockOnClick} />
+    )
 
     expect(container).toMatchSnapshot()
   })

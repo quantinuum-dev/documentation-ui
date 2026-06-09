@@ -7,7 +7,7 @@ Install deps:
 
 Build UI assets:
 
-`npm run build` 
+`npm run build`
 
 outputs js and css to `build`
 
