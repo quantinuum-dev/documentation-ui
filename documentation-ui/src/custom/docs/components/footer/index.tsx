@@ -78,7 +78,7 @@ export const Footer = () => {
       <Separator />
       <div className="my-12"></div>
 
-      <footer className="text-muted-foreground flex flex-col justify-center xl:flex-row gap-12 xl:gap-24">
+      <footer className="text-muted-foreground flex flex-col xl:justify-between  xl:flex-row gap-12 xl:gap-24">
         <div>
           <div className="-mt-4">
             <a href="https://www.quantinuum.com/" target='_blank' className='hover:opacity-75 transition'>
