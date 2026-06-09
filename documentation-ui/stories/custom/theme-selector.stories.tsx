@@ -1,8 +1,7 @@
 import { Meta, StoryObj } from '@storybook/react'
 import { ThemeSelector } from 'src/custom/theme-selector'
 import { useTheme } from 'src/custom/use-theme'
-
-function ThemeSelectorDemo() {
+export function ThemeSelectorDemo() {
   const { theme, setMode } = useTheme()
   return <ThemeSelector theme={theme} setMode={setMode} />
 }

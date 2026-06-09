@@ -6,7 +6,6 @@ import {
   DropdownMenuTrigger,
 } from '@quantinuum/quantinuum-ui'
 import { MenuIcon } from 'lucide-react'
-import { JSX } from 'react'
 
 export const MobileMenu = (props: {
   navTextLinks: {
