@@ -138,12 +138,24 @@ jobs:
           cp ./node_modules/@quantinuum/documentation-ui/dist/tokens.css ../quantinuum_sphinx/static/styles/quantinuum-ui-tokens.css
           npx tailwindcss --postcss ./postcss.config.mjs -i ./index.css -o ../quantinuum_sphinx/static/styles/quantinuum-ui-tailwind.css
           echo ✅ "Done. Generated UI assets."
-      - name: Build and Publish to PyPI
+      - name: Build PyPI distributions
+        working-directory: sphinx-ui
+        env:
+          PYPI_VERSION: ${{ needs.build_and_release_node.outputs.version }}
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.build_and_release_node.outputs.version }}
+          SETUPTOOLS_SCM_PRETEND_VERSION_FOR_QUANTINUUM_SPHINX: ${{ needs.build_and_release_node.outputs.version }}
+        run: |
+          echo "📦 Building quantinuum_sphinx ${PYPI_VERSION}..."
+          uv build
+          ls -l dist
+          test -f "dist/quantinuum_sphinx-${PYPI_VERSION}.tar.gz"
+          test -f "dist/quantinuum_sphinx-${PYPI_VERSION}-py3-none-any.whl"
+          echo ✅ "Done. Built PyPI distributions."
+      - name: Publish PyPI distributions
         working-directory: sphinx-ui
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: |
-          echo "📦 Building and publishing to PyPI..."
-          uv build
-          uv publish --token-provider=explicit
+          echo "📦 Publishing quantinuum_sphinx distributions to PyPI..."
+          uv publish
           echo ✅ "Done. Published Package to PyPI."

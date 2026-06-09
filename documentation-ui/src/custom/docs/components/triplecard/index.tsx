@@ -1,5 +1,6 @@
-import { Card,  CardTitle, CardSubtitle  } from './Card'
-import { type ComponentProps, type ComponentType } from 'react'
+import { Card, CardTitle, CardSubtitle } from './Card'
+import { type ComponentProps, type JSXElementConstructor } from 'react'
+import type { ImageProps as NextImageProps } from 'next/image'
 
 type TripleCardLink = {
   title: string
@@ -16,11 +17,22 @@ type TripleCardItem = {
   links: TripleCardLink[]
 }
 
-type ImageComponent = ComponentType<ComponentProps<'img'> & { priority?: boolean }>
-type LinkComponent = ComponentType<ComponentProps<'a'>>
+type TripleCardImageProps = Pick<ComponentProps<'img'>, 'style'> &
+  Required<Pick<ComponentProps<'img'>, 'alt' | 'src'>> &
+  Required<Pick<NextImageProps, 'height' | 'width'>> &
+  Pick<NextImageProps, 'priority'>
 
-export const TripleCard = (props: { cards: TripleCardItem[]; imageComponent: ImageComponent; linkComponent: LinkComponent }) => {
+type TripleCardLinkProps = Pick<ComponentProps<'a'>, 'children' | 'className'> &
+  Required<Pick<ComponentProps<'a'>, 'href'>>
 
+type ImageComponent = JSXElementConstructor<TripleCardImageProps>
+type LinkComponent = JSXElementConstructor<TripleCardLinkProps>
+
+export const TripleCard = (props: {
+  cards: TripleCardItem[]
+  imageComponent: ImageComponent
+  linkComponent: LinkComponent
+}) => {
   return (
     <section className="shadow-lg rounded-xl grid grid-cols-1 items-stretch md:grid-cols-3 ">
       {props.cards.map((item, idx, arr) => {
@@ -37,10 +49,7 @@ export const TripleCard = (props: { cards: TripleCardItem[]; imageComponent: Ima
               return 'rounded-none border-t-0 md:border-t'
             })()}
           >
-
-            <CardTitle className="mt-1 -mb-0.5 text-[1.4rem]">
-              {item.title}
-            </CardTitle>
+            <CardTitle className="mt-1 -mb-0.5 text-[1.4rem]">{item.title}</CardTitle>
             <CardSubtitle>{item.subtitle}</CardSubtitle>
             {item.image_link ? (
               <div className="h-[19rem] md:h-[14rem] -my-4 flex justify-center dark:invert dark:brightness-[0.91] dark:grayscale">
@@ -51,17 +60,14 @@ export const TripleCard = (props: { cards: TripleCardItem[]; imageComponent: Ima
                   width={300}
                   style={{ objectFit: 'contain' }}
                   priority
-                /> 
+                />
               </div>
-            ) : (
-              null
-            )}
+            ) : null}
             <div className="my-4"></div>
             <ul className="mt-5 flex flex-col gap-4">
               {item.links.map((link) => {
                 return (
                   <li key={link.title}>
-        
                     <props.linkComponent
                       className="font-semibold tracking-tight text-blue-600 dark:text-blue-300"
                       href={link.link}

@@ -1633,17 +1633,8 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
   border-style: none;
 }
 
-.use-tailwind .border-black {
-  --tw-border-opacity: 1;
-  border-color: rgb(0 0 0 / var(--tw-border-opacity, 1));
-}
-
 .use-tailwind .border-border {
   border-color: hsl(var(--border));
-}
-
-.use-tailwind .border-border\/60 {
-  border-color: hsl(var(--border) / 0.6);
 }
 
 .use-tailwind .border-destructive\/50 {
@@ -1676,11 +1667,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 
 .use-tailwind .bg-background {
   background-color: hsl(var(--background));
-}
-
-.use-tailwind .bg-black {
-  --tw-bg-opacity: 1;
-  background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1));
 }
 
 .use-tailwind .bg-black\/20 {
@@ -2534,11 +2520,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
   cursor: pointer;
 }
 
-.use-tailwind .hover\:border-black:hover {
-  --tw-border-opacity: 1;
-  border-color: rgb(0 0 0 / var(--tw-border-opacity, 1));
-}
-
 .use-tailwind .hover\:bg-accent:hover {
   background-color: hsl(var(--accent));
 }
@@ -2588,18 +2569,8 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
   background-color: transparent;
 }
 
-.use-tailwind .hover\:bg-white:hover {
-  --tw-bg-opacity: 1;
-  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
-}
-
 .use-tailwind .hover\:text-accent-foreground:hover {
   color: hsl(var(--accent-foreground));
-}
-
-.use-tailwind .hover\:text-black:hover {
-  --tw-text-opacity: 1;
-  color: rgb(0 0 0 / var(--tw-text-opacity, 1));
 }
 
 .use-tailwind .hover\:text-foreground:hover {
