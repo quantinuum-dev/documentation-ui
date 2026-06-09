@@ -1,5 +1,5 @@
-.venv 
-.nodeenv 
+.venv
+.nodeenv
 .devcontainer
 node_modules
 

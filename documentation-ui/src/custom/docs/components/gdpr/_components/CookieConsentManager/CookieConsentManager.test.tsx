@@ -5,7 +5,9 @@ import * as CookieContext from 'src/custom/docs/components/gdpr/contexts/useCook
 import { CookieCategoryName } from 'src/custom/docs/components/gdpr/types'
 import { vi } from 'vitest'
 
-vi.mock('../CookieBanner/CookieBanner', () => ({ CookieBanner: () => <div data-testid="cookie-banner" /> }))
+vi.mock('../CookieBanner/CookieBanner', () => ({
+  CookieBanner: () => <div data-testid="cookie-banner" />,
+}))
 vi.mock('../CookieSettingsDialog/CookieSettingsDialog', () => ({
   CookieSettingsDialog: () => <div data-testid="cookie-settings-dialog" />,
 }))

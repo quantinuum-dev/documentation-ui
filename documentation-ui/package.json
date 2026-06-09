@@ -37,9 +37,15 @@
   "type": "module",
   "main": "dist/src/index.js",
   "exports": {
-    ".": "./dist/src/index.js",
+    ".": {
+      "types": "./dist/types/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
     "./tokens.css": "./dist/tokens.css",
-    "./tailwindTheme": "./dist/src/tailwindTheme.js"
+    "./tailwindTheme": {
+      "types": "./dist/types/src/tailwindTheme.d.ts",
+      "default": "./dist/src/tailwindTheme.js"
+    }
   },
   "types": "./dist/types/src/index.d.ts",
   "mode": "production",
@@ -85,10 +91,10 @@
     "globals": "^15.15.0",
     "jsdom": "^29.0.1",
     "postcss": "^8.4.32",
+    "postcss-fail-on-warn": "^0.2.1",
     "prop-types": "^15.8.1",
     "react-dom": "^18.2.0",
     "rollup": "^4.60.1",
-    "rollup-plugin-copy": "^3.5.0",
     "rollup-plugin-dts": "^6.4.1",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-postcss": "^4.0.2",
@@ -98,10 +104,10 @@
     "sonner": "^2.0.1",
     "storybook": "^8.6.14",
     "tailwindcss-animate": "^1.0.7",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.30.1",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^4.1.2",
-    "typescript": "^6.0.3"
+    "vitest": "^4.1.2"
   },
   "dependencies": {
     "@quantinuum/quantinuum-ui": "^4",
@@ -126,7 +132,6 @@
   "peerDependencies": {
     "@hookform/resolvers": "^3.9.0",
     "@tailwindcss/typography": "^0.5.15",
-    "next": ">=13.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.50.1",

@@ -2,7 +2,7 @@ import commonjs from "@rollup/plugin-commonjs";
 import resolve from "@rollup/plugin-node-resolve";
 import typescript from "@rollup/plugin-typescript";
 import { createRequire } from "module";
-import copy from "rollup-plugin-copy";
+import { readFileSync } from "node:fs";
 import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import preserveDirectives from "rollup-plugin-preserve-directives";
 import terser from "@rollup/plugin-terser";
@@ -27,6 +27,19 @@ const externalPackages = [
 const isExternalDependency = (id) =>
   externalPackages.some((dependency) => id === dependency || id.startsWith(`${dependency}/`));
 
+const emitStaticAssets = (assets) => ({
+  name: "emit-static-assets",
+  generateBundle() {
+    for (const asset of assets) {
+      this.emitFile({
+        type: "asset",
+        fileName: asset.fileName,
+        source: readFileSync(asset.sourcePath, "utf8"),
+      });
+    }
+  },
+});
+
 export default [{
   onwarn: suppressUseClientWarning,
   input: "src/index.ts",
@@ -47,9 +60,12 @@ export default [{
       tsconfig: "./tsconfig.json",
       declarationDir: "./dist/types",
     }),
-    copy({
-      targets: [{ src: "./src/tokens.css", dest: "./dist" }],
-    }),
+    emitStaticAssets([
+      {
+        sourcePath: "./src/tokens.css",
+        fileName: "tokens.css",
+      },
+    ]),
     terser({ compress: { directives: false } }),
     preserveDirectives(),
   ],

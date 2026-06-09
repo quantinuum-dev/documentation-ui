@@ -1,5 +1,11 @@
 import { SameSite } from '../types'
-import { deleteCookie, deserializeCookies, getCookieValue, serializeCookie, setCookie } from './cookies'
+import {
+  deleteCookie,
+  deserializeCookies,
+  getCookieValue,
+  serializeCookie,
+  setCookie,
+} from './cookies'
 
 describe('Cookie Utils', () => {
   describe('serializeCookie', () => {
@@ -93,7 +99,9 @@ describe('Cookie Utils', () => {
     it('should delete a cookie by setting expiry to past date', () => {
       deleteCookie('foo')
 
-      expect(document.cookie).toBe('foo=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=lax')
+      expect(document.cookie).toBe(
+        'foo=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=lax'
+      )
     })
   })
 })
