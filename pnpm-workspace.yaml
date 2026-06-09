@@ -1,3 +1,7 @@
+packages:
+  - documentation-ui
+  - sphinx-ui/react
+
 minimumReleaseAge: 20160 # 14 days
 minimumReleaseAgeStrict: true
 trustPolicy: no-downgrade
