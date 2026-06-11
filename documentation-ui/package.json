@@ -59,6 +59,9 @@
     "url": "https://github.com/quantinuum-dev/documentation-ui/issues"
   },
   "homepage": "https://github.com/quantinuum-dev/documentation-ui#readme",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
     "@chromatic-com/storybook": "^3.2.6",
@@ -82,6 +85,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.29",
     "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.16",
     "eslint": "^9.25.1",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -109,10 +113,9 @@
     "vitest": "^4.1.2"
   },
   "dependencies": {
-    "@quantinuum/quantinuum-ui": "^3.6.1",
+    "@quantinuum/quantinuum-ui": "^4",
     "@radix-ui/react-icons": "^1.0.0",
     "@radix-ui/react-navigation-menu": "^1.1.4",
-    "@vitejs/plugin-react": "^4.3.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^0.2.0",
