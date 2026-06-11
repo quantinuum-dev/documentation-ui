@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "npx tsdown",
+    "lint": "tsc --noEmit",
     "format": "prettier --write --config='../../libraries/ui/.prettierrc'  --ignore-path='.prettierignore' ."
   },
   "author": "",
@@ -23,7 +24,6 @@
     "prettier-plugin-tailwindcss": "^0.6.6",
     "serve": "^14.2.3",
     "tailwindcss": "^3.4.4",
-    "tsc": "^2.0.4",
     "tsdown": "^0.21.7",
     "typescript": "^6.0.3"
   },
