@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { NavBar } from '../../components/navmenu'
+import { NavBar } from '@/custom/docs/components/navmenu'
 
 ;(() => {
   const mountElement = document.querySelector('.nexus-nav')

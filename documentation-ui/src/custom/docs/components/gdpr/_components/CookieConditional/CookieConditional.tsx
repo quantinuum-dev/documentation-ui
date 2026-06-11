@@ -1,8 +1,8 @@
 'use client'
 
 import { type PropsWithChildren, type ReactNode } from 'react'
-import { useCookieConsent } from '../../contexts/useCookieConsent'
-import { type CookieCategoryName } from '../../types'
+import { useCookieConsent } from '@/custom/docs/components/gdpr/contexts/useCookieConsent'
+import { type CookieCategoryName } from '@/custom/docs/components/gdpr/types'
 
 type CookieConditionalProps = PropsWithChildren<{
   category: CookieCategoryName
