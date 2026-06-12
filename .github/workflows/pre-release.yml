@@ -98,3 +98,11 @@ jobs:
           echo "📦 Building..."
           uv build
           echo ✅ "Done."
+      - name: Upload PyPI distributions as artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: quantinuum-sphinx-dist
+          path: |
+            sphinx-ui/dist/*.tar.gz
+            sphinx-ui/dist/*.whl
+          if-no-files-found: error
