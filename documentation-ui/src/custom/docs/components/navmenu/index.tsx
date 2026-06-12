@@ -17,7 +17,7 @@ const navConfig = {
       pathMatch: 'somewhere',
       logo: <SystemsLogo width={150 * 1.5} height={16 * 1.5}></SystemsLogo>,
       description:
-        "Quantinuum's QCCD ion-trap hardware, the world's highest peforming quantum computers.",
+        "Quantinuum's QCCD ion-trap hardware, the world's highest performing quantum computers.",
       dropDown: [
         {
           title: 'Guides',
