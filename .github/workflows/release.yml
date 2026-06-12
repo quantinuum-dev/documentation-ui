@@ -166,6 +166,14 @@ jobs:
           test -f "dist/quantinuum_sphinx-${PYPI_VERSION}.tar.gz"
           test -f "dist/quantinuum_sphinx-${PYPI_VERSION}-py3-none-any.whl"
           echo ✅ "Done. Built PyPI distributions."
+      - name: Upload PyPI distributions as artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: quantinuum-sphinx-dist-${{ needs.build_and_release_node.outputs.version }}
+          path: |
+            sphinx-ui/dist/*.tar.gz
+            sphinx-ui/dist/*.whl
+          if-no-files-found: error
       - name: Publish PyPI distributions
         working-directory: sphinx-ui
         env:
