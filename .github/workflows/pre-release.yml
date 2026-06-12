@@ -85,7 +85,7 @@ jobs:
         working-directory: sphinx-ui/react
         run: |
           echo "🔨 Generating UI assets..."
-          npm install
+          npm ci
           npm run lint
           npm run build
           cp ./build/injectNav.iife.js ../quantinuum_sphinx/static/injectNav.iife.js
