@@ -16,13 +16,12 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
-    "i": "^0.3.7",
-    "npm": "^10.8.3",
     "postcss": "^8.4.38",
     "postcss-fail-on-warn": "^0.2.1",
+    "postcss-import": "^15.1.0",
     "postcss-prefix-selector": "^1.16.1",
+    "prettier": "^3.8.4",
     "prettier-plugin-tailwindcss": "^0.6.6",
-    "serve": "^14.2.3",
     "tailwindcss": "^3.4.4",
     "tsdown": "^0.21.7",
     "typescript": "^6.0.3"
@@ -30,8 +29,6 @@
   "dependencies": {
     "@quantinuum/documentation-ui": "file:../../documentation-ui",
     "@quantinuum/quantinuum-ui": "^4",
-    "baseline-browser-mapping": "^2.10.13",
-    "caniuse-lite": "^1.0.30001784",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   }
