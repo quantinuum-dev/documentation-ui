@@ -11,6 +11,8 @@ import {
   Button,
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogTitle,
   Form,
   FormControl,
   FormDescription,
@@ -58,17 +60,17 @@ export const CookieSettingsDialog = ({
       <DialogContent
         isDismissable
         className="w-full max-w-[90vw] max-h-[90vh] sm:max-w-xl md:max-w-2xl sm:max-h-[80vh] px-5"
-        aria-label="Cookie settings dialog"
-        aria-labelledby="cookies-settings"
       >
         <article>
           <header className="px-1 mb-5">
-            <h2 className="text-lg font-semibold mb-1.5">Manage Cookies Settings</h2>
-            <p>
+            <DialogTitle className="m-0 mb-1.5 p-0 text-left text-lg font-semibold leading-normal tracking-normal">
+              Manage Cookie Settings
+            </DialogTitle>
+            <DialogDescription className="text-base text-foreground">
               Please choose whether this site may use optional cookies. Optional cookies help us
               measure usage and improve performance. We only set optional cookies with your consent.
               You can withdraw consent at any time in Cookie settings.
-            </p>
+            </DialogDescription>
             <a
               className="font-semibold hover:underline underline-offset-4 mt-1 block"
               href="https://www.quantinuum.com/cookie-notice"
@@ -124,10 +126,10 @@ export const CookieSettingsDialog = ({
                             <Accordion type="single" collapsible className="w-full">
                               <AccordionItem
                                 value={`${category.name}-cookies`}
-                                className="border-b-0"
+                                className="border-b-0 pl-0 [&>h3]:m-0 [&>h3]:p-0"
                               >
-                                <AccordionTrigger className="font-semibold flex justify-start gap-3 p-0">
-                                  Cookies Details
+                                <AccordionTrigger className="m-0 flex flex-none justify-start gap-2 p-0 pl-0 text-left font-semibold leading-normal">
+                                  Cookie Details
                                 </AccordionTrigger>
                                 <AccordionContent className="flex flex-col gap-2 pb-0 mt-8 md:mt-5">
                                   <div className="md:border-[1px] md:rounded-md">

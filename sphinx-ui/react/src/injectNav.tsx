@@ -1,12 +1,53 @@
 
+import { useEffect, type ComponentProps } from "react"; // do not remove
 import { createRoot } from "react-dom/client"
 import { DocsNavBar, CookieCategoryName, CookieConsentProvider, CookieConsentManager, CookieConditional } from "@quantinuum/documentation-ui";
-import { GoogleAnalytics } from '@next/third-parties/google';
-import { ComponentProps } from "react"; // do not remove
 
 const GA_ID = __NEXT_PUBLIC_GA_ID__;
 
 const tailwindScopeClassName = 'use-tailwind';
+
+type AnalyticsWindow = Window & {
+  dataLayer?: unknown[][]
+  gtag?: (...args: unknown[]) => void
+}
+
+const GoogleAnalytics = ({ gaId }: { gaId: string }) => {
+  useEffect(() => {
+    if (!gaId) return
+
+    const analyticsWindow = window as AnalyticsWindow
+    analyticsWindow.dataLayer = analyticsWindow.dataLayer || []
+    analyticsWindow.gtag =
+      analyticsWindow.gtag ||
+      ((...args: unknown[]) => {
+        analyticsWindow.dataLayer?.push(args)
+      })
+
+    analyticsWindow.gtag('js', new Date())
+    analyticsWindow.gtag('config', gaId)
+
+    const scriptId = 'quantinuum-google-analytics'
+    const scriptUrl = new URL('https://www.googletagmanager.com/gtag/js')
+    scriptUrl.searchParams.set('id', gaId)
+
+    const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null
+    if (existingScript) {
+      if (existingScript.src !== scriptUrl.toString()) {
+        existingScript.src = scriptUrl.toString()
+      }
+      return
+    }
+
+    const script = document.createElement('script')
+    script.id = scriptId
+    script.async = true
+    script.src = scriptUrl.toString()
+    document.head.appendChild(script)
+  }, [gaId])
+
+  return null
+}
 
 const isTailwindDialogPortalElement = (element: Element): element is HTMLElement => {
   if (!(element instanceof HTMLElement)) return false
