@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import path from 'path'
 import { Config } from 'tailwindcss'
 import plugin from 'tailwindcss/plugin'

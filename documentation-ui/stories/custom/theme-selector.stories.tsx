@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/react'
+import { Meta, StoryObj } from '@storybook/react-vite'
 import { ThemeSelector } from 'src/custom/theme-selector'
 import { useTheme } from 'src/custom/use-theme'
 export function ThemeSelectorDemo() {

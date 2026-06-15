@@ -1,6 +1,8 @@
+/// <reference types="node" />
+
 import { defineConfig } from 'tsdown'
 
-const NEXT_PUBLIC_GA_ID = JSON.stringify(process.env.NEXT_PUBLIC_GA_ID || '')
+const NEXT_PUBLIC_GA_ID = JSON.stringify(process.env['NEXT_PUBLIC_GA_ID'] || '')
 
 export default defineConfig([
   // Script for injecting nav into sphinx build.
