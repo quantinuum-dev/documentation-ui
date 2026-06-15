@@ -106,7 +106,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
               </button>
               <input
                 aria-hidden="true"
-                style="position: absolute; pointer-events: none; opacity: 0; margin: 0px; transform: translateX(-100%); width: 0px; height: 0px;"
+                style="transform: translateX(-100%); position: absolute; pointer-events: none; opacity: 0; margin: 0px; width: 0px; height: 0px;"
                 tabindex="-1"
                 type="checkbox"
                 value="on"
@@ -133,6 +133,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
                   data-state="closed"
                 >
                   <button
+                    aria-controls="radix-:r6:"
                     aria-expanded="false"
                     class="items-center text-sm transition-all hover:underline [&[data-state=open]>svg]:rotate-180 m-0 flex flex-none justify-start gap-2 p-0 pl-0 text-left font-semibold leading-normal"
                     data-orientation="vertical"
