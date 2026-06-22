@@ -13,7 +13,11 @@ vi.mock('@quantinuum/quantinuum-ui', () => ({
     </button>
   ),
   Dialog: (props: MockDialogProps) => <div aria-label="dialog">{props.children}</div>,
-  DialogContent: (props: MockDialogProps) => <div aria-label="dialog-content">{props.children}</div>,
+  DialogContent: (props: MockDialogProps) => (
+    <div aria-label="dialog-content">{props.children}</div>
+  ),
+  DialogDescription: (props: MockDialogProps) => <p {...props}>{props.children}</p>,
+  DialogTitle: (props: MockDialogProps) => <h2 {...props}>{props.children}</h2>,
 }))
 
 const defaultProps = {

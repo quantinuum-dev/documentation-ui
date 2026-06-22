@@ -6,7 +6,7 @@ repos:
   - repo: builtin
     hooks:
       - id: trailing-whitespace
-        exclude: '^sphinx-ui/demo/'
+        exclude: '(^sphinx-ui/demo/|\.snap$)'
       - id: end-of-file-fixer
         exclude: '^sphinx-ui/demo/'
       - id: check-yaml

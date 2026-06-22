@@ -3,8 +3,7 @@
 exports[`CookieSettingsDialog component > should render as expected 1`] = `
 <div
   aria-describedby="radix-:r2:"
-  aria-label="Cookie settings dialog"
-  aria-labelledby="cookies-settings"
+  aria-labelledby="radix-:r1:"
   class="z-50 fixed grid gap-4 p-6 border bg-background duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] sm:rounded-lg shadow-lg data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] w-full max-w-[90vw] max-h-[90vh] sm:max-w-xl md:max-w-2xl sm:max-h-[80vh] px-5"
   data-state="open"
   id="radix-:r0:"
@@ -17,11 +16,15 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
       class="px-1 mb-5"
     >
       <h2
-        class="text-lg font-semibold mb-1.5"
+        class="m-0 mb-1.5 p-0 text-left text-lg font-semibold leading-normal tracking-normal"
+        id="radix-:r1:"
       >
-        Manage Cookies Settings
+        Manage Cookie Settings
       </h2>
-      <p>
+      <p
+        class="text-base text-foreground"
+        id="radix-:r2:"
+      >
         Please choose whether this site may use optional cookies. Optional cookies help us measure usage and improve performance. We only set optional cookies with your consent. You can withdraw consent at any time in Cookie settings.
       </p>
       <a
@@ -66,60 +69,6 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
             >
               Required for core functionality and security. Examples: sign-in and session management, fraud prevention, storing your cookie settings and basic preferences.
             </p>
-            <div
-              class="w-full"
-              data-orientation="vertical"
-            >
-              <div
-                class="border-b-0"
-                data-orientation="vertical"
-                data-state="closed"
-              >
-                <h3
-                  class="flex"
-                  data-orientation="vertical"
-                  data-state="closed"
-                >
-                  <button
-                    aria-controls="radix-:r5:"
-                    aria-expanded="false"
-                    class="flex-1 items-center text-sm transition-all hover:underline [&[data-state=open]>svg]:rotate-180 font-semibold flex justify-start gap-3 p-0"
-                    data-orientation="vertical"
-                    data-radix-collection-item=""
-                    data-state="closed"
-                    id="radix-:r4:"
-                    type="button"
-                  >
-                    Cookies Details
-                    <svg
-                      class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200"
-                      fill="none"
-                      height="15"
-                      viewBox="0 0 15 15"
-                      width="15"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        clip-rule="evenodd"
-                        d="M3.13523 6.15803C3.3241 5.95657 3.64052 5.94637 3.84197 6.13523L7.5 9.56464L11.158 6.13523C11.3595 5.94637 11.6759 5.95657 11.8648 6.15803C12.0536 6.35949 12.0434 6.67591 11.842 6.86477L7.84197 10.6148C7.64964 10.7951 7.35036 10.7951 7.15803 10.6148L3.15803 6.86477C2.95657 6.67591 2.94637 6.35949 3.13523 6.15803Z"
-                        fill="currentColor"
-                        fill-rule="evenodd"
-                      />
-                    </svg>
-                  </button>
-                </h3>
-                <div
-                  aria-labelledby="radix-:r4:"
-                  class="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
-                  data-orientation="vertical"
-                  data-state="closed"
-                  hidden=""
-                  id="radix-:r5:"
-                  role="region"
-                  style="--radix-accordion-content-height: var(--radix-collapsible-content-height); --radix-accordion-content-width: var(--radix-collapsible-content-width);"
-                />
-              </div>
-            </div>
           </div>
         </section>
         <section
@@ -134,18 +83,18 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
             >
               <label
                 class="peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-lg font-normal"
-                for=":r6:-form-item"
+                for=":r4:-form-item"
                 id="analytics"
               >
                 Analytics
               </label>
               <button
                 aria-checked="false"
-                aria-describedby=":r6:-form-item-description"
+                aria-describedby=":r4:-form-item-description"
                 aria-invalid="false"
                 class="peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input mx-2"
                 data-state="unchecked"
-                id=":r6:-form-item"
+                id=":r4:-form-item"
                 role="switch"
                 type="button"
                 value="on"
@@ -157,7 +106,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
               </button>
               <input
                 aria-hidden="true"
-                style="transform: translateX(-100%); position: absolute; pointer-events: none; opacity: 0; margin: 0px; width: 0px; height: 0px;"
+                style="position: absolute; pointer-events: none; opacity: 0; margin: 0px; transform: translateX(-100%); width: 0px; height: 0px;"
                 tabindex="-1"
                 type="checkbox"
                 value="on"
@@ -165,7 +114,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
             </div>
             <p
               class="text-sm text-foreground"
-              id=":r6:-form-item-description"
+              id=":r4:-form-item-description"
             >
               Helps us understand how the site is used so we can improve content and performance. Data: pages visited, navigation events, device and browser details.
             </p>
@@ -174,7 +123,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
               data-orientation="vertical"
             >
               <div
-                class="border-b-0"
+                class="border-b-0 pl-0 [&>h3]:m-0 [&>h3]:p-0"
                 data-orientation="vertical"
                 data-state="closed"
               >
@@ -184,16 +133,15 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
                   data-state="closed"
                 >
                   <button
-                    aria-controls="radix-:r8:"
                     aria-expanded="false"
-                    class="flex-1 items-center text-sm transition-all hover:underline [&[data-state=open]>svg]:rotate-180 font-semibold flex justify-start gap-3 p-0"
+                    class="items-center text-sm transition-all hover:underline [&[data-state=open]>svg]:rotate-180 m-0 flex flex-none justify-start gap-2 p-0 pl-0 text-left font-semibold leading-normal"
                     data-orientation="vertical"
                     data-radix-collection-item=""
                     data-state="closed"
-                    id="radix-:r7:"
+                    id="radix-:r5:"
                     type="button"
                   >
-                    Cookies Details
+                    Cookie Details
                     <svg
                       class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200"
                       fill="none"
@@ -212,12 +160,12 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
                   </button>
                 </h3>
                 <div
-                  aria-labelledby="radix-:r7:"
+                  aria-labelledby="radix-:r5:"
                   class="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
                   data-orientation="vertical"
                   data-state="closed"
                   hidden=""
-                  id="radix-:r8:"
+                  id="radix-:r6:"
                   role="region"
                   style="--radix-accordion-content-height: var(--radix-collapsible-content-height); --radix-accordion-content-width: var(--radix-collapsible-content-width);"
                 />

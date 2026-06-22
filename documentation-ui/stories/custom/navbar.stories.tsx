@@ -1,6 +1,6 @@
-import { IconJarLogoIcon } from "@radix-ui/react-icons";
-import { Meta, StoryObj } from "@storybook/react";
-import React from "react";
+import { IconJarLogoIcon } from '@radix-ui/react-icons'
+import { Meta, StoryObj } from '@storybook/react-vite'
+import React from 'react'
 import {
   Button,
   Input,
@@ -12,45 +12,44 @@ import {
   NavigationMenuTrigger,
   cn,
   navigationMenuTriggerStyle,
-} from "@quantinuum/quantinuum-ui";
+} from '@quantinuum/quantinuum-ui'
 
 const components: { title: string; href: string; description: string }[] = [
   {
-    title: "Alert Dialog",
-    href: "/docs/primitives/alert-dialog",
+    title: 'Alert Dialog',
+    href: '/docs/primitives/alert-dialog',
     description:
-      "A modal dialog that interrupts the user with important content and expects a response.",
+      'A modal dialog that interrupts the user with important content and expects a response.',
   },
   {
-    title: "Hover Card",
-    href: "/docs/primitives/hover-card",
-    description:
-      "For sighted users to preview content available behind a link.",
+    title: 'Hover Card',
+    href: '/docs/primitives/hover-card',
+    description: 'For sighted users to preview content available behind a link.',
   },
   {
-    title: "Progress",
-    href: "/docs/primitives/progress",
+    title: 'Progress',
+    href: '/docs/primitives/progress',
     description:
-      "Displays an indicator showing the completion progress of a task, typically displayed as a progress bar.",
+      'Displays an indicator showing the completion progress of a task, typically displayed as a progress bar.',
   },
   {
-    title: "Scroll-area",
-    href: "/docs/primitives/scroll-area",
-    description: "Visually or semantically separates content.",
+    title: 'Scroll-area',
+    href: '/docs/primitives/scroll-area',
+    description: 'Visually or semantically separates content.',
   },
   {
-    title: "Tabs",
-    href: "/docs/primitives/tabs",
+    title: 'Tabs',
+    href: '/docs/primitives/tabs',
     description:
-      "A set of layered sections of content—known as tab panels—that are displayed one at a time.",
+      'A set of layered sections of content—known as tab panels—that are displayed one at a time.',
   },
   {
-    title: "Tooltip",
-    href: "/docs/primitives/tooltip",
+    title: 'Tooltip',
+    href: '/docs/primitives/tooltip',
     description:
-      "A popup that displays information related to an element when the element receives keyboard focus or the mouse hovers over it.",
+      'A popup that displays information related to an element when the element receives keyboard focus or the mouse hovers over it.',
   },
-];
+]
 
 function NavigationDemo() {
   return (
@@ -68,12 +67,9 @@ function NavigationDemo() {
                     href="/"
                   >
                     <IconJarLogoIcon></IconJarLogoIcon>
-                    <div className="mb-2 mt-4 text-lg font-medium">
-                      shadcn/ui
-                    </div>
+                    <div className="mb-2 mt-4 text-lg font-medium">shadcn/ui</div>
                     <p className="text-sm leading-tight text-muted-foreground">
-                      Beautifully designed components built with Radix UI and
-                      Tailwind CSS.
+                      Beautifully designed components built with Radix UI and Tailwind CSS.
                     </p>
                   </a>
                 </NavigationMenuLink>
@@ -95,11 +91,7 @@ function NavigationDemo() {
           <NavigationMenuContent>
             <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
               {components.map((component) => (
-                <ListItem
-                  key={component.title}
-                  title={component.title}
-                  href={component.href}
-                >
+                <ListItem key={component.title} title={component.title} href={component.href}>
                   {component.description}
                 </ListItem>
               ))}
@@ -126,50 +118,43 @@ function NavigationDemo() {
             <path d="m19 19-3.5-3.5"></path>
             <circle cx="11" cy="11" r="6"></circle>
           </svg>
-          <Input
-            type="search"
-            className="pl-10 pb-1.5"
-            placeholder="Search documentation..."
-          />
+          <Input type="search" className="pl-10 pb-1.5" placeholder="Search documentation..." />
           <Button>Search</Button>
         </NavigationMenuItem>
       </NavigationMenuList>
     </NavigationMenu>
-  );
+  )
 }
 
-const ListItem = React.forwardRef<
-  React.ElementRef<"a">,
-  React.ComponentPropsWithoutRef<"a">
->(({ className, title, children, ...props }, ref) => {
-  return (
-    <li>
-      <NavigationMenuLink asChild>
-        <a
-          ref={ref}
-          className={cn(
-            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-            className
-          )}
-          {...props}
-        >
-          <div className="text-sm font-medium leading-none">{title}</div>
-          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-            {children}
-          </p>
-        </a>
-      </NavigationMenuLink>
-    </li>
-  );
-});
-ListItem.displayName = "ListItem";
+const ListItem = React.forwardRef<React.ElementRef<'a'>, React.ComponentPropsWithoutRef<'a'>>(
+  ({ className, title, children, ...props }, ref) => {
+    return (
+      <li>
+        <NavigationMenuLink asChild>
+          <a
+            ref={ref}
+            className={cn(
+              'block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
+              className
+            )}
+            {...props}
+          >
+            <div className="text-sm font-medium leading-none">{title}</div>
+            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">{children}</p>
+          </a>
+        </NavigationMenuLink>
+      </li>
+    )
+  }
+)
+ListItem.displayName = 'ListItem'
 
 const meta: Meta<typeof NavigationDemo> = {
   component: NavigationDemo,
-};
+}
 
-export default meta;
+export default meta
 
 export const Default: StoryObj<typeof NavigationDemo> = {
   args: {},
-};
+}

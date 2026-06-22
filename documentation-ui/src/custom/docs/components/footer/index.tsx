@@ -1,79 +1,91 @@
 import { Separator } from "@quantinuum/quantinuum-ui";
-import { QuantinuumLogo } from "../../QuantinuumLogo";
+
+import { QuantinuumLogo } from '@/custom/docs/QuantinuumLogo';
 
 const footerConfig = {
   columns: [
     {
-      name: "User Community",
+      name: 'User Community',
       items: [
         {
-          name: "Compute Platform Updates",
-          href: "/product-updates"
-        }, {
-          name: "Q-NET",
-          href: "https://www.quantinuum.com/q-net#get-started"
-        }, {
-          name: `Quantinuum Startup Partner Program`,
-          href: "https://www.quantinuum.com/startup-partner-program#join"
-        }
-      ]
-    }, {
-      name: "Compute Platform",
-      items: [
-        {
-          name: "Quantinuum Systems",
-          href: "/systems"
-        }, {
-          name: "Quantinuum Nexus",
-          href: "/nexus"
-        }, {
-          name: "Guppy",
-          href: "/guppy"
-        }, {
-          name: "Selene",
-          href: "/selene"
-        }, {
-          name: "Pytket",
-          href: "/tket"
-        },
-      ]
-    }, {
-      name: "Applications",
-      items: [
-        {
-          name: "InQuanto",
-          href: "/inquanto"
+          name: 'Compute Platform Updates',
+          href: '/product-updates',
         },
         {
-          name: "Quantum Origin",
-          href: "/origin"
-        }, {
-          name: "\u03BBambeq",
-          href: "/lambeq/"
+          name: 'Q-NET',
+          href: 'https://www.quantinuum.com/q-net#get-started',
         },
-      ]
-    }, {
-      name: "Quantinuum",
+        {
+          name: 'Quantinuum Startup Partner Program',
+          href: 'https://www.quantinuum.com/startup-partner-program#join',
+        },
+      ],
+    },
+    {
+      name: 'Compute Platform',
       items: [
         {
-          name: "About",
-          href: "https://www.quantinuum.com/about",
-        }, {
-          name: "Careers",
-          href: "https://www.quantinuum.com/careers",
-        }, {
-          name: "Events",
-          href: "https://www.quantinuum.com/events"
-        }
-      ]
-    }
+          name: 'Quantinuum Systems',
+          href: '/systems',
+        },
+        {
+          name: 'Quantinuum Nexus',
+          href: '/nexus',
+        },
+        {
+          name: 'Guppy',
+          href: '/guppy',
+        },
+        {
+          name: 'Selene',
+          href: '/selene',
+        },
+        {
+          name: 'Pytket',
+          href: '/tket',
+        },
+      ],
+    },
+    {
+      name: 'Applications',
+      items: [
+        {
+          name: 'InQuanto',
+          href: '/inquanto',
+        },
+        {
+          name: 'Quantum Origin',
+          href: '/origin',
+        },
+        {
+          name: '\u03BBambeq',
+          href: '/lambeq/',
+        },
+      ],
+    },
+    {
+      name: 'Quantinuum',
+      items: [
+        {
+          name: 'About',
+          href: 'https://www.quantinuum.com/about',
+        },
+        {
+          name: 'Careers',
+          href: 'https://www.quantinuum.com/careers',
+        },
+        {
+          name: 'Events',
+          href: 'https://www.quantinuum.com/events',
+        },
+      ],
+    },
   ],
 }
 
 export const Footer = () => {
   return (
     <div className="mb-24">
-
       <div className="my-24"></div>
       <Separator />
       <div className="my-12"></div>

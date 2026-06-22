@@ -1,6 +1,8 @@
+/// <reference types="node" />
+
 import { defineConfig } from 'tsdown'
 
-const NEXT_PUBLIC_GA_ID = JSON.stringify(process.env.NEXT_PUBLIC_GA_ID || '')
+const NEXT_PUBLIC_GA_ID = JSON.stringify(process.env['NEXT_PUBLIC_GA_ID'] || '')
 
 export default defineConfig([
   // Script for injecting nav into sphinx build.
@@ -12,7 +14,7 @@ export default defineConfig([
       alwaysBundle: [/./],
       onlyBundle: false,
     },
-    target: "es2015",
+    target: "es2020",
     platform: "browser",
     define: {
       '__NEXT_PUBLIC_GA_ID__': NEXT_PUBLIC_GA_ID,
@@ -29,7 +31,7 @@ export default defineConfig([
       alwaysBundle: [/./],
       onlyBundle: false,
     },
-    target: "es2015",
+    target: "es2020",
     platform: "browser",
     define: {
       '__NEXT_PUBLIC_GA_ID__': NEXT_PUBLIC_GA_ID,

@@ -4,7 +4,9 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   resolve: {
+    tsconfigPaths: true,
     alias: {
+      "@": "/src",
       src: "/src",
     },
   },

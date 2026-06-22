@@ -1,6 +1,12 @@
 'use client'
 
-import { Button, Dialog, DialogContent } from '@quantinuum/quantinuum-ui'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@quantinuum/quantinuum-ui'
 
 export const CookieBanner = ({
   isOpen,
@@ -17,13 +23,15 @@ export const CookieBanner = ({
     <Dialog open={isOpen}>
       <DialogContent isDismissable={false} isBottomDialog>
         <div className="max-w-5xl mx-auto" aria-label="Cookie banner">
-          <h3 className="text-lg font-semibold capitalize">We value your privacy</h3>
+          <DialogTitle className="m-0 p-0 text-left text-lg font-semibold capitalize leading-normal tracking-normal">
+            We value your privacy
+          </DialogTitle>
 
           <div className="pt-1.5 flex flex-col md:flex-row gap-8">
-            <p className="text-base md:w-9/12">
-              We use essential cookies to ensure the website functions properly. With your permission, we’ll also use
-              optional cookies to analyze site usage and improve the user experience. For details of how we use
-              cookies and your personal data, please read our{' '}
+            <DialogDescription className="text-base text-foreground md:w-9/12">
+              We use essential cookies to ensure the website functions properly. With your
+              permission, we’ll also use optional cookies to analyze site usage and improve the user
+              experience. For details of how we use cookies and your personal data, please read our{' '}
               <a
                 className="font-semibold hover:underline underline-offset-4 underline"
                 href="https://www.quantinuum.com/cookie-notice"
@@ -51,7 +59,7 @@ export const CookieBanner = ({
                 Terms & Conditions
               </a>
               .
-            </p>
+            </DialogDescription>
 
             <div className="flex flex-col md:hidden">
               <div className="flex mb-4 gap-4">
