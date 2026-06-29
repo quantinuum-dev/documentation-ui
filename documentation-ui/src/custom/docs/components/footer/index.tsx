@@ -90,7 +90,7 @@ export const Footer = () => {
       <Separator />
       <div className="my-12"></div>
 
-      <footer className="text-muted-foreground flex flex-col xl:justify-between  xl:flex-row gap-12 xl:gap-24">
+      <footer className="text-muted-foreground flex flex-col items-start xl:justify-between  xl:flex-row gap-12 xl:gap-24">
         <div>
           <div className="-mt-4">
             <a href="https://www.quantinuum.com/" target='_blank' className='hover:opacity-75 transition'>
@@ -112,7 +112,7 @@ export const Footer = () => {
             </a>
           </div>
         </div>
-        <div className="grid grid-cols-1  xl:grid-cols-4 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-20 xl:gap-x-12 xl:grid-cols-4 gap-12">
           {footerConfig.columns.map((col) => {
             return (
               <div key={col.name} className="flex flex-col max-w-[10rem]">
