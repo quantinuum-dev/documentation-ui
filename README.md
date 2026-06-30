@@ -11,7 +11,7 @@ alternative to `pre-commit`, written in Rust.
 
 ### Prerequisites
 
-- **Node.js / npm** — required by the Biome format check and commitlint hooks.
+- **Node.js / pnpm** — required by the Biome format check and commitlint hooks.
 
 No Python or other runtime is needed to run prek itself.
 

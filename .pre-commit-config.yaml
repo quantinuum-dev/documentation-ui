@@ -25,20 +25,20 @@ repos:
       - id: documentation-ui-format
         name: Biome format (documentation-ui)
         language: system
-        entry: bash -c 'cd documentation-ui && npx biome format --write "${@/#documentation-ui\//}"' --
+        entry: bash -c 'cd documentation-ui && pnpm --config.verify-deps-before-run=false exec biome format --write "${@/#documentation-ui\//}"' --
         pass_filenames: true
         files: '^documentation-ui/(src|stories)/.*\.(ts|tsx|js|jsx|css|json)$'
 
       - id: documentation-ui-lint
         name: Lint (documentation-ui)
         language: system
-        entry: bash -c 'cd documentation-ui && npm run lint'
+        entry: bash -c 'cd documentation-ui && pnpm --config.verify-deps-before-run=false run lint'
         pass_filenames: false
         files: '^documentation-ui/src/.*\.(ts|tsx|js|jsx)$'
 
       - id: commitlint
         name: commitlint
         language: system
-        entry: bash -c 'cd documentation-ui && npx --no -- commitlint --edit "$1"' --
+        entry: bash -c 'cd documentation-ui && pnpm --config.verify-deps-before-run=false exec commitlint --edit "$1"' --
         stages: [commit-msg]
         pass_filenames: true

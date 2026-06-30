@@ -1,7 +1,7 @@
 
-import { useEffect, type ComponentProps } from "react"; // do not remove
-import { createRoot } from "react-dom/client"
-import { DocsNavBar, CookieCategoryName, CookieConsentProvider, CookieConsentManager, CookieConditional } from "@quantinuum/documentation-ui";
+import { CookieCategoryName, CookieConditional, CookieConsentManager, CookieConsentProvider, DocsNavBar } from "@quantinuum/documentation-ui";
+import { useEffect } from "react";
+import { createRoot } from "react-dom/client";
 
 const GA_ID = __NEXT_PUBLIC_GA_ID__;
 

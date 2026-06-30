@@ -2,11 +2,10 @@
 
 Install deps:
 
-`npm i`
-
+`pnpm i`
 
 Build UI assets:
 
-`npm run build`
+`pnpm run build`
 
 outputs js and css to `build`

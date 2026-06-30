@@ -1,0 +1,26 @@
+packages:
+  - "documentation-ui"
+  - "sphinx-ui/react"
+
+minimumReleaseAge: 20160 # 14 days
+minimumReleaseAgeStrict: true
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 43200 # 30 days, See https://pnpm.io/settings#trustpolicyignoreafter
+trustPolicyExclude:
+  - "tinyexec@1.2.2"
+allowBuilds:
+  esbuild: true
+  sharp: false
+minimumReleaseAgeExclude:
+  - '@storybook/addon-docs@10.4.4'
+  - '@storybook/addon-links@10.4.4'
+  - '@storybook/addon-onboarding@10.4.4'
+  - '@storybook/builder-vite@10.4.4'
+  - '@storybook/csf-plugin@10.4.4'
+  - '@storybook/react-dom-shim@10.4.4'
+  - '@storybook/react-vite@10.4.4'
+  - '@storybook/react@10.4.4'
+  - '@types/node@22.19.21'
+  - eslint-plugin-storybook@10.4.4
+  - prettier@3.8.4
+  - storybook@10.4.4
