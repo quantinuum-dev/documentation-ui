@@ -1,5 +1,6 @@
-import { QuantinuumLogo } from '@/custom/docs/QuantinuumLogo'
-import { Separator } from '@quantinuum/quantinuum-ui'
+import { Separator } from "@quantinuum/quantinuum-ui";
+
+import { QuantinuumLogo } from '@/custom/docs/QuantinuumLogo';
 
 const footerConfig = {
   columns: [
@@ -89,60 +90,41 @@ export const Footer = () => {
       <Separator />
       <div className="my-12"></div>
 
-      <footer className="text-muted-foreground flex w-full flex-col justify-between md:items-start lg:flex-row ">
-        <div className="mb-12 lg:mb-0">
+      <footer className="text-muted-foreground flex flex-col items-start xl:justify-between  xl:flex-row gap-12 xl:gap-24">
+        <div>
           <div className="-mt-4">
-            <a
-              href="https://www.quantinuum.com/"
-              target="_blank"
-              className="hover:opacity-75 transition"
-            >
+            <a href="https://www.quantinuum.com/" target='_blank' className='hover:opacity-75 transition'>
               <QuantinuumLogo />
             </a>
           </div>
           <p className="max-w-[24rem] text-xs leading-5">
             Copyright © {new Date().getFullYear()} Quantinuum Inc. All rights reserved.{' '}
           </p>
-          <div className="flex items-center gap-2 mt-2">
-            <a
-              href="https://www.quantinuum.com/terms-conditions"
-              target="_blank"
-              className="font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300"
-            >
+          <div className='flex items-center flex-wrap gap-2 mt-2'>
+            <a href="https://www.quantinuum.com/terms-conditions" target="_blank" className='font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300'>
               Terms and Conditions
-            </a>{' '}
-            <div>/</div>
-            <a
-              target="_blank"
-              href="https://www.quantinuum.com/privacy-statement"
-              className="font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300"
-            >
+            </a> <div className="text-input">/</div>
+            <a target="_blank" href="https://www.quantinuum.com/privacy-statement" className='font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300'>
               Privacy Policy
-            </a>
-            <div>/</div>
-            <a
-              target="_blank"
-              href="https://www.quantinuum.com/cookie-notice"
-              className="font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300"
-            >
+            </a><div className="text-input">/</div>
+            <a target="_blank" href="https://www.quantinuum.com/cookie-notice" className='font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300'>
               Cookie Notice
             </a>
-            <div>/</div>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-16 sm:grid-cols-2 md:grid-cols-4 md:gap-24">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-20 xl:gap-x-12 xl:grid-cols-4 gap-12">
           {footerConfig.columns.map((col) => {
             return (
-              <div key={col.name} className="flex flex-col md:items-end">
-                <span className="text-foreground text-left text-[0.675rem] font-semibold uppercase tracking-wide md:text-right">
+              <div key={col.name} className="flex flex-col max-w-[10rem]">
+                <span className="text-foreground text-[0.675rem] font-semibold uppercase tracking-wide xl:text-right">
                   {col.name}
                 </span>
-                <ul className="mt-3 flex flex-col gap-2 lg:text-right">
+                <ul className="mt-3 flex flex-col gap-2 xl:items-end">
                   {col.items.map((item) => {
                     return (
-                      <li key={item.name}>
+                      <li key={item.href}>
                         <a
-                          className="text-muted-foreground text-[0.85rem] font-medium"
+                          className="block text-muted-foreground text-[0.75rem] font-medium xl:text-right"
                           href={item.href}
                         >
                           {item.name}
