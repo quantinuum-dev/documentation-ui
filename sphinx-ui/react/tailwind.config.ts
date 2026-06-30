@@ -1,13 +1,15 @@
 /// <reference types="node" />
 
+import { createRequire } from 'module'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import { Config } from 'tailwindcss'
 import plugin from 'tailwindcss/plugin'
 import { tailwindTheme } from '@quantinuum/documentation-ui/tailwindTheme'
 
-const documentationUiDistSrcDir = path.dirname(fileURLToPath(import.meta.resolve('@quantinuum/documentation-ui')))
-const quantinuumUiDistSrcDir = path.dirname(fileURLToPath(import.meta.resolve('@quantinuum/quantinuum-ui')))
+const require = createRequire(import.meta.url)
+
+const documentationUiDistSrcDir = path.dirname(require.resolve('@quantinuum/documentation-ui'))
+const quantinuumUiDistSrcDir = path.dirname(require.resolve('@quantinuum/quantinuum-ui'))
 
 export default {
   content: [
