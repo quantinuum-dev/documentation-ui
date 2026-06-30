@@ -100,7 +100,7 @@ export function saveConsentInCookies(newConsent: CookieConsent, currentVersion: 
   const cookie: Cookie = {
     name: COOKIES_CONSENT_COOKIE_NAME,
     value: JSON.stringify(constructConsentCookieValue(newConsent, currentVersion)),
-    path: '/', // "/" Will set the cookie for all routes WITHIN nexus.quantinuum.com and will not leak to other subdomains
+    path: '/', // "/" Will set the cookie for all routes WITHIN docs.quantinuum.com and will not leak to other subdomains
     sameSite: SameSite.Lax,
     expires: new Date(Date.now() + COOKIES_CONSENT_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
   }
