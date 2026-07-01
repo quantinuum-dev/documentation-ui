@@ -7,3 +7,9 @@ stylesheets = [
   "styles/quantinuum-ui-tailwind.css",
   "styles/quantinuum-sphinx.css",
 ]
+
+[options]
+# Enable Google Analytics. Disabled by default so non-production
+# environments (e.g. staging) do not send analytics. Set to true in the
+# production conf.py via html_theme_options = {"enable_analytics": True}.
+enable_analytics = false

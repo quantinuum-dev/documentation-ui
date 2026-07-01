@@ -94,6 +94,8 @@ const observeTailwindDialogPortalElements = () => {
   const mountElement = document.querySelector('.nexus-nav')
   if (!mountElement) return
 
+  const analyticsEnabled = mountElement.getAttribute('data-analytics-enabled') === 'true'
+
   observeTailwindDialogPortalElements()
 
   const renderIn = document.createElement('div')
@@ -106,7 +108,7 @@ const observeTailwindDialogPortalElements = () => {
       <div className="antialiased" style={{ fontFamily: `Inter, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"` }}>
         <CookieConsentProvider version={1}>
           <CookieConditional category={CookieCategoryName.Analytics} fallback={null}>
-            {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
+            {analyticsEnabled && GA_ID && <GoogleAnalytics gaId={GA_ID} />}
           </CookieConditional>
           <DocsNavBar activePath="/" />
           <CookieConsentManager />

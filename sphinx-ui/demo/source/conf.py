@@ -21,3 +21,10 @@ templates_path = ['_templates']
 
 html_theme = 'quantinuum_sphinx'
 html_static_path = ['_static']
+
+# Google Analytics is disabled by default so non-production environments
+# (e.g. staging) do not send analytics. Enable it only in the production
+# build's conf.py:
+# html_theme_options = {
+#     'enable_analytics': True,
+# }
