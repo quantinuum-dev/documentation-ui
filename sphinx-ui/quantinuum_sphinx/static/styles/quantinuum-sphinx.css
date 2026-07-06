@@ -5,15 +5,15 @@ html {
 
 .toc-sticky {
   position: fixed;
-  top: 3.5rem;
+  top: 3rem;
 }
  .page {
-  margin-top: 3.5rem;
+  margin-top: 3rem;
  }
 
  @media (max-width: 67em) {
   .sidebar-drawer {
-    margin-top: 3.5rem;
+    margin-top: 3rem;
   }
 
 }
