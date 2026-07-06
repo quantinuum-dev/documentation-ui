@@ -24,3 +24,5 @@ minimumReleaseAgeExclude:
   - eslint-plugin-storybook@10.4.4
   - prettier@3.8.4
   - storybook@10.4.4
+  - '@quantinuum/quantinuum-ui@5.0.0'
+  - '@quantinuum/quantinuum-ui@5.0.1'
