@@ -2,11 +2,11 @@
 
 exports[`CookieSettingsDialog component > should render as expected 1`] = `
 <div
-  aria-describedby="radix-:r2:"
-  aria-labelledby="radix-:r1:"
+  aria-describedby="radix-_r_2_"
+  aria-labelledby="radix-_r_1_"
   class="z-50 fixed grid gap-4 p-6 border bg-background duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] sm:rounded-lg shadow-lg data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] w-full max-w-[90vw] max-h-[90vh] sm:max-w-xl md:max-w-2xl sm:max-h-[80vh] px-5"
   data-state="open"
-  id="radix-:r0:"
+  id="radix-_r_0_"
   role="dialog"
   style="pointer-events: auto;"
   tabindex="-1"
@@ -17,13 +17,13 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
     >
       <h2
         class="m-0 mb-1.5 p-0 text-left text-lg font-semibold leading-normal tracking-normal"
-        id="radix-:r1:"
+        id="radix-_r_1_"
       >
         Manage Cookie Settings
       </h2>
       <p
         class="text-base text-foreground"
-        id="radix-:r2:"
+        id="radix-_r_2_"
       >
         Please choose whether this site may use optional cookies. Optional cookies help us measure usage and improve performance. We only set optional cookies with your consent. You can withdraw consent at any time in Cookie settings.
       </p>
@@ -52,7 +52,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
             >
               <label
                 class="peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-lg font-normal"
-                for=":r3:-form-item"
+                for="_r_3_-form-item"
                 id="essential"
               >
                 Essential
@@ -65,7 +65,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
             </div>
             <p
               class="text-sm text-foreground"
-              id=":r3:-form-item-description"
+              id="_r_3_-form-item-description"
             >
               Required for core functionality and security. Examples: sign-in and session management, fraud prevention, storing your cookie settings and basic preferences.
             </p>
@@ -83,18 +83,18 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
             >
               <label
                 class="peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-lg font-normal"
-                for=":r4:-form-item"
+                for="_r_4_-form-item"
                 id="analytics"
               >
                 Analytics
               </label>
               <button
                 aria-checked="false"
-                aria-describedby=":r4:-form-item-description"
+                aria-describedby="_r_4_-form-item-description"
                 aria-invalid="false"
                 class="peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input mx-2"
                 data-state="unchecked"
-                id=":r4:-form-item"
+                id="_r_4_-form-item"
                 role="switch"
                 type="button"
                 value="on"
@@ -106,7 +106,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
               </button>
               <input
                 aria-hidden="true"
-                style="transform: translateX(-100%); position: absolute; pointer-events: none; opacity: 0; margin: 0px; width: 0px; height: 0px;"
+                style="position: absolute; pointer-events: none; opacity: 0; margin: 0px; transform: translateX(-100%); width: 0px; height: 0px;"
                 tabindex="-1"
                 type="checkbox"
                 value="on"
@@ -114,7 +114,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
             </div>
             <p
               class="text-sm text-foreground"
-              id=":r4:-form-item-description"
+              id="_r_4_-form-item-description"
             >
               Helps us understand how the site is used so we can improve content and performance. Data: pages visited, navigation events, device and browser details.
             </p>
@@ -133,13 +133,12 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
                   data-state="closed"
                 >
                   <button
-                    aria-controls="radix-:r6:"
                     aria-expanded="false"
                     class="items-center text-sm transition-all hover:underline [&[data-state=open]>svg]:rotate-180 m-0 flex flex-none justify-start gap-2 p-0 pl-0 text-left font-semibold leading-normal"
                     data-orientation="vertical"
                     data-radix-collection-item=""
                     data-state="closed"
-                    id="radix-:r5:"
+                    id="radix-_r_5_"
                     type="button"
                   >
                     Cookie Details
@@ -161,12 +160,12 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
                   </button>
                 </h3>
                 <div
-                  aria-labelledby="radix-:r5:"
+                  aria-labelledby="radix-_r_5_"
                   class="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
                   data-orientation="vertical"
                   data-state="closed"
                   hidden=""
-                  id="radix-:r6:"
+                  id="radix-_r_6_"
                   role="region"
                   style="--radix-accordion-content-height: var(--radix-collapsible-content-height); --radix-accordion-content-width: var(--radix-collapsible-content-width);"
                 />
