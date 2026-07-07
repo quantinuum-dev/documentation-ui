@@ -80,6 +80,7 @@ export default [{
       dir: "dist/src/utils/",
       format: "iife",
       name: "syncTheme",
+      sourcemap: true,
     },
   ],
   plugins: [
