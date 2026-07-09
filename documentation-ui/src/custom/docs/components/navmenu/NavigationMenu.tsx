@@ -6,6 +6,7 @@ import {
   NavigationMenuList,
   NavigationMenuContent,
 } from '@quantinuum/quantinuum-ui'
+import type { JSX } from 'react'
 
 export const Navigation = (props: {
   activePath: string
