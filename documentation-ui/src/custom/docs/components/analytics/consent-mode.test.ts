@@ -18,7 +18,8 @@ const TEST_GA_ID = 'G-TEST12345'
 const analyticsWindow = window as AnalyticsWindow
 
 /** Returns the recorded gtag command tuples pushed onto the dataLayer. */
-const commands = (): unknown[][] => (analyticsWindow.dataLayer ?? []) as unknown[][]
+const commands = (): unknown[][] =>
+  (analyticsWindow.dataLayer ?? []).map((entry) => Array.from(entry as ArrayLike<unknown>))
 
 /** Finds the first recorded command matching the given leading arguments. */
 const findCommand = (...prefix: unknown[]): unknown[] | undefined =>
@@ -44,6 +45,9 @@ describe('ensureGtag', () => {
 
     gtag?.('event', 'page_view')
 
+    expect(Object.prototype.toString.call(analyticsWindow.dataLayer?.[0])).toBe(
+      '[object Arguments]'
+    )
     expect(commands()).toEqual([['event', 'page_view']])
   })
 
