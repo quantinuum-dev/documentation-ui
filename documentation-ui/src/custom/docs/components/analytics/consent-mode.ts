@@ -47,9 +47,13 @@ export function ensureGtag(): GtagFn | undefined {
   analyticsWindow.dataLayer = analyticsWindow.dataLayer || []
   analyticsWindow.gtag =
     analyticsWindow.gtag ||
-    ((...args: unknown[]) => {
-      analyticsWindow.dataLayer?.push(args)
-    })
+    function gtag() {
+      // GA's gtag.js only treats an entry as a command when it is a genuine
+      // `arguments` object; pushing a plain array makes it ignore commands like
+      // `config`/`consent`, so we intentionally forward `arguments` here.
+      // eslint-disable-next-line prefer-rest-params
+      analyticsWindow.dataLayer?.push(arguments)
+    }
 
   return analyticsWindow.gtag
 }
