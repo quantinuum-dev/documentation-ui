@@ -24,9 +24,13 @@ type TripleCardItem = {
   links: TripleCardLink[]
 }
 
-type TripleCardImageProps = Pick<ComponentProps<'img'>, 'style'> &
-  Required<Pick<ComponentProps<'img'>, 'alt' | 'src'>> &
-  Required<Pick<NextImageCompatProps, 'height' | 'width'>> &
+type TripleCardImageProps = Pick<ComponentProps<'img'>, 'style'> & {
+  // `src` is constrained to `string` (rather than `ComponentProps<'img'>`'s
+  // `string | Blob`) so a next/image component — whose `src` is `string |
+  // StaticImport` and does not accept `Blob` — remains assignable to `ImageComponent`.
+  alt: string
+  src: string
+} & Required<Pick<NextImageCompatProps, 'height' | 'width'>> &
   Pick<NextImageCompatProps, 'priority'>
 
 type TripleCardLinkProps = Pick<ComponentProps<'a'>, 'children' | 'className'> &
