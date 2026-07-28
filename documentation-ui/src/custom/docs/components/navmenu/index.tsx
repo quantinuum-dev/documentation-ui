@@ -181,10 +181,10 @@ export const NavBar = (props: { activePath: string; enableModeSelector?: boolean
             className="pl-10 pb-1.5"
             placeholder="Search documentation..."
           /> */}
-          <Button variant="secondary">
+          <Button asChild variant="secondary">
             <a href="https://nexus.quantinuum.com/auth/login">Nexus Portal</a>
           </Button>
-          <Button variant="secondary">
+          <Button asChild variant="secondary">
             <a href="/product-updates">Platform Updates</a>
           </Button>
         </div>
