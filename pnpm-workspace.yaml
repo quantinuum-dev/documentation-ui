@@ -11,5 +11,3 @@ trustPolicyExclude:
 allowBuilds:
   esbuild: true
   sharp: false
-minimumReleaseAgeExclude:
-  - '@quantinuum/quantinuum-ui@5.0.1'
