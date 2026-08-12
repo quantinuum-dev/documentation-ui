@@ -12,7 +12,9 @@ const CookieBanner = lazy(() =>
 )
 
 export function CookieConsentManager() {
-  // Guard against SSR: only render the lazy-loaded banner after client mount.
+  // Every branch below depends on client-only consent state (cookies), so render
+  // nothing until after mount to keep SSR and the first client render in sync
+  // (otherwise the settings button hydration-mismatches once consent is set).
   const [isMounted, setIsMounted] = useState(false)
   useEffect(() => {
     setIsMounted(true)
@@ -28,6 +30,10 @@ export function CookieConsentManager() {
     closeCookieSettingsDialog,
     isConsentSet,
   } = useCookieConsent()
+
+  if (!isMounted) {
+    return null
+  }
 
   if (isCookieSettingsDialogVisible) {
     return (
@@ -45,9 +51,6 @@ export function CookieConsentManager() {
   }
 
   if (isCookieBannerVisible) {
-    if (!isMounted) {
-      return null
-    }
     return (
       <Suspense fallback={null}>
         <CookieBanner
