@@ -22,7 +22,7 @@ export const HelpCard = (props: {
                   className="w-6 h-6 mb-3 inline"
                   aria-label={item.icon_description}
                 ></item.icon>
-                <CardTitle className="text-[1rem] font-semibold inline-block">
+                <CardTitle className="mt-1.5 text-[1rem] font-semibold inline-block">
                   {item.title}
                 </CardTitle>
                 <CardDescription>{item.description}</CardDescription>
