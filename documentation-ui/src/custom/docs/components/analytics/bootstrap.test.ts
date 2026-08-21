@@ -65,13 +65,26 @@ describe('bootstrapGoogleAnalytics', () => {
     expect(loadGoogleAnalytics).not.toHaveBeenCalled()
   })
 
-  it('is idempotent: does nothing when GA has already been injected', () => {
+  it('is idempotent: does nothing when GA for the same gaId is already injected', () => {
     vi.mocked(hasGoogleAnalyticsScript).mockReturnValue(true)
 
     bootstrapGoogleAnalytics(TEST_GA_ID)
 
+    expect(hasGoogleAnalyticsScript).toHaveBeenCalledWith(TEST_GA_ID)
     expect(retrieveConsentCategoriesFromCookies).not.toHaveBeenCalled()
     expect(setGoogleConsentDefault).not.toHaveBeenCalled()
     expect(loadGoogleAnalytics).not.toHaveBeenCalled()
+  })
+
+  it('re-initialises when only a script for a different gaId is present', () => {
+    // hasGoogleAnalyticsScript(gaId) reports false when the injected script
+    // targets a different measurement ID, so the bootstrap should proceed and
+    // let loadGoogleAnalytics update it.
+    vi.mocked(hasGoogleAnalyticsScript).mockReturnValue(false)
+
+    bootstrapGoogleAnalytics(TEST_GA_ID)
+
+    expect(hasGoogleAnalyticsScript).toHaveBeenCalledWith(TEST_GA_ID)
+    expect(loadGoogleAnalytics).toHaveBeenCalledWith(TEST_GA_ID)
   })
 })

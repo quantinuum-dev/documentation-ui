@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_GOOGLE_CONSENT,
   ensureGtag,
+  hasGoogleAnalyticsScript,
   loadGoogleAnalytics,
   setGoogleConsentDefault,
   updateAnalyticsConsent,
@@ -168,5 +169,27 @@ describe('loadGoogleAnalytics', () => {
     const script = document.getElementById(GA_SCRIPT_ID) as HTMLScriptElement | null
     expect(document.querySelectorAll(`#${GA_SCRIPT_ID}`)).toHaveLength(1)
     expect(script?.src).toBe(`https://www.googletagmanager.com/gtag/js?id=${otherGaId}`)
+  })
+})
+
+describe('hasGoogleAnalyticsScript', () => {
+  it('is false before any script is injected', () => {
+    expect(hasGoogleAnalyticsScript()).toBe(false)
+    expect(hasGoogleAnalyticsScript(TEST_GA_ID)).toBe(false)
+  })
+
+  it('is true once a script is present when no gaId is supplied', () => {
+    loadGoogleAnalytics(TEST_GA_ID)
+
+    expect(hasGoogleAnalyticsScript()).toBe(true)
+  })
+
+  it('matches only the gaId the injected script targets', () => {
+    loadGoogleAnalytics(TEST_GA_ID)
+
+    expect(hasGoogleAnalyticsScript(TEST_GA_ID)).toBe(true)
+    // A script left over from a different ID must not count as present, so the
+    // bootstrap re-runs and updates it.
+    expect(hasGoogleAnalyticsScript('G-OTHER67890')).toBe(false)
   })
 })

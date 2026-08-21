@@ -31,7 +31,7 @@ import {
  * (e.g. Next.js). Whichever runs first wins; subsequent calls are no-ops.
  */
 export function bootstrapGoogleAnalytics(gaId: string): void {
-  if (!gaId || typeof document === 'undefined' || hasGoogleAnalyticsScript()) {
+  if (!gaId || typeof document === 'undefined' || hasGoogleAnalyticsScript(gaId)) {
     return
   }
 
