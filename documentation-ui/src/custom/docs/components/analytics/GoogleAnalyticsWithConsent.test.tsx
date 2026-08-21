@@ -1,18 +1,17 @@
 import { render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CookieCategoryName, type CookieConsent } from '../gdpr/types'
-import {
-  loadGoogleAnalytics,
-  setGoogleConsentDefault,
-  updateAnalyticsConsent,
-} from './consent-mode'
+import { bootstrapGoogleAnalytics } from './bootstrap'
+import { updateAnalyticsConsent } from './consent-mode'
 import { GoogleAnalyticsWithConsent } from './GoogleAnalyticsWithConsent'
 import { useCookieConsent } from '../gdpr/contexts/useCookieConsent'
 import type { CookieConsentContextType } from '../gdpr/contexts/CookieConsentShared'
 
+vi.mock('./bootstrap', () => ({
+  bootstrapGoogleAnalytics: vi.fn(),
+}))
+
 vi.mock('./consent-mode', () => ({
-  setGoogleConsentDefault: vi.fn(),
-  loadGoogleAnalytics: vi.fn(),
   updateAnalyticsConsent: vi.fn(),
 }))
 
@@ -46,18 +45,13 @@ describe('GoogleAnalyticsWithConsent', () => {
     expect(container.childNodes).toHaveLength(0)
   })
 
-  it('sets the denied consent default before loading GA on mount', () => {
+  it('bootstraps GA once on mount', () => {
     mockConsent(false)
 
     render(<GoogleAnalyticsWithConsent gaId={TEST_GA_ID} />)
 
-    expect(setGoogleConsentDefault).toHaveBeenCalledTimes(1)
-    expect(loadGoogleAnalytics).toHaveBeenCalledWith(TEST_GA_ID)
-
-    // The default must be set before GA is configured.
-    const defaultOrder = vi.mocked(setGoogleConsentDefault).mock.invocationCallOrder[0]
-    const loadOrder = vi.mocked(loadGoogleAnalytics).mock.invocationCallOrder[0]
-    expect(defaultOrder).toBeLessThan(loadOrder)
+    expect(bootstrapGoogleAnalytics).toHaveBeenCalledTimes(1)
+    expect(bootstrapGoogleAnalytics).toHaveBeenCalledWith(TEST_GA_ID)
   })
 
   it('keeps analytics denied while the visitor has not consented', () => {
@@ -86,17 +80,15 @@ describe('GoogleAnalyticsWithConsent', () => {
     rerender(<GoogleAnalyticsWithConsent gaId={TEST_GA_ID} />)
 
     expect(updateAnalyticsConsent).toHaveBeenLastCalledWith(true)
-    // GA is loaded once; only the consent signal changes.
-    expect(setGoogleConsentDefault).toHaveBeenCalledTimes(1)
-    expect(loadGoogleAnalytics).toHaveBeenCalledTimes(1)
+    // GA is bootstrapped once; only the consent signal changes afterwards.
+    expect(bootstrapGoogleAnalytics).toHaveBeenCalledTimes(1)
   })
 
-  it('does nothing when no gaId is provided', () => {
+  it('does not bootstrap when no gaId is provided', () => {
     mockConsent(false)
 
     render(<GoogleAnalyticsWithConsent gaId="" />)
 
-    expect(setGoogleConsentDefault).not.toHaveBeenCalled()
-    expect(loadGoogleAnalytics).not.toHaveBeenCalled()
+    expect(bootstrapGoogleAnalytics).not.toHaveBeenCalled()
   })
 })
