@@ -1,5 +1,5 @@
 
-import { CookieConsentManager, CookieConsentProvider, DocsNavBar, GoogleAnalyticsWithConsent } from "@quantinuum/documentation-ui";
+import { bootstrapGoogleAnalytics, CookieConsentManager, CookieConsentProvider, DocsNavBar, GoogleAnalyticsWithConsent } from "@quantinuum/documentation-ui";
 import { createRoot } from "react-dom/client";
 
 const GA_ID = __NEXT_PUBLIC_GA_ID__;
@@ -52,6 +52,15 @@ const observeTailwindDialogPortalElements = () => {
   if (!mountElement) return
 
   const analyticsEnabled = mountElement.getAttribute('data-analytics-enabled') === 'true'
+
+  // Bootstrap GA synchronously, before React mounts, so the first `page_view`
+  // is dispatched without waiting for hydration and passive-effect scheduling.
+  // The render below still includes GoogleAnalyticsWithConsent, whose bootstrap
+  // is idempotent (a no-op once this call has run) and which handles subsequent
+  // live consent changes.
+  if (analyticsEnabled && GA_ID) {
+    bootstrapGoogleAnalytics(GA_ID)
+  }
 
   observeTailwindDialogPortalElements()
 

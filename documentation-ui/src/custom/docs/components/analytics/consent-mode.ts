@@ -37,6 +37,11 @@ export const DEFAULT_GOOGLE_CONSENT: Required<Omit<GoogleConsentSettings, 'wait_
   analytics_storage: 'denied',
 }
 
+/** Returns whether the gtag.js script has already been injected. */
+export function hasGoogleAnalyticsScript(): boolean {
+  return typeof document !== 'undefined' && document.getElementById(GA_SCRIPT_ID) !== null
+}
+
 /** Ensures `window.dataLayer` / `window.gtag` exist and returns the gtag function. */
 export function ensureGtag(): GtagFn | undefined {
   if (typeof window === 'undefined') {
@@ -71,7 +76,7 @@ export function setGoogleConsentDefault(overrides: GoogleConsentSettings = {}): 
 
   gtag('consent', 'default', {
     ...DEFAULT_GOOGLE_CONSENT,
-    wait_for_update: 500,
+    wait_for_update: 100,
     ...overrides,
   })
 }

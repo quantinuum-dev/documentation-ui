@@ -75,7 +75,7 @@ describe('setGoogleConsentDefault', () => {
       ad_user_data: 'denied',
       ad_personalization: 'denied',
       analytics_storage: 'denied',
-      wait_for_update: 500,
+      wait_for_update: 100,
     })
   })
 
@@ -85,7 +85,7 @@ describe('setGoogleConsentDefault', () => {
     const settings = findCommand('consent', 'default')?.[2] as Record<string, unknown>
     expect(settings).toEqual({
       ...DEFAULT_GOOGLE_CONSENT,
-      wait_for_update: 500,
+      wait_for_update: 100,
     })
   })
 
