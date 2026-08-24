@@ -130,8 +130,6 @@ jobs:
           pnpm run build
       - name: Generate UI Assets
         working-directory: sphinx-ui/react
-        env:
-          NEXT_PUBLIC_GA_ID: "G-YPQ1FTGDL3"
         run: |
           echo "🔨 Generating UI assets..."
           pnpm i --frozen-lockfile

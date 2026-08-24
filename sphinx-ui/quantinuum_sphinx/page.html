@@ -30,7 +30,9 @@ as="style">
  <!--Force light mode -->
  <script>document.body.setAttribute('data-theme','light')</script>
 <nav style="position:fixed;top:0;z-index:1021;width:100%;">
-    <div class="nexus-nav" data-analytics-enabled="{{ 'true' if theme_enable_analytics else 'false' }}"></div>
+  <div class="nexus-nav"
+    data-analytics-enabled="{{ 'true' if theme_enable_analytics else 'false' }}"
+    data-analytics-id="{{ theme_analytics_id|e }}"></div>
 </nav>
 <input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
 <input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
