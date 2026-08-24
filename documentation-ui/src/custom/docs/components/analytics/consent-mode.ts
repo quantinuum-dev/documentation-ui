@@ -22,7 +22,7 @@ type AnalyticsWindow = Window & {
   gtag?: GtagFn
 }
 
-const GA_SCRIPT_ID = 'quantinuum-google-analytics'
+export const GOOGLE_ANALYTICS_SCRIPT_ID = 'quantinuum-google-analytics'
 
 /**
  * The default consent state: everything denied. In this state GA runs in
@@ -38,7 +38,7 @@ export const DEFAULT_GOOGLE_CONSENT: Required<Omit<GoogleConsentSettings, 'wait_
 }
 
 /** Builds the gtag.js script URL for a given measurement ID. */
-function gtagScriptUrl(gaId: string): string {
+export function googleAnalyticsScriptUrl(gaId: string): string {
   const scriptUrl = new URL('https://www.googletagmanager.com/gtag/js')
   scriptUrl.searchParams.set('id', gaId)
   return scriptUrl.toString()
@@ -55,12 +55,14 @@ export function hasGoogleAnalyticsScript(gaId?: string): boolean {
     return false
   }
 
-  const existingScript = document.getElementById(GA_SCRIPT_ID) as HTMLScriptElement | null
+  const existingScript = document.getElementById(
+    GOOGLE_ANALYTICS_SCRIPT_ID
+  ) as HTMLScriptElement | null
   if (!existingScript) {
     return false
   }
 
-  return gaId === undefined || existingScript.src === gtagScriptUrl(gaId)
+  return gaId === undefined || existingScript.src === googleAnalyticsScriptUrl(gaId)
 }
 
 /** Ensures `window.dataLayer` / `window.gtag` exist and returns the gtag function. */
@@ -97,7 +99,6 @@ export function setGoogleConsentDefault(overrides: GoogleConsentSettings = {}): 
 
   gtag('consent', 'default', {
     ...DEFAULT_GOOGLE_CONSENT,
-    wait_for_update: 100,
     ...overrides,
   })
 }
@@ -131,9 +132,11 @@ export function loadGoogleAnalytics(gaId: string): void {
   gtag('js', new Date())
   gtag('config', gaId)
 
-  const src = gtagScriptUrl(gaId)
+  const src = googleAnalyticsScriptUrl(gaId)
 
-  const existingScript = document.getElementById(GA_SCRIPT_ID) as HTMLScriptElement | null
+  const existingScript = document.getElementById(
+    GOOGLE_ANALYTICS_SCRIPT_ID
+  ) as HTMLScriptElement | null
   if (existingScript) {
     if (existingScript.src !== src) {
       existingScript.src = src
@@ -142,7 +145,7 @@ export function loadGoogleAnalytics(gaId: string): void {
   }
 
   const script = document.createElement('script')
-  script.id = GA_SCRIPT_ID
+  script.id = GOOGLE_ANALYTICS_SCRIPT_ID
   script.async = true
   script.src = src
   document.head.appendChild(script)

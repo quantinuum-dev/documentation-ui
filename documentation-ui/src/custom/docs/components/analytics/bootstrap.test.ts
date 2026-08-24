@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CookieCategoryName, type CookieConsent } from '../gdpr/types'
-import { retrieveConsentCategoriesFromCookies } from '../gdpr/service/cookie-consent-service'
+import {
+  isConsentSetInCookies,
+  retrieveConsentCategoriesFromCookies,
+} from '../gdpr/service/cookie-consent-service'
 import {
   hasGoogleAnalyticsScript,
   loadGoogleAnalytics,
   setGoogleConsentDefault,
+  updateAnalyticsConsent,
 } from './consent-mode'
 import { bootstrapGoogleAnalytics } from './bootstrap'
 
@@ -12,9 +16,11 @@ vi.mock('./consent-mode', () => ({
   hasGoogleAnalyticsScript: vi.fn(() => false),
   loadGoogleAnalytics: vi.fn(),
   setGoogleConsentDefault: vi.fn(),
+  updateAnalyticsConsent: vi.fn(),
 }))
 
 vi.mock('../gdpr/service/cookie-consent-service', () => ({
+  isConsentSetInCookies: vi.fn(() => true),
   retrieveConsentCategoriesFromCookies: vi.fn(),
 }))
 
@@ -27,6 +33,7 @@ const buildConsent = (analyticsGranted: boolean): CookieConsent => ({
 
 beforeEach(() => {
   vi.mocked(hasGoogleAnalyticsScript).mockReturnValue(false)
+  vi.mocked(isConsentSetInCookies).mockReturnValue(true)
   vi.mocked(retrieveConsentCategoriesFromCookies).mockReturnValue(buildConsent(false))
 })
 
@@ -35,17 +42,20 @@ afterEach(() => {
 })
 
 describe('bootstrapGoogleAnalytics', () => {
-  it('seeds a granted default before loading GA for an already-consented visitor', () => {
+  it('sends a stored grant as an update after loading GA', () => {
     vi.mocked(retrieveConsentCategoriesFromCookies).mockReturnValue(buildConsent(true))
 
     bootstrapGoogleAnalytics(TEST_GA_ID)
 
-    expect(setGoogleConsentDefault).toHaveBeenCalledWith({ analytics_storage: 'granted' })
+    expect(setGoogleConsentDefault).toHaveBeenCalledWith()
     expect(loadGoogleAnalytics).toHaveBeenCalledWith(TEST_GA_ID)
+    expect(updateAnalyticsConsent).toHaveBeenCalledWith(true)
 
     const defaultOrder = vi.mocked(setGoogleConsentDefault).mock.invocationCallOrder[0]
     const loadOrder = vi.mocked(loadGoogleAnalytics).mock.invocationCallOrder[0]
+    const updateOrder = vi.mocked(updateAnalyticsConsent).mock.invocationCallOrder[0]
     expect(defaultOrder).toBeLessThan(loadOrder)
+    expect(loadOrder).toBeLessThan(updateOrder)
   })
 
   it('seeds a denied default for a first-time or declining visitor', () => {
@@ -53,8 +63,20 @@ describe('bootstrapGoogleAnalytics', () => {
 
     bootstrapGoogleAnalytics(TEST_GA_ID)
 
-    expect(setGoogleConsentDefault).toHaveBeenCalledWith({ analytics_storage: 'denied' })
+    expect(setGoogleConsentDefault).toHaveBeenCalledWith()
     expect(loadGoogleAnalytics).toHaveBeenCalledWith(TEST_GA_ID)
+    expect(updateAnalyticsConsent).toHaveBeenCalledWith(false)
+  })
+
+  it('does not grant analytics from an obsolete consent cookie', () => {
+    vi.mocked(isConsentSetInCookies).mockReturnValue(false)
+    vi.mocked(retrieveConsentCategoriesFromCookies).mockReturnValue(buildConsent(true))
+
+    bootstrapGoogleAnalytics(TEST_GA_ID)
+
+    expect(setGoogleConsentDefault).toHaveBeenCalledWith()
+    expect(retrieveConsentCategoriesFromCookies).not.toHaveBeenCalled()
+    expect(updateAnalyticsConsent).toHaveBeenCalledWith(false)
   })
 
   it('does nothing when no gaId is provided', () => {

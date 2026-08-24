@@ -1,6 +1,54 @@
 {% extends "furo/base.html" %}
 
 {% block extrahead %}
+{% if theme_enable_analytics and theme_analytics_id %}
+{# Google requires the consent default before any config command. Read the
+   existing decision synchronously, then start the official loader directly
+   from the document head so analytics is independent of React and page size. #}
+<script data-measurement-id="{{ theme_analytics_id|e }}">
+  (function () {
+    var bootstrap = document.currentScript;
+    var gaId = bootstrap && bootstrap.getAttribute('data-measurement-id');
+    if (!gaId) return;
+
+    var analyticsGranted = false;
+    try {
+      var cookieName = 'cookies_consent';
+      var cookie = document.cookie.split(';').find(function (part) {
+        return part.trim().indexOf(cookieName + '=') === 0;
+      });
+      if (cookie) {
+        var value = cookie.trim().slice(cookieName.length + 1);
+        var storedConsent = JSON.parse(decodeURIComponent(value));
+        analyticsGranted = storedConsent.consentVersion === 1
+          && storedConsent.consentCategories
+          && storedConsent.consentCategories.Analytics === true;
+      }
+    } catch (_) {}
+
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+    window.gtag('consent', 'default', {
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+      analytics_storage: 'denied'
+    });
+
+    window.gtag('js', new Date());
+    window.gtag('config', gaId);
+    window.gtag('consent', 'update', {
+      analytics_storage: analyticsGranted ? 'granted' : 'denied'
+    });
+
+    var script = document.createElement('script');
+    script.id = 'quantinuum-google-analytics';
+    script.async = true;
+    script.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(gaId);
+    document.head.appendChild(script);
+  })();
+</script>
+{% endif %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="preload"
@@ -30,7 +78,9 @@ as="style">
  <!--Force light mode -->
  <script>document.body.setAttribute('data-theme','light')</script>
 <nav style="position:fixed;top:0;z-index:1021;width:100%;">
-    <div class="nexus-nav" data-analytics-enabled="{{ 'true' if theme_enable_analytics else 'false' }}"></div>
+        <div class="nexus-nav"
+          data-analytics-enabled="{{ 'true' if theme_enable_analytics else 'false' }}"
+          data-analytics-id="{{ theme_analytics_id|e }}"></div>
 </nav>
 <input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
 <input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">

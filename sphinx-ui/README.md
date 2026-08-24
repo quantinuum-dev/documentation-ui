@@ -16,6 +16,29 @@ html_theme = 'quantinuum_sphinx'
 html_favicon = '<path to your favicon file>'
 ```
 
+Google Analytics is disabled by default. Enable it only for production builds; all Quantinuum documentation uses the default measurement ID, or it can be overridden per site:
+
+```python
+html_theme_options = {
+    'enable_analytics': True,
+    'analytics_id': 'G-YPQ1FTGDL3',
+}
+```
+
+The theme inserts Consent Mode and the Google tag directly in the document head. Analytics therefore starts independently of the navigation React bundle.
+
+The local demo remains analytics-free by default. Opt in when building it with:
+
+```bash
+./build-demo.sh --analytics
+```
+
+This uses the theme's default measurement ID. To test another GA4 property:
+
+```bash
+./build-demo.sh --analytics-id G-XXXXXXXXXX
+```
+
 Create a file `./_static/nav-config.js` containing:
 
 ```js

@@ -2,42 +2,43 @@
  * One-time bootstrap for GA4 + Google Consent Mode v2, deliberately decoupled
  * from React.
  *
- * Running the bootstrap from a React `useEffect` means GA is not initialised
- * until after the tree has rendered, committed and flushed its passive effects,
- * which on a heavy page delays the first `page_view` by hundreds of
- * milliseconds. Because this helper (and the primitives it composes) have no
- * React dependency, it can instead be invoked synchronously from a plain-JS
- * entry point — e.g. the sphinx injection script, before the React root is
- * mounted — so GA starts as early as the page's JavaScript can run.
+ * This is the client-side fallback used when the parser-time head integration
+ * was not rendered. For prompt first-page measurement, render
+ * `GoogleAnalyticsHead` in the initial server-rendered document head instead.
  */
 
-import { retrieveConsentCategoriesFromCookies } from '../gdpr/service/cookie-consent-service'
+import {
+  isConsentSetInCookies,
+  retrieveConsentCategoriesFromCookies,
+} from '../gdpr/service/cookie-consent-service'
+import { COOKIES_CONSENT_VERSION } from '../gdpr/cookies-consent.config'
 import { CookieCategoryName } from '../gdpr/types'
 import {
   hasGoogleAnalyticsScript,
   loadGoogleAnalytics,
   setGoogleConsentDefault,
+  updateAnalyticsConsent,
 } from './consent-mode'
 
 /**
- * Initialises GA once, seeding the consent default from the visitor's stored
- * decision so a returning, already-consented visitor's first `page_view` is
- * sent with consent granted (rather than going out cookieless and relying on a
- * later `consent update`).
+ * Initialises GA with a denied default, then sends the persisted choice as an
+ * update after config is queued. This is the sequence Google documents for
+ * consent choices restored on subsequent pages.
  *
- * Idempotent and safe to call from multiple entry points: the sphinx injection
- * can call it synchronously before mounting React, and `GoogleAnalyticsWithConsent`
- * calls it from an effect as a fallback for contexts without that injection
- * (e.g. Next.js). Whichever runs first wins; subsequent calls are no-ops.
+ * Idempotent and safe to call after `GoogleAnalyticsHead`:
+ * `GoogleAnalyticsWithConsent` invokes it from an effect as a compatibility
+ * fallback, and it becomes a no-op when the head integration already loaded GA.
  */
 export function bootstrapGoogleAnalytics(gaId: string): void {
   if (!gaId || typeof document === 'undefined' || hasGoogleAnalyticsScript(gaId)) {
     return
   }
 
-  const analyticsGranted = retrieveConsentCategoriesFromCookies()[CookieCategoryName.Analytics]
+  const analyticsGranted =
+    isConsentSetInCookies(COOKIES_CONSENT_VERSION) &&
+    retrieveConsentCategoriesFromCookies()[CookieCategoryName.Analytics]
 
-  // The consent default must be set before GA's config call.
-  setGoogleConsentDefault({ analytics_storage: analyticsGranted ? 'granted' : 'denied' })
+  setGoogleConsentDefault()
   loadGoogleAnalytics(gaId)
+  updateAnalyticsConsent(analyticsGranted)
 }
