@@ -76,15 +76,18 @@ describe('setGoogleConsentDefault', () => {
       ad_user_data: 'denied',
       ad_personalization: 'denied',
       analytics_storage: 'denied',
+      wait_for_update: 100,
     })
   })
 
-  it('does not wait for an update when consent was read synchronously', () => {
+  it('emits exactly the DEFAULT_GOOGLE_CONSENT signals plus wait_for_update', () => {
     setGoogleConsentDefault()
 
     const settings = findCommand('consent', 'default')?.[2] as Record<string, unknown>
-    expect(settings).toEqual(DEFAULT_GOOGLE_CONSENT)
-    expect(settings).not.toHaveProperty('wait_for_update')
+    expect(settings).toEqual({
+      ...DEFAULT_GOOGLE_CONSENT,
+      wait_for_update: 100,
+    })
   })
 
   it('runs before any analytics config so the default applies to the first ping', () => {

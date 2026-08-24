@@ -54,7 +54,7 @@ describe('GoogleAnalyticsWithConsent', () => {
     expect(bootstrapGoogleAnalytics).toHaveBeenCalledWith(TEST_GA_ID)
   })
 
-  it('sends initial denied consent', () => {
+  it('keeps analytics denied while the visitor has not consented', () => {
     mockConsent(false)
 
     render(<GoogleAnalyticsWithConsent gaId={TEST_GA_ID} />)
@@ -62,7 +62,7 @@ describe('GoogleAnalyticsWithConsent', () => {
     expect(updateAnalyticsConsent).toHaveBeenCalledWith(false)
   })
 
-  it('sends an initial stored grant', () => {
+  it('grants analytics consent when the visitor has consented', () => {
     mockConsent(true)
 
     render(<GoogleAnalyticsWithConsent gaId={TEST_GA_ID} />)

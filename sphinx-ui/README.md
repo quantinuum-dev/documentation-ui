@@ -25,7 +25,7 @@ html_theme_options = {
 }
 ```
 
-The theme inserts Consent Mode and the Google tag directly in the document head. Analytics therefore starts independently of the navigation React bundle.
+When analytics is enabled, the navigation bundle reads the measurement ID from the rendered theme configuration and initializes Consent Mode and Google Analytics.
 
 The local demo remains analytics-free by default. Opt in when building it with:
 
