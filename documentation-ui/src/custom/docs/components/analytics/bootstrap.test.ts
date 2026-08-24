@@ -42,7 +42,7 @@ afterEach(() => {
 })
 
 describe('bootstrapGoogleAnalytics', () => {
-  it('sends a stored grant as an update after loading GA', () => {
+  it('applies a stored grant before loading GA', () => {
     vi.mocked(retrieveConsentCategoriesFromCookies).mockReturnValue(buildConsent(true))
 
     bootstrapGoogleAnalytics(TEST_GA_ID)
@@ -52,10 +52,10 @@ describe('bootstrapGoogleAnalytics', () => {
     expect(updateAnalyticsConsent).toHaveBeenCalledWith(true)
 
     const defaultOrder = vi.mocked(setGoogleConsentDefault).mock.invocationCallOrder[0]
-    const loadOrder = vi.mocked(loadGoogleAnalytics).mock.invocationCallOrder[0]
     const updateOrder = vi.mocked(updateAnalyticsConsent).mock.invocationCallOrder[0]
-    expect(defaultOrder).toBeLessThan(loadOrder)
-    expect(loadOrder).toBeLessThan(updateOrder)
+    const loadOrder = vi.mocked(loadGoogleAnalytics).mock.invocationCallOrder[0]
+    expect(defaultOrder).toBeLessThan(updateOrder)
+    expect(updateOrder).toBeLessThan(loadOrder)
   })
 
   it('seeds a denied default for a first-time or declining visitor', () => {

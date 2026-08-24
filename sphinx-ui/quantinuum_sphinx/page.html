@@ -20,8 +20,18 @@
       if (cookie) {
         var value = cookie.trim().slice(cookieName.length + 1);
         var storedConsent = JSON.parse(decodeURIComponent(value));
-        analyticsGranted = storedConsent.consentVersion === 1
-          && storedConsent.consentCategories
+        var consentDate = storedConsent && storedConsent.dateConsentWasGiven;
+        var consentCategories = storedConsent && storedConsent.consentCategories;
+        analyticsGranted = storedConsent !== null
+          && typeof storedConsent === 'object'
+          && storedConsent.consentVersion === 1
+          && typeof consentDate === 'string'
+          && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(consentDate)
+          && !Number.isNaN(Date.parse(consentDate))
+          && consentCategories !== null
+          && typeof consentCategories === 'object'
+          && typeof consentCategories.Essential === 'boolean'
+          && typeof consentCategories.Analytics === 'boolean'
           && storedConsent.consentCategories.Analytics === true;
       }
     } catch (_) {}
@@ -35,11 +45,11 @@
       analytics_storage: 'denied'
     });
 
-    window.gtag('js', new Date());
-    window.gtag('config', gaId);
     window.gtag('consent', 'update', {
       analytics_storage: analyticsGranted ? 'granted' : 'denied'
     });
+    window.gtag('js', new Date());
+    window.gtag('config', gaId);
 
     var script = document.createElement('script');
     script.id = 'quantinuum-google-analytics';

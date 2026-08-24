@@ -31,8 +31,18 @@ function bootstrapScript(): string {
     if (cookie) {
       var value = cookie.trim().slice(cookieName.length + 1);
       var storedConsent = JSON.parse(decodeURIComponent(value));
-      analyticsGranted = storedConsent.consentVersion === ${consentVersion}
-        && storedConsent.consentCategories
+      var consentDate = storedConsent && storedConsent.dateConsentWasGiven;
+      var consentCategories = storedConsent && storedConsent.consentCategories;
+      analyticsGranted = storedConsent !== null
+        && typeof storedConsent === 'object'
+        && storedConsent.consentVersion === ${consentVersion}
+        && typeof consentDate === 'string'
+        && /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(consentDate)
+        && !Number.isNaN(Date.parse(consentDate))
+        && consentCategories !== null
+        && typeof consentCategories === 'object'
+        && typeof consentCategories.Essential === 'boolean'
+        && typeof consentCategories[${analyticsCategoryName}] === 'boolean'
         && storedConsent.consentCategories[${analyticsCategoryName}] === true;
     }
   } catch (_) {}
@@ -40,11 +50,11 @@ function bootstrapScript(): string {
   window.dataLayer = window.dataLayer || [];
   window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
   window.gtag('consent', 'default', ${deniedConsent});
-  window.gtag('js', new Date());
-  window.gtag('config', gaId);
   window.gtag('consent', 'update', {
     analytics_storage: analyticsGranted ? 'granted' : 'denied'
   });
+  window.gtag('js', new Date());
+  window.gtag('config', gaId);
 
   var script = document.createElement('script');
   script.id = '${GOOGLE_ANALYTICS_SCRIPT_ID}';

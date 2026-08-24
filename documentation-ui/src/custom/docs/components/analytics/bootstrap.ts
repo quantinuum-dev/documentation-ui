@@ -21,9 +21,8 @@ import {
 } from './consent-mode'
 
 /**
- * Initialises GA with a denied default, then sends the persisted choice as an
- * update after config is queued. This is the sequence Google documents for
- * consent choices restored on subsequent pages.
+ * Initialises GA with a denied default, applies any persisted choice as an
+ * explicit update, then queues config so the first page view uses that choice.
  *
  * Idempotent and safe to call after `GoogleAnalyticsHead`:
  * `GoogleAnalyticsWithConsent` invokes it from an effect as a compatibility
@@ -39,6 +38,6 @@ export function bootstrapGoogleAnalytics(gaId: string): void {
     retrieveConsentCategoriesFromCookies()[CookieCategoryName.Analytics]
 
   setGoogleConsentDefault()
-  loadGoogleAnalytics(gaId)
   updateAnalyticsConsent(analyticsGranted)
+  loadGoogleAnalytics(gaId)
 }

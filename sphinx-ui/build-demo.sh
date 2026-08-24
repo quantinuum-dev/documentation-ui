@@ -18,6 +18,10 @@ while (($#)); do
       fi
       analytics_enabled=true
       analytics_id="$2"
+      if [[ ! "$analytics_id" =~ ^G-[A-Z0-9]+$ ]]; then
+        echo "Error: --analytics-id must be a GA4 measurement ID such as G-XXXXXXXXXX." >&2
+        exit 2
+      fi
       shift 2
       ;;
     -h|--help)
