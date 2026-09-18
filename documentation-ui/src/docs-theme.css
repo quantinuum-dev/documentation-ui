@@ -1,0 +1,273 @@
+/* Quantinuum Fumadocs UI theme, shared by the central documentation site and the
+   standalone per-repo preview harness. Scoped by the `quantinuum-docs` class
+   that `<QuantinuumDocsLayout>` applies.
+
+   This file contains no `@import`/`@config` of its own so it resolves the same
+   from any consumer. Import it from a Tailwind v4 entry stylesheet that has
+   already pulled in Tailwind and the Fumadocs preset, e.g.
+
+     @import "tailwindcss";
+     @import "fumadocs-ui/css/lib/default-colors.css";
+     @import "fumadocs-ui/css/preset.css";
+     @import "@quantinuum/documentation-ui/docs-theme.css";
+     @config "../../tailwind.config.ts";
+
+   Typography relies on the host setting `--font-origin-sans`,
+   `--font-origin-accent` and `--font-code` (e.g. via next/font). */
+
+/* Quantinuum 2026 primary and tonal palettes. White and Integrated Black
+    provide the foundation; Quantum Teal is reserved for emphasis and action. */
+@theme {
+  --color-fd-background: #ffffff;
+  --color-fd-foreground: #2b2b2b;
+  --color-fd-muted: #f2f2f2;
+  --color-fd-muted-foreground: #606060;
+  --color-fd-popover: #ffffff;
+  --color-fd-popover-foreground: #2b2b2b;
+  --color-fd-card: #ffffff;
+  --color-fd-card-foreground: #2b2b2b;
+  --color-fd-border: #cacaca;
+  --color-fd-primary: #1d605b;
+  --color-fd-primary-foreground: #ffffff;
+  --color-fd-secondary: #e1f6f2;
+  --color-fd-secondary-foreground: #1d605b;
+  --color-fd-accent: #e1f6f2;
+  --color-fd-accent-foreground: #1d605b;
+  --color-fd-ring: #30a08e;
+  --color-fd-overlay: rgb(43 43 43 / 24%);
+}
+
+.quantinuum-docs {
+  --color-fd-info: #1d605b;
+  --color-fd-warning: #e5803c;
+  --color-fd-error: #7c3349;
+  --color-fd-success: #1d605b;
+  --color-fd-idea: #604a7b;
+
+  /* Tighten the docs frame (default 97rem) so the TOC sits closer to the
+      content and the measured text below leaves only minimal trailing space. */
+  --fd-layout-width: 88rem;
+
+  font-family: var(--font-origin-sans), sans-serif;
+  color: var(--color-fd-foreground);
+}
+
+.quantinuum-docs :where(h1, h2, h3, h4) {
+  font-family: var(--font-origin-sans), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+  /* Brand headline leading: 110% of text size. */
+  line-height: 1.1;
+}
+
+.quantinuum-docs h1 {
+  /* Brand headline weight: Figtree Extra Bold. */
+  font-weight: 800;
+}
+
+/* Fumadocs wraps the text of any heading with an `id` in an anchor to its own
+   hash, which Tailwind Typography then underlines — so h2+ looked underlined
+   while the (anchor-less) h1 did not. Headings should read as headings. */
+.quantinuum-docs :where(h1, h2, h3, h4, h5, h6) a {
+  text-decoration: none;
+}
+
+/* The DocsNavBar (h-12 = 3rem + 1px) is sticky at the top of the scroll area, so
+   without an offset it hides any element scrolled to via a `#hash` (headings and
+   the injected glossary/bibliography anchors). Push anchor targets below it. */
+.quantinuum-docs :where(h1, h2, h3, h4, h5, h6),
+.quantinuum-docs a[id]:not([href]) {
+  scroll-margin-top: calc(3rem + 1px + 1rem);
+}
+
+/* Following a citation link to the bibliography highlights the targeted entry so
+   it's obvious which reference is relevant. The id sits on an empty <a> right
+   before the entry <p>, so style that adjacent paragraph. `:target` covers a full
+   page load; `.cite-target` (set by CiteTargetHighlighter) covers Next's client-
+   side navigation, which sets the hash via pushState without updating `:target`. */
+.quantinuum-docs a[id^="bib-"]:target + p,
+.quantinuum-docs a[id^="bib-"].cite-target + p {
+  margin-inline: -0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background-color: var(--color-fd-secondary);
+  box-shadow: inset 0.1875rem 0 0 var(--color-fd-primary);
+  animation: quantinuum-target-flash 1.4s ease-out;
+}
+
+@keyframes quantinuum-target-flash {
+  from {
+    background-color: color-mix(in srgb, var(--color-fd-primary) 40%, var(--color-fd-secondary));
+  }
+  to {
+    background-color: var(--color-fd-secondary);
+  }
+}
+
+.quantinuum-docs .prose {
+  /* Container fills the article; the reading measure is enforced on the text
+      elements below so code blocks, tables and images keep the full width. */
+  max-width: none;
+  --tw-prose-body: var(--color-fd-foreground);
+  --tw-prose-headings: var(--color-fd-foreground);
+  --tw-prose-lead: var(--color-fd-foreground);
+  --tw-prose-links: var(--color-fd-foreground);
+  --tw-prose-bold: var(--color-fd-foreground);
+  --tw-prose-counters: var(--color-fd-muted-foreground);
+  --tw-prose-bullets: var(--color-fd-muted-foreground);
+  --tw-prose-hr: var(--color-fd-border);
+  --tw-prose-quotes: var(--color-fd-foreground);
+  --tw-prose-quote-borders: var(--color-fd-border);
+  --tw-prose-captions: var(--color-fd-muted-foreground);
+  --tw-prose-code: var(--color-fd-foreground);
+  --tw-prose-th-borders: var(--color-fd-border);
+  --tw-prose-td-borders: var(--color-fd-border);
+}
+
+/* Keep flowing text within a comfortable reading measure (WCAG 1.4.8 caps line
+   length at 80 chars); code, tables and media stay full-width for legibility. */
+.quantinuum-docs .prose :where(p, ul, ol, dl, blockquote, h1, h2, h3, h4, h5, h6) {
+  max-width: 75ch;
+}
+
+/* Display equations (`.. math::` / `$$…$$`) render here as inline math-text — a
+   lone .katex in its own paragraph — rather than a centered .katex-display block,
+   so centre that paragraph to match conventional display-math layout. */
+.quantinuum-docs .prose p:has(> .katex:only-child) {
+  text-align: center;
+}
+
+/* Tailwind Typography wraps inline <code> in literal backtick glyphs via
+   ::before/::after; drop them (inline code already has its own styling). */
+.quantinuum-docs .prose :where(code)::before,
+.quantinuum-docs .prose :where(code)::after {
+  content: none;
+}
+
+/* Inline code should read as light monospace with its subtle background — not
+   the bold weight Typography gives it, which is too heavy for the airy theme.
+   Shiki code blocks (inside <pre>) keep their own token weights. */
+.quantinuum-docs :not(pre) > code {
+  font-weight: 400;
+}
+
+/* Source Code Pro for all docs code — inline and Shiki blocks (site-wide
+   --font-code). Set on pre/code so token spans inherit it. */
+.quantinuum-docs :where(code, pre) {
+  font-family: var(--font-code), ui-monospace, monospace;
+}
+
+/* Tailwind Typography zeroes the outer padding of first/last table cells for a
+   flush look, but our tables have cell borders — restore edge padding so text
+   isn't jammed against the border. */
+.quantinuum-docs .prose :where(td, th):first-child {
+  padding-inline-start: 0.75rem;
+}
+
+.quantinuum-docs .prose :where(td, th):last-child {
+  padding-inline-end: 0.75rem;
+}
+
+.quantinuum-docs [role="tab"] {
+  font-family: var(--font-origin-accent), sans-serif;
+  text-transform: uppercase;
+  /* Brand: Rajdhani is set all caps with ~15% (Figma) tracking. */
+  letter-spacing: 0.1em;
+}
+
+/* Fumadocs caps the page article at 900px and centres it, but the grid's main
+   column is wider (--fd-layout-width - sidebar - toc), leaving dead space before
+   the TOC on wide viewports. Let the content fill its column instead. */
+.quantinuum-docs #nd-page:not([data-full="true"]) {
+  max-width: none;
+}
+
+/* Logos/images inside cards (sphinx_design grid-item-card) are left-flush, so the
+   default rounded-lg image style clips their corner glyphs (e.g. the S/Q/H at the
+   logo edges). Drop the rounding inside cards. */
+.quantinuum-docs [data-card] img {
+  border-radius: 0;
+}
+
+/* Enlarge the small product logos in linked data-sheet cards so their wordmark
+   text is legible; figure/diagram images (in non-linked cards) keep their size. */
+.quantinuum-docs a[data-card] img {
+  height: 4rem;
+  width: auto;
+  max-width: 100%;
+}
+
+/* Code blocks use a soft grey (non-white) surface in light mode and a raised
+   dark surface in dark mode, matching the two Shiki themes' backgrounds. */
+.quantinuum-docs figure.shiki {
+  background-color: #f2f2f2;
+  border-color: #cacaca;
+}
+
+.dark .quantinuum-docs figure.shiki {
+  background-color: #343434;
+  border-color: #606060;
+}
+
+.quantinuum-docs [style*="--callout-color"] {
+  background-color: color-mix(in srgb, var(--callout-color) 10%, white);
+  border-color: color-mix(in srgb, var(--callout-color) 45%, white);
+  color: #2b2b2b;
+  box-shadow: none;
+}
+
+.quantinuum-docs [style*="--callout-color"] .text-fd-muted-foreground {
+  color: inherit;
+}
+
+.quantinuum-docs [style*="--callout-color"] > [role="none"] {
+  background-color: var(--callout-color);
+}
+
+.quantinuum-docs :where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-fd-ring);
+  outline-offset: 2px;
+}
+
+.quantinuum-docs ::selection {
+  background: #a5e5d7;
+  color: #2b2b2b;
+}
+
+@media (max-width: 420px) {
+  .quantinuum-docs
+    :where(a[href="https://nexus.quantinuum.com/auth/login"], a[href="/product-updates"]) {
+    padding-inline: 0.625rem;
+  }
+}
+
+.dark .quantinuum-docs {
+  --color-fd-background: #2b2b2b;
+  --color-fd-foreground: #ffffff;
+  --color-fd-muted: #343434;
+  --color-fd-muted-foreground: #cacaca;
+  --color-fd-popover: #2b2b2b;
+  --color-fd-popover-foreground: #ffffff;
+  --color-fd-card: #343434;
+  --color-fd-card-foreground: #ffffff;
+  --color-fd-border: #606060;
+  --color-fd-primary: #a5e5d7;
+  --color-fd-primary-foreground: #2b2b2b;
+  --color-fd-secondary: #1d605b;
+  --color-fd-secondary-foreground: #ffffff;
+  --color-fd-accent: #1d605b;
+  --color-fd-accent-foreground: #ffffff;
+  --color-fd-ring: #6ad3be;
+  --color-fd-overlay: rgb(0 0 0 / 50%);
+  --color-fd-info: #6ad3be;
+  --color-fd-warning: #ffc29a;
+  --color-fd-error: #e75d72;
+  --color-fd-success: #6ad3be;
+  --color-fd-idea: #b3a2c7;
+}
+
+.dark .quantinuum-docs [style*="--callout-color"] {
+  background-color: color-mix(in srgb, var(--callout-color) 16%, #2b2b2b);
+  border-color: color-mix(in srgb, var(--callout-color) 55%, #2b2b2b);
+  color: #ffffff;
+}

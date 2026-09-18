@@ -42,7 +42,15 @@ const emitStaticAssets = (assets) => ({
 
 export default [{
   onwarn: suppressUseClientWarning,
-  input: "src/index.ts",
+  input: [
+    "src/index.ts",
+    // Shared documentation rendering kit. Kept off the main barrel so importing
+    // the design system doesn't pull Fumadocs into every consumer bundle.
+    "src/custom/docs/kit/index.ts",
+    // Node-side MDX pipeline config, imported by a consumer's `source.config.ts`;
+    // separate from the kit barrel so it drags in no React/client components.
+    "src/custom/docs/kit/config.ts",
+  ],
   external: isExternalDependency,
   output: [
     {
@@ -65,6 +73,10 @@ export default [{
       {
         sourcePath: "./src/tokens.css",
         fileName: "tokens.css",
+      },
+      {
+        sourcePath: "./src/docs-theme.css",
+        fileName: "docs-theme.css",
       },
     ]),
     terser({ compress: { directives: false } }),

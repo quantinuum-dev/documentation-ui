@@ -42,6 +42,15 @@
       "default": "./dist/src/index.js"
     },
     "./tokens.css": "./dist/tokens.css",
+    "./docs-theme.css": "./dist/docs-theme.css",
+    "./docs-kit": {
+      "types": "./dist/types/src/custom/docs/kit/index.d.ts",
+      "default": "./dist/src/custom/docs/kit/index.js"
+    },
+    "./docs-config": {
+      "types": "./dist/types/src/custom/docs/kit/config.d.ts",
+      "default": "./dist/src/custom/docs/kit/config.js"
+    },
     "./tailwindTheme": {
       "types": "./dist/types/src/tailwindTheme.d.ts",
       "default": "./dist/src/tailwindTheme.js"
@@ -80,6 +89,7 @@
     "@storybook/react-vite": "^10.5.5",
     "@tailwindcss/typography": "^0.5.20",
     "@testing-library/react": "^16.3.2",
+    "@types/mdx": "^2.0.14",
     "@types/node": "^22.20.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
@@ -89,10 +99,15 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.26",
     "eslint-plugin-storybook": "10.4.4",
+    "fumadocs-core": "^16.8.0",
+    "fumadocs-ui": "^16.8.0",
     "globals": "^15.15.0",
     "jsdom": "^29.1.1",
+    "next": "^16.0.0",
     "postcss": "^8.5.25",
     "postcss-fail-on-warn": "^0.2.1",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
     "rollup": "^4.62.3",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-preserve-directives": "^0.4.0",
@@ -102,6 +117,7 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
+    "unified": "^11.0.5",
     "vite": "^8.1.5",
     "vitest": "^4.1.10"
   },
@@ -117,11 +133,33 @@
   "peerDependencies": {
     "@hookform/resolvers": "^3.9.0",
     "@tailwindcss/typography": "^0.5.15",
+    "fumadocs-core": "^16.8.0",
+    "fumadocs-ui": "^16.8.0",
+    "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.50.1",
+    "rehype-katex": "^7.0.0",
+    "remark-math": "^6.0.0",
     "tailwindcss": "^4",
     "tailwindcss-animate": "^1.0.7"
+  },
+  "peerDependenciesMeta": {
+    "fumadocs-core": {
+      "optional": true
+    },
+    "fumadocs-ui": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
+    },
+    "rehype-katex": {
+      "optional": true
+    },
+    "remark-math": {
+      "optional": true
+    }
   },
   "volta": {
     "node": "22.22.3",

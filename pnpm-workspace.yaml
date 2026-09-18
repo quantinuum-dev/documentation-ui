@@ -1,5 +1,6 @@
 packages:
   - "documentation-ui"
+  - "docs-preview"
   - "sphinx-ui/react"
 
 minimumReleaseAge: 20160 # 14 days
