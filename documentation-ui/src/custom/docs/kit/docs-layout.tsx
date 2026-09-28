@@ -1,11 +1,12 @@
 import type { SharedProps } from 'fumadocs-ui/contexts/search'
 import { DocsLayout } from 'fumadocs-ui/layouts/docs'
 import { RootProvider } from 'fumadocs-ui/provider/next'
-import { cloneElement, isValidElement } from 'react'
+import { cloneElement, Fragment, isValidElement } from 'react'
 import type { ComponentProps, ComponentType, CSSProperties, ReactNode } from 'react'
 
 import { NavBar as DocsNavBar } from '../components/navmenu/index'
 import { CiteTargetHighlighter } from './cite-target-highlighter'
+import { SidebarLayout } from './sidebar-layout'
 
 /**
  * Height of the sticky site navbar (`h-12` plus its 1px bottom border). The
@@ -28,7 +29,13 @@ export interface QuantinuumDocsLayoutProps {
   /** Route prefix used to highlight the active entry in the site navbar. */
   activePath: string
   children: ReactNode
-  /** Top-of-sidebar slot, normally the product logo linking to the docs root. */
+  /** Product logo/name shown at the top of the sidebar, linking to `homeUrl`. */
+  title?: ReactNode
+  /** Docs root the sidebar title links to. */
+  homeUrl?: string
+  /** Source repository, shown as an icon link in the sidebar footer bar. */
+  githubUrl?: string
+  /** Extra content below the sidebar search trigger. */
   banner?: ReactNode
   /**
    * Bridges Fumadocs' sidebar search trigger to the host's search UI. Omit to
@@ -54,6 +61,9 @@ export function QuantinuumDocsLayout({
   tree,
   activePath,
   children,
+  title,
+  homeUrl = '/',
+  githubUrl,
   banner,
   SearchDialog,
   className,
@@ -66,6 +76,17 @@ export function QuantinuumDocsLayout({
   const keyedBanner = isValidElement(banner)
     ? cloneElement(banner, { key: 'sidebar-banner' })
     : banner
+  // The mobile drawer omits `nav.title`, so repeat the title there via the banner.
+  const sidebarBanner = title ? (
+    <Fragment key="sidebar-banner">
+      <a href={homeUrl} className="inline-flex items-center gap-2.5 md:hidden">
+        {title}
+      </a>
+      {banner}
+    </Fragment>
+  ) : (
+    keyedBanner
+  )
   return (
     <div className={['quantinuum-docs', className].filter(Boolean).join(' ')}>
       {highlightCiteTargets ? <CiteTargetHighlighter /> : null}
@@ -87,10 +108,11 @@ export function QuantinuumDocsLayout({
             : { enabled: false }
         }
       >
-        <DocsLayout
+        <SidebarLayout
           tree={tree}
-          nav={{ enabled: false }}
-          sidebar={{ banner: keyedBanner }}
+          nav={{ enabled: false, title, url: homeUrl }}
+          githubUrl={githubUrl}
+          sidebar={{ banner: sidebarBanner }}
           containerProps={{
             style: {
               '--fd-docs-row-1': showNavBar ? DOCS_NAV_HEIGHT : '0px',
@@ -99,7 +121,7 @@ export function QuantinuumDocsLayout({
           }}
         >
           {children}
-        </DocsLayout>
+        </SidebarLayout>
       </RootProvider>
     </div>
   )

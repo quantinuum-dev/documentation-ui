@@ -65,6 +65,54 @@
   font-weight: 800;
 }
 
+.quantinuum-docs #nd-sidebar > div > div:has(> .quantinuum-sidebar-toggle) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.quantinuum-docs .quantinuum-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  order: -1;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.375rem;
+  color: var(--color-fd-muted-foreground);
+  cursor: pointer;
+}
+
+.quantinuum-docs .quantinuum-sidebar-toggle:hover {
+  color: var(--color-fd-accent-foreground);
+  background: var(--color-fd-accent);
+}
+
+.quantinuum-docs .quantinuum-sidebar-toggle:focus-visible {
+  outline: 2px solid var(--color-fd-ring);
+  outline-offset: 2px;
+}
+
+.quantinuum-docs .quantinuum-sidebar-reopen {
+  position: fixed;
+  inset-block-start: calc(var(--fd-docs-row-1) + 1rem);
+  inset-inline-start: 1rem;
+  z-index: 30;
+  background: var(--color-fd-card);
+  border: 1px solid var(--color-fd-border);
+}
+
+.quantinuum-docs [data-sidebar-panel] {
+  display: none;
+}
+
+@media (width < 768px) {
+  .quantinuum-docs .quantinuum-sidebar-reopen {
+    display: none;
+  }
+}
+
 /* Fumadocs wraps the text of any heading with an `id` in an anchor to its own
    hash, which Tailwind Typography then underlines — so h2+ looked underlined
    while the (anchor-less) h1 did not. Headings should read as headings. */
