@@ -1,0 +1,26 @@
+{
+  "name": "@quantinuum/docs-build",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Converts Quantinuum product documentation (Sphinx RST/MyST, Jupyter notebooks, quartodoc API reference) into Fumadocs MDX.",
+  "type": "module",
+  "license": "ISC",
+  "files": [
+    "bin",
+    "src",
+    "quartodoc"
+  ],
+  "bin": {
+    "docs-build": "./bin/docs-build.mjs"
+  },
+  "exports": {
+    ".": "./src/generate.mjs"
+  },
+  "dependencies": {
+    "github-slugger": "^2.0.0"
+  },
+  "volta": {
+    "node": "22.22.3",
+    "pnpm": "11.10.0"
+  }
+}

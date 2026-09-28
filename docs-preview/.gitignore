@@ -1,0 +1,10 @@
+node_modules
+.next
+.source
+out
+next-env.d.ts
+public/*
+!public/.gitkeep
+tsconfig.tsbuildinfo
+AGENTS.md
+CLAUDE.md

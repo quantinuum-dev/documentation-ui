@@ -1,0 +1,110 @@
+name: Quantinuum docs toolchain
+description: >-
+  Sets up the shared documentation tooling from this checkout of
+  documentation-ui: the preview harness (docs-preview), the generator
+  (docs-build) and the checkers (docs-check-spelling, docs-check-prose,
+  docs-check-links), all put on PATH. Check documentation-ui out anywhere under
+  the workspace first, then use this action by path from that checkout, e.g.
+  `uses: ./_toolchain/documentation-ui/.github/actions/docs-toolchain`.
+
+inputs:
+  quantinuum-ui-ref:
+    description: >-
+      Ref of Quantinuum/quantinuum-ui to build the kit against. documentation-ui
+      links it from a sibling checkout while the two are developed together.
+    required: true
+  generate-tools:
+    description: >-
+      Also install what `docs-build` needs to render notebooks and API reference
+      (Quarto, pandoc, uv). Not needed for prose-only repos.
+    default: "false"
+  link-checker:
+    description: Also install lychee for docs-check-links.
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Locate the toolchain checkout
+      id: paths
+      shell: bash
+      run: |
+        docs_ui="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
+        parent="$(dirname "$docs_ui")"
+        echo "docs-ui=$docs_ui" >> "$GITHUB_OUTPUT"
+        echo "quantinuum-ui-path=$(realpath --relative-to="$GITHUB_WORKSPACE" "$parent")/quantinuum-ui" >> "$GITHUB_OUTPUT"
+
+    # documentation-ui depends on `link:../../quantinuum-ui`, i.e. a checkout
+    # beside its own.
+    - name: Check out quantinuum-ui
+      uses: actions/checkout@v7
+      with:
+        repository: Quantinuum/quantinuum-ui
+        ref: ${{ inputs.quantinuum-ui-ref }}
+        path: ${{ steps.paths.outputs.quantinuum-ui-path }}
+
+    - uses: volta-cli/action@v5
+
+    - name: Add Node and pnpm to the Volta toolchain
+      shell: bash
+      working-directory: ${{ steps.paths.outputs.docs-ui }}/documentation-ui
+      run: |
+        volta install "node@$(jq -r .volta.node package.json)"
+        volta install "pnpm@$(jq -r .volta.pnpm package.json)"
+
+    - name: Build quantinuum-ui
+      shell: bash
+      working-directory: ${{ github.workspace }}/${{ steps.paths.outputs.quantinuum-ui-path }}
+      env:
+        HUSKY: "0"
+      run: |
+        pnpm install --frozen-lockfile
+        pnpm run build
+
+    - name: Build documentation-ui
+      shell: bash
+      working-directory: ${{ steps.paths.outputs.docs-ui }}
+      run: |
+        pnpm install --frozen-lockfile
+        pnpm --dir documentation-ui run build
+
+    - name: Put the documentation commands on PATH
+      shell: bash
+      run: |
+        docs_ui='${{ steps.paths.outputs.docs-ui }}'
+        bin="$RUNNER_TEMP/docs-toolchain-bin"
+        mkdir -p "$bin"
+        ln -sf "$docs_ui/docs-preview/bin/docs-preview.mjs" "$bin/docs-preview"
+        ln -sf "$docs_ui/docs-build/bin/docs-build.mjs" "$bin/docs-build"
+        ln -sf "$docs_ui/docs-checks/bin/check-spelling.mjs" "$bin/docs-check-spelling"
+        ln -sf "$docs_ui/docs-checks/bin/check-prose.mjs" "$bin/docs-check-prose"
+        ln -sf "$docs_ui/docs-checks/bin/check-links.mjs" "$bin/docs-check-links"
+        chmod +x "$docs_ui"/docs-preview/bin/*.mjs "$docs_ui"/docs-build/bin/*.mjs "$docs_ui"/docs-checks/bin/*.mjs
+        echo "$bin" >> "$GITHUB_PATH"
+
+    # Same versions as the central site's image (nextjs/Dockerfile).
+    - name: Install Quarto
+      if: inputs.generate-tools == 'true'
+      uses: quarto-dev/quarto-actions/setup@v2
+      with:
+        version: 1.10.3
+
+    - name: Install pandoc
+      if: inputs.generate-tools == 'true'
+      shell: bash
+      run: |
+        deb="$RUNNER_TEMP/pandoc.deb"
+        curl -fsSL -o "$deb" "https://github.com/jgm/pandoc/releases/download/3.7.0.2/pandoc-3.7.0.2-1-amd64.deb"
+        sudo dpkg -i "$deb"
+
+    - name: Install uv
+      if: inputs.generate-tools == 'true'
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        enable-cache: true
+
+    - name: Install lychee
+      if: inputs.link-checker == 'true'
+      uses: taiki-e/install-action@v2
+      with:
+        tool: lychee@0.24.2

@@ -1,5 +1,7 @@
 packages:
   - "documentation-ui"
+  - "docs-build"
+  - "docs-checks"
   - "docs-preview"
   - "sphinx-ui/react"
 

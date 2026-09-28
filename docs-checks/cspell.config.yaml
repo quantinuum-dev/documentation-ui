@@ -1,0 +1,83 @@
+# Shared cspell settings for Quantinuum documentation.
+#
+# `docs-check-spelling` uses this when a repo has no cspell.config.yaml of its
+# own. A repo that wants the "Code Spell Checker" editor extension to agree with
+# CI adds a cspell.config.yaml that imports this file:
+#
+#   import:
+#     - "@quantinuum/docs-checks/cspell.config.yaml"
+#
+# The company-wide word list (project-words.txt, beside this file) is shared with
+# the prose checker, so a new term only ever needs adding in one place.
+version: "0.2"
+
+# Both dialects are accepted here. Choosing between -ise and -ize is a house
+# style decision, so it belongs in the terminology rules in prose.config.mjs
+# where it can be stated explicitly, not in the spelling dictionary.
+language: en,en-GB
+
+import:
+  - "@cspell/dict-people-names/cspell-ext.json"
+
+dictionaryDefinitions:
+  - name: company-words
+    path: ./project-words.txt
+
+dictionaries:
+  - company-words
+  - people-names
+  - bash
+  - css
+  - filetypes
+  - fullstack
+  - html
+  - node
+  - npm
+  - python
+  - softwareTerms
+  - typescript
+
+ignorePaths:
+  - .next/**
+  - .source/**
+  - node_modules/**
+  - out/**
+  - pnpm-lock.yaml
+
+# `docs-check-spelling` does not run cspell over files directly. It parses each
+# one with remark-mdx (or the TypeScript compiler), blanks out everything that
+# is not reader-facing prose, and runs cspell over the blanked copy — so code,
+# class names and JSX expressions are never spell-checked, while prose inside
+# components and attributes always is.
+#
+# The regexes below therefore only matter to the "Code Spell Checker" editor
+# extension, which checks the raw sources as you type. They are a rough
+# approximation of what the parser does properly.
+patterns:
+  - name: FencedCodeBlock
+    pattern: "/^\\s*(`{3,}|~{3,})[\\s\\S]*?^\\s*\\1/gm"
+  - name: InlineCode
+    pattern: "/`[^`\\n]+`/g"
+  - name: JsxClassNames
+    pattern: "/\\b(?:className|class)\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|\\{`[^`]*`\\}|\\{[^}]*\\})/g"
+  - name: JsxNonProseAttributes
+    pattern: "/\\b(?:href|src|id|key|value|type|as|rel|target)\\s*=\\s*(?:\"[^\"]*\"|'[^']*')/g"
+  - name: ImportPaths
+    pattern: "/(?:from|import)\\s+[\"'][^\"']+[\"']/g"
+  - name: KatexMath
+    pattern: "/\\$\\$?[\\s\\S]*?\\$\\$?/g"
+  - name: MdxAnchors
+    pattern: "/<a\\s+id=\"[^\"]*\"\\s*\\/>/g"
+
+ignoreRegExpList:
+  - FencedCodeBlock
+  - InlineCode
+  - JsxClassNames
+  - JsxNonProseAttributes
+  - ImportPaths
+  - KatexMath
+  - MdxAnchors
+  - Urls
+  - Email
+  - HexValues
+  - RgbHex

@@ -1,0 +1,9 @@
+/* Tailwind entry for the preview harness. Mirrors the central site's docs
+   stylesheet so the harness renders identically: Tailwind, the Fumadocs preset,
+   then the shared Quantinuum docs theme. */
+@import "tailwindcss";
+@import "fumadocs-ui/css/lib/default-colors.css";
+@import "fumadocs-ui/css/preset.css";
+@import "@quantinuum/documentation-ui/docs-theme.css";
+@import "@quantinuum/documentation-ui/tokens.css";
+@config "../../tailwind.config.ts";

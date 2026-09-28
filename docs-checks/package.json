@@ -1,0 +1,44 @@
+{
+  "name": "@quantinuum/docs-checks",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Spelling, prose and link checks shared by the Quantinuum documentation repos, with the company-wide word list and house style.",
+  "type": "module",
+  "license": "ISC",
+  "files": [
+    "bin",
+    "src",
+    "cspell.config.yaml",
+    "lychee.toml",
+    "project-words.txt",
+    "prose.config.mjs"
+  ],
+  "bin": {
+    "docs-check-links": "./bin/check-links.mjs",
+    "docs-check-prose": "./bin/check-prose.mjs",
+    "docs-check-spelling": "./bin/check-spelling.mjs"
+  },
+  "exports": {
+    "./cspell.config.yaml": "./cspell.config.yaml",
+    "./lychee.toml": "./lychee.toml",
+    "./project-words.txt": "./project-words.txt",
+    "./prose-config": "./prose.config.mjs",
+    "./retired-urls": "./src/links/retired.mjs"
+  },
+  "dependencies": {
+    "@cspell/dict-people-names": "^1.1.16",
+    "cspell": "^10.2.2",
+    "harper.js": "^2.7.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "remark-mdx": "^3.1.1",
+    "remark-parse": "^11.0.0",
+    "typescript": "^5.9.3",
+    "unified": "^11.0.5"
+  },
+  "volta": {
+    "node": "22.22.3",
+    "pnpm": "11.10.0"
+  }
+}

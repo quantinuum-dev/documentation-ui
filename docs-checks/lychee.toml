@@ -1,0 +1,65 @@
+# lychee link-checker configuration shared by every Quantinuum documentation
+# site: the central site (its check-links runner) and each product repo
+# (`docs-check-links`), locally and in CI, so behaviour never drifts between
+# them. Docs: https://lychee.cli.rs/
+
+# Cache results between runs to speed up repeated checks.
+cache = true
+max_cache_age = "1d"
+
+# Never cache rate-limited or server-side failures: they are transient, and CI
+# persists this cache between runs, so a one-off outage would otherwise keep
+# reporting a dead link until the entry ages out.
+cache_exclude_status = "429, 500.."
+
+# Network robustness for the (many) external links found in the docs.
+max_retries = 2
+retry_wait_time = 2
+timeout = 20
+max_concurrency = 16
+
+# Treat these HTTP statuses as success (2xx plus rate-limit, which is transient).
+accept = ["200..=299", "429"]
+
+# Follow redirects rather than reporting them as failures.
+max_redirects = 5
+
+# Show a progress bar for local runs; CI passes --no-progress.
+no_progress = false
+
+# Don't check mailto: links.
+include_mail = false
+
+# Exclude links that are expected to fail or are not meaningful to check.
+exclude = [
+  # Local auth/portal endpoints and similar that reject bots.
+  "^https://nexus\\.quantinuum\\.com/auth",
+
+  # Academic publishers that sit behind bot protection (Cloudflare/Akamai JS
+  # challenges) and return 403 Forbidden to any non-browser client, regardless
+  # of user-agent or headers. These are stable, citable DOIs/paper URLs that
+  # resolve fine in a real browser, so checking them only produces false
+  # failures. DOI resolvers are excluded too because they 302-redirect to these
+  # same walled publishers (lychee reports the 403 against the doi.org URL).
+  # Add new publisher hosts here as they appear; arxiv.org and similar open
+  # hosts are intentionally NOT excluded since they check fine.
+  "^https?://(dx\\.)?doi\\.org/",
+  "^https?://([a-z0-9-]+\\.)?aps\\.org/",       # American Physical Society (Phys. Rev.)
+  "^https?://pubs\\.aip\\.org/",                 # AIP Publishing
+  "^https?://aip\\.scitation\\.org/",            # AIP / Scitation
+  "^https?://pubs\\.acs\\.org/",                 # American Chemical Society
+  "^https?://www\\.nature\\.com/",               # Nature / Springer Nature
+  "^https?://link\\.springer\\.com/",            # Springer
+  "^https?://onlinelibrary\\.wiley\\.com/",      # Wiley
+  "^https?://ieeexplore\\.ieee\\.org/",          # IEEE
+  "^https?://iopscience\\.iop\\.org/",           # IOP Publishing
+  "^https?://academic\\.oup\\.com/",             # Oxford University Press
+  "^https?://www\\.sciencedirect\\.com/",        # Elsevier / ScienceDirect
+
+  # Non-publisher sites that likewise sit behind bot protection and 403 any
+  # non-browser client.
+  "^https?://(www\\.)?openai\\.com/",            # OpenAI (Cloudflare challenge)
+  "^https?://([a-z0-9-]+\\.)?stackexchange\\.com/",  # Stack Exchange network
+  "^https?://([a-z0-9-]+\\.)?stackoverflow\\.com/",  # Stack Overflow
+  "^https?://([a-z0-9-]+\\.)?slack\\.com/",      # Slack (invite links need a session)
+]

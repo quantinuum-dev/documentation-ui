@@ -50,6 +50,8 @@ export default [{
     // Node-side MDX pipeline config, imported by a consumer's `source.config.ts`;
     // separate from the kit barrel so it drags in no React/client components.
     "src/custom/docs/kit/config.ts",
+    // Fumadocs loader helpers (sidebar labels/nesting); server-side, no React.
+    "src/custom/docs/kit/page-tree.ts",
   ],
   external: isExternalDependency,
   output: [
