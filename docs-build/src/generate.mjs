@@ -2078,7 +2078,7 @@ function convertNotebookViaQuarto(src, index, relNoExt) {
     for (const cell of nbJson.cells ?? []) {
       if (cell.cell_type === "markdown") {
         let s = convertMystDirectives(
-          stripMystComments(nbText(cell.source)),
+          stripMystComments(nbText(cell.source).replace(/<!--[\s\S]*?-->/g, "")),
           nbDir,
           {
             admonitions: false,
@@ -2146,8 +2146,7 @@ function convertNotebookViaQuarto(src, index, relNoExt) {
   }
 }
 
-/** `/<module>/...` URL for a sphinx-relative doc path (no extension). Consults
- * `outputMap` so restructured MyST pages resolve to their served location.
+/** `/<module>/...` URL for a sphinx-relative doc path (no extension).
  * @param {string} rel
  * @returns {string} */
 function urlForRel(rel) {
@@ -2163,8 +2162,7 @@ function navUrl(rel) {
 }
 
 /** Rewrite plain relative Markdown links to other doc pages (`[t](x/y.ipynb#a)`)
- * to their served URL via urlForRel — needed because MyST modules restructure
- * output paths, so a source-relative link would otherwise 404. Skips external
+ * to their served URL via urlForRel, accounting for clean folder URLs. Skips external
  * links, in-page anchors, and asset files; leaves unknown targets untouched.
  * @param {string} md @param {string} currentRelNoExt @param {DocIndex} index
  * @returns {string} */
@@ -2992,6 +2990,12 @@ function stageImage(ref, srcDir) {
     const dest = path.join(M.assetRoot, rel);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.copyFileSync(absSrc, dest);
+    // The docs kit swaps in a `<name>.dark<ext>` sibling in dark mode.
+    const ext = path.extname(absSrc);
+    const darkSrc = `${absSrc.slice(0, -ext.length)}.dark${ext}`;
+    if (ext && fs.existsSync(darkSrc)) {
+      fs.copyFileSync(darkSrc, `${dest.slice(0, -ext.length)}.dark${ext}`);
+    }
     stagedImages.add(url);
   }
   return url;
@@ -4185,11 +4189,11 @@ function registerNexusApiLabels(mod, index) {
 
 /**
  * @typedef {{
- *   srcRel: string,
- *   base: string,
+ *   srcRel: string|null,
+ *   base: string|null,
  *   isFolder: boolean,
  *   external: null,
- *   label: null,
+ *   label: string|null,
  *   children: MystNavNode[],
  * } | {
  *   srcRel: null, base: null, isFolder: false, external: string, label: string|null, children: [],
@@ -4197,14 +4201,8 @@ function registerNexusApiLabels(mod, index) {
  */
 
 /**
- * Plan a MyST-markdown module's output layout + sidebar from the Sphinx toctree
- * tree, walking `.md`/`.ipynb` toctrees from the root index outward. A page that
- * has its own toctree becomes a collapsible FOLDER (`<base>/index.mdx`) and its
- * toctree children are RESTRUCTURED to live physically beneath it (matching how
- * Sphinx/Furo nests them) — e.g. `trainings/notebooks/basics/x` served under
- * `trainings/getting_started/x`. Populates `outputMap` (source rel -> output rel)
- * so every cross-ref URL points at the restructured location, and returns the
- * captioned root sections for meta emission.
+ * Plan sidebar nesting independently of source-based page paths. `base` retains
+ * the former relocated path solely for generating compatibility redirects.
  * @param {string[]} files
  * @returns {{ caption: string|null, nodes: MystNavNode[], hasUnresolved: boolean }[]}
  */
@@ -4240,18 +4238,19 @@ function planMystNav(files) {
       ? path.posix.basename(path.posix.dirname(rel))
       : base;
   };
-  /** `foo/foo.md` (basename === parent dir) is that folder's landing page. */
+  /** @param {string} rel */
   const isFolderLanding = (rel) =>
     path.posix.basename(rel) === path.posix.basename(path.posix.dirname(rel)) &&
     path.posix.dirname(rel) !== ".";
-  /** @type {Set<string>} */
-  const visited = new Set();
-
   /**
    * @param {string} srcRel @param {string} parentBase @param {boolean} topLevel
+   * @param {Set<string>} ancestors
    * @returns {MystNavNode}
    */
-  const buildNode = (srcRel, parentBase, topLevel) => {
+  const buildNode = (srcRel, parentBase, topLevel, ancestors = new Set()) => {
+    if (ancestors.has(srcRel)) {
+      throw new Error(`[generate-docs] circular toctree: ${M.name}/${srcRel}`);
+    }
     // Top-level nodes keep their source path (stable URLs), except a folder
     // landing (`foo/foo.md`) or an `index`-named landing (`foo/index.md`)
     // collapses to its folder (`foo`); deeper nodes nest by name beneath their
@@ -4266,8 +4265,8 @@ function planMystNav(files) {
       .filter((e) => !isExternalRef(e.ref))
       .map((e) => resolveTocTarget(e.ref, path.posix.dirname(srcRel)))
       .filter((r) => byRel.has(r));
-    const isFolder = childRels.length > 0;
-    outputMap.set(srcRel, isFolder ? `${base}/index` : base);
+    const isFolder = childRels.length > 0 || entries.some((entry) => isExternalRef(entry.ref));
+    outputMap.set(srcRel, srcRel);
     /** @type {MystNavNode} */
     const node = {
       srcRel,
@@ -4277,8 +4276,7 @@ function planMystNav(files) {
       label: null,
       children: [],
     };
-    if (visited.has(srcRel)) return node;
-    visited.add(srcRel);
+    const nextAncestors = new Set([...ancestors, srcRel]);
     for (const e of entries) {
       if (isExternalRef(e.ref)) {
         node.children.push({
@@ -4292,7 +4290,11 @@ function planMystNav(files) {
         continue;
       }
       const crel = resolveTocTarget(e.ref, path.posix.dirname(srcRel));
-      if (byRel.has(crel)) node.children.push(buildNode(crel, base, false));
+      if (byRel.has(crel)) {
+        const child = buildNode(crel, base, false, nextAncestors);
+        child.label = e.label;
+        node.children.push(child);
+      }
     }
     return node;
   };
@@ -4341,7 +4343,11 @@ function planMystNav(files) {
         continue;
       }
       const crel = resolveTocTarget(e.ref, ".");
-      if (byRel.has(crel)) nodes.push(buildNode(crel, "", true));
+      if (byRel.has(crel)) {
+        const node = buildNode(crel, "", true);
+        node.label = e.label;
+        nodes.push(node);
+      }
       else if (apiIndexRel && crel === apiIndexRel) {
         // The API index page is skipped (quartodoc generates the API instead);
         // leave a placeholder so emitMystNavMetas drops the generated `api` folder
@@ -4363,46 +4369,38 @@ function planMystNav(files) {
 }
 
 /**
- * Write the `meta.json` sidebar files for a MyST module from the planned nav tree
- * (see planMystNav). Captioned root toctrees become non-collapsible section
- * headers (`---Caption---`); folder nodes become collapsible folders whose
- * `meta.json` orders their children. The `API` caption is filled from the
- * generated API pages.
+ * Write a MyST sidebar tree and legacy redirects, independently of page files.
+ * Keep filesystem metadata only for page discovery and generated API groups.
  * @param {ReturnType<typeof planMystNav>} sections @param {DocIndex} index
  * @param {string[]} apiNavPages @returns {number}
  */
 function emitMystNavMetas(sections, index, apiNavPages) {
   let metas = 0;
-  /** @param {string} childBase @param {string} parentBase */
-  const relTo = (childBase, parentBase) =>
-    parentBase === "" ? childBase : childBase.slice(parentBase.length + 1);
   /** @param {MystNavNode} node */
   const titleFor = (node) =>
+    (node.label ||
     (node.srcRel && index.titles.get(node.srcRel)) ||
-    prettify(path.posix.basename(node.base ?? ""));
+    prettify(path.posix.basename(node.base ?? ""))).replace(/`/g, "");
 
-  /** @param {MystNavNode} node */
-  const emitFolder = (node) => {
-    if (!node.isFolder || node.base === null) return;
-    /** @type {string[]} */
-    const pages = [];
-    for (const c of node.children) {
-      if (c.external) {
-        pages.push(`[${c.label || c.external}](${c.external})`);
-        continue;
-      }
-      if (c.base === null) continue;
-      pages.push(relTo(c.base, node.base));
-      emitFolder(c);
+  /** @type {Record<string, string>} */
+  const redirects = {};
+  const canonicalUrls = new Set([...index.titles.keys()].map(navUrl));
+  /** @param {MystNavNode} node @returns {object|null} */
+  const navNode = (node) => {
+    if (node.external) {
+      return { type: "page", name: node.label || node.external, url: node.external, external: true };
     }
-    const metaDest = path.join(outputRoot, M.routeBase, node.base, "meta.json");
-    fs.mkdirSync(path.dirname(metaDest), { recursive: true });
-    fs.writeFileSync(
-      metaDest,
-      `${JSON.stringify({ title: titleFor(node), pages: uniq(pages) }, null, 2)}\n`,
-      "utf8",
-    );
-    metas += 1;
+    if (node.srcRel === null && node.base === "api") {
+      return apiNavPages.length ? { type: "reference", url: `/${M.routeBase}/api` } : null;
+    }
+    const name = titleFor(node);
+    const children = node.children.map(navNode).filter(Boolean);
+    if (node.srcRel === null) return { type: "folder", name, children };
+    const url = navUrl(node.srcRel);
+    const legacyUrl = `/${M.routeBase}/${node.base}`.replace(/\/index$/, "");
+    if (legacyUrl !== url && !canonicalUrls.has(legacyUrl)) redirects[legacyUrl] = url;
+    const page = { type: "page", name, url };
+    return node.isFolder ? { type: "folder", name, index: page, children } : page;
   };
 
   const sectioned = sections.filter((s) => s.caption).length >= 2;
@@ -4421,36 +4419,28 @@ function emitMystNavMetas(sections, index, apiNavPages) {
     );
     metas += 1;
   };
-  /** @type {string[]} */
-  const rootPages = [];
+  const tree = [];
   for (const section of sections) {
-    /** @type {string[]} */
-    const items = [];
-    for (const n of section.nodes) {
-      if (n.external) {
-        items.push(`[${n.label || n.external}](${n.external})`);
-        continue;
-      }
-      // API placeholder (unresolved API-index toctree entry) -> the `api` folder.
-      if (n.srcRel === null && n.base === "api") {
-        if (apiNavPages.length) {
-          writeApiMeta();
-          items.push("api");
-        }
-        continue;
-      }
-      if (n.base === null) continue;
-      items.push(n.base); // top-level ref = the node's output path
-      emitFolder(n);
-    }
+    const items = section.nodes.map(navNode).filter(Boolean);
     if (items.length === 0) continue;
     if (sectioned && section.caption)
-      rootPages.push(`---${section.caption}---`);
-    rootPages.push(...items);
+      tree.push({ type: "separator", name: section.caption });
+    tree.push(...items);
   }
+  if (apiNavPages.length) writeApiMeta();
+  fs.writeFileSync(
+    path.join(outputRoot, `${M.name}-nav-tree.json`),
+    `${JSON.stringify(tree, null, 2)}\n`,
+    "utf8",
+  );
+  fs.writeFileSync(
+    path.join(outputRoot, `${M.name}-route-redirects.json`),
+    `${JSON.stringify(redirects, null, 2)}\n`,
+    "utf8",
+  );
   fs.writeFileSync(
     path.join(outputRoot, M.routeBase, "meta.json"),
-    `${JSON.stringify({ title: prettify(M.name), pages: uniq(rootPages) }, null, 2)}\n`,
+    `${JSON.stringify({ title: prettify(M.name), pages: ["..."] }, null, 2)}\n`,
     "utf8",
   );
   return metas + 1;
@@ -4582,9 +4572,7 @@ function convertModule(mod) {
     files.push(...notebooks);
   }
 
-  // MyST modules restructure their output layout to match the Sphinx toctree
-  // nesting; plan it FIRST so buildIndex's cross-ref URLs (via urlForRel ->
-  // outputMap) point at the restructured locations. Empty (identity) for RST.
+  // MyST sidebar planning preserves source paths; RST uses runtime re-parenting.
   outputMap = new Map();
   const navSections = mod.markdown ? planMystNav(files) : [];
 
@@ -4649,7 +4637,6 @@ function convertModule(mod) {
   buildNumfigIndex(files);
 
   let converted = 0;
-  let skipped = 0;
   /** @type {Set<string>} page paths (module-relative, no ext) actually emitted */
   const convertedPages = new Set();
   for (const source of files) {
@@ -4685,10 +4672,7 @@ function convertModule(mod) {
       source.endsWith(".rst") &&
       path.basename(source) !== "index.rst" &&
       files.some((f) => f !== source && f.startsWith(landingDir + path.sep));
-    // `.mdx` (not `.md`) so Fumadocs parses JSX components (<Callout>, <Tabs>,
-    // <Accordion>) instead of treating them as inert Markdown HTML. MyST modules
-    // emit at their planned (toctree-restructured) location from `outputMap`; a
-    // folder node's path ends with `/index`.
+    // `.mdx` lets Fumadocs parse JSX components. MyST pages keep source paths.
     const out = M.markdown
       ? path.join(M.routeBase, `${outputMap.get(relNoExt) ?? relNoExt}.mdx`)
       : isSectionLanding
@@ -4729,13 +4713,10 @@ function convertModule(mod) {
         markdown = withFrontmatter(displayMath(mdxSafe(withComponents)), out);
       }
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message.split("\n")[0] : String(err);
-      console.warn(
-        `[generate-docs] skip (convert failed): ${path.relative(logRoot, source)} — ${msg}`,
+      throw new Error(
+        `[generate-docs] conversion failed: ${path.relative(logRoot, source)}`,
+        { cause: err },
       );
-      skipped += 1;
-      continue;
     }
     // A section landing with no prose beyond its title is just a toctree holder —
     // don't emit an empty folder index; let the folder render as a plain expander.
@@ -4773,9 +4754,7 @@ function convertModule(mod) {
     }
   }
 
-  // MyST-markdown modules restructure their sidebar to match the Sphinx toctree
-  // nesting (planned in planMystNav); emit the per-folder meta.json here, now that
-  // the API pages exist for the `API` section.
+  // Emit MyST navigation after the generated API pages are available.
   if (M.markdown) {
     const metas = emitMystNavMetas(navSections, index, apiNavPages);
     // Sidebar-label overrides (e.g. API leaf names) consumed by fumadocs-source.ts.
@@ -4787,7 +4766,6 @@ function convertModule(mod) {
     console.log(
       `[generate-docs] ${mod.name}: converted ${converted} page(s), ${metas} meta.json` +
         `, ${stagedImages.size} image(s)` +
-        (skipped ? `, ${skipped} skipped` : "") +
         (unresolvedRefs.size
           ? `, ${unresolvedRefs.size} unresolved refs`
           : "") +
@@ -5178,7 +5156,6 @@ function convertModule(mod) {
   console.log(
     `[generate-docs] ${mod.name}: converted ${converted} page(s), ${metas} meta.json` +
       `, ${stagedImages.size} image(s)` +
-      (skipped ? `, ${skipped} skipped` : "") +
       (unresolvedRefs.size ? `, ${unresolvedRefs.size} unresolved refs` : "") +
       (missingImages.size ? `, ${missingImages.size} missing image(s)` : "") +
       `.`,

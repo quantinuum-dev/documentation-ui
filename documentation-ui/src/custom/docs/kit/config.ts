@@ -4,6 +4,7 @@ import rehypeKatex from 'rehype-katex'
 import remarkMath from 'remark-math'
 import type { PluggableList } from 'unified'
 
+import { remarkDarkImages } from './remark-dark-images'
 import { quantinuumDark, quantinuumLight } from './shiki-theme'
 
 export { quantinuumDark, quantinuumLight } from './shiki-theme'
@@ -50,16 +51,19 @@ export const docsRehypeCodeOptions: RehypeCodeOptions = {
  * MDX pipeline shared by every consumer's `source.config.ts`, so the central
  * site and a module's standalone preview compile the same MDX identically.
  * `$...$` / `$$...$$` math from converted RST and notebooks renders via KaTeX
- * (the host must also import `katex/dist/katex.min.css`).
+ * (the host must also import `katex/dist/katex.min.css`). An image with a
+ * `<name>.dark<ext>` sibling in the host's `public/` swaps to it in dark mode.
  */
 export interface DocsMdxOptions {
-  remarkPlugins: PluggableList
+  remarkPlugins: (plugins: PluggableList) => PluggableList
   rehypePlugins: (plugins: PluggableList) => PluggableList
   rehypeCodeOptions: RehypeCodeOptions
 }
 
 export const docsMdxOptions: DocsMdxOptions = {
-  remarkPlugins: [remarkMath],
+  // remarkDarkImages must precede Fumadocs' remarkImage; remarkMath keeps its
+  // previous place after the preset's syntax extensions.
+  remarkPlugins: (plugins) => [remarkDarkImages, ...plugins, remarkMath],
   rehypePlugins: (plugins) => [rehypeKatex, ...plugins],
   rehypeCodeOptions: docsRehypeCodeOptions,
 }

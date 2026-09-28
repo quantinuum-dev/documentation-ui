@@ -10,6 +10,7 @@ const CONFIG_FILE = "docs-preview.config.json";
  * @property {string} [publicDir] Static assets root, relative to the repo.
  * @property {string} [navTitles] Sidebar-label map, relative to the repo.
  * @property {string} [navNesting] Sidebar parent -> children map, relative to the repo.
+ * @property {string} [navTree] Explicit sidebar tree, relative to the repo.
  * @property {string} [basePath] URL prefix the published docs are served under.
  * @property {string} [generate] Command regenerating notebook/API MDX (full tier).
  */
@@ -21,6 +22,7 @@ const CONFIG_FILE = "docs-preview.config.json";
  * @property {string} publicDir
  * @property {string} navTitlesFile
  * @property {string} navNestingFile
+ * @property {string} navTreeFile
  * @property {string} basePath
  * @property {string | null} generateCommand
  */
@@ -66,12 +68,21 @@ export function resolveHarnessPaths(cwd = process.env.DOCS_REPO_DIR || process.c
     ? path.resolve(process.env.DOCS_NAV_NESTING)
     : path.resolve(repoDir, config.navNesting ?? path.join(config.contentDir ?? "docs", "nav-nesting.json"));
 
+  const navTreeFile = process.env.DOCS_NAV_TREE
+    ? path.resolve(process.env.DOCS_NAV_TREE)
+    : config.navTree
+      ? path.resolve(repoDir, config.navTree)
+      : /nav-titles\.json$/.test(navTitlesFile)
+        ? navTitlesFile.replace(/nav-titles\.json$/, "nav-tree.json")
+        : path.join(contentDir, "nav-tree.json");
+
   return {
     repoDir,
     contentDir,
     publicDir,
     navTitlesFile,
     navNestingFile,
+    navTreeFile,
     // Published docs live under /<module>/; previewing at the same prefix keeps
     // the root-absolute asset URLs in the MDX resolvable without rewriting them.
     basePath: process.env.DOCS_BASE_PATH ?? config.basePath ?? "/",

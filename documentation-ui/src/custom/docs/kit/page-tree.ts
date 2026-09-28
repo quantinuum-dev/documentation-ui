@@ -10,6 +10,16 @@
 export interface DocsNavOverrides {
   titles?: Record<string, string>
   nesting?: Record<string, string[]>
+  tree?: DocsNavNode[]
+}
+
+export interface DocsNavNode {
+  type: 'page' | 'folder' | 'separator' | 'reference'
+  name?: string
+  url?: string
+  external?: boolean
+  index?: DocsNavNode
+  children?: DocsNavNode[]
 }
 
 type TreeNode = {
@@ -21,6 +31,35 @@ type TreeNode = {
 }
 
 const trimSlash = (url: string) => url.replace(/\/$/, '')
+
+function applyNavTree(root: TreeNode, tree: DocsNavNode[]): void {
+  const pages = new Map<string, TreeNode>()
+  const folders = new Map<string, TreeNode>()
+  const collect = (node: TreeNode): void => {
+    if (node.type === 'page' && node.url) pages.set(trimSlash(node.url), node)
+    if (node.index?.url) {
+      folders.set(trimSlash(node.index.url), node)
+      collect(node.index)
+    }
+    node.children?.forEach(collect)
+  }
+  collect(root)
+  const resolve = (node: DocsNavNode, position: string): TreeNode => {
+    if (node.type === 'reference' || (node.type === 'page' && !node.external)) {
+      const url = trimSlash(node.url ?? '')
+      const existing = node.type === 'reference' ? folders.get(url) ?? pages.get(url) : pages.get(url)
+      if (!existing) throw new Error(`Sidebar page not found: ${url}`)
+      return { ...existing, ...(node.name ? { name: node.name } : {}) }
+    }
+    return {
+      ...node,
+      ...(node.index ? { index: resolve(node.index, `${position}/index`) } : {}),
+      ...(node.children ? { children: node.children.map((child, index) => resolve(child, `${position}/${index}`)) } : {}),
+      $id: `docs-nav:${position}`,
+    } as TreeNode
+  }
+  root.children = tree.map((node, index) => resolve(node, String(index)))
+}
 
 /** Re-parent each nesting entry's children under its parent page, turning that
  * page into a folder whose index is the page itself. URLs are untouched. */
@@ -90,6 +129,7 @@ export interface DocsNavTransformer {
 export function docsNavTransformer({
   titles = {},
   nesting = {},
+  tree,
 }: DocsNavOverrides): DocsNavTransformer {
   return {
     file(node) {
@@ -100,7 +140,8 @@ export function docsNavTransformer({
       return node
     },
     root(node) {
-      applyNavNesting(node as unknown as TreeNode, nesting, titles)
+      if (tree) applyNavTree(node as unknown as TreeNode, tree)
+      else applyNavNesting(node as unknown as TreeNode, nesting, titles)
       return node
     },
   }

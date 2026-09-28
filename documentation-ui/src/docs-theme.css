@@ -245,6 +245,17 @@
   max-width: 100%;
 }
 
+/* An image with a `.dark` variant renders as a pair (remarkDarkImages); the
+   wrappers are layout-transparent and only the active theme's image shows. */
+.quantinuum-docs :where(.quantinuum-light-only, .quantinuum-dark-only) {
+  display: contents;
+}
+
+html:not(.dark) .quantinuum-docs .quantinuum-dark-only,
+.dark .quantinuum-docs .quantinuum-light-only {
+  display: none;
+}
+
 /* Code blocks use a soft grey (non-white) surface in light mode and a raised
    dark surface in dark mode, matching the two Shiki themes' backgrounds. */
 .quantinuum-docs figure.shiki {

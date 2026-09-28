@@ -6,7 +6,7 @@ import { docs } from "collections/server";
 
 import { resolveHarnessPaths } from "./paths.mjs";
 
-const { navTitlesFile, navNestingFile, basePath } = resolveHarnessPaths();
+const { navTitlesFile, navNestingFile, navTreeFile, basePath } = resolveHarnessPaths();
 
 // Sidebar labels and nesting produced alongside the MDX. Read from disk rather
 // than imported so a repo without the files just gets no overrides instead of a
@@ -27,6 +27,9 @@ export const source = loader({
       docsNavTransformer({
         titles: readJson<string>(navTitlesFile),
         nesting: readJson<string[]>(navNestingFile),
+        tree: fs.existsSync(navTreeFile)
+          ? JSON.parse(fs.readFileSync(navTreeFile, "utf8"))
+          : undefined,
       }),
     ],
   },
