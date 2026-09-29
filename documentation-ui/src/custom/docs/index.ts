@@ -1,5 +1,7 @@
 export { Footer as DocsFooter } from './components/footer'
 export { NavBar as DocsNavBar } from './components/navmenu/index'
+export { DocsNavBarProvider } from './components/navmenu/NavBarOptions'
+export type { DocsNavBarOptions } from './components/navmenu/NavBarOptions'
 export { TripleCard as DocsTripleCard } from './components/triplecard'
 export { HelpCard as DocsHelpCard } from './components/helpcard'
 export * from './components/header'

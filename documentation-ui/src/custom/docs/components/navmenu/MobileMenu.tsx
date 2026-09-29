@@ -3,6 +3,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@quantinuum/quantinuum-ui'
 import { MenuIcon } from 'lucide-react'
@@ -19,11 +20,12 @@ export const MobileMenu = (props: {
       title: string
     }[]
   }[]
+  actionLinks?: { href: string; title: string }[]
 }) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="w-8 p-0 h-8">
+        <Button variant="outline" className="w-8 p-0 h-8" aria-label="Open menu">
           {' '}
           <MenuIcon />
         </Button>
@@ -49,7 +51,12 @@ export const MobileMenu = (props: {
             </>
           )
         })}
-        {}
+        {props.actionLinks?.length ? <DropdownMenuSeparator /> : null}
+        {props.actionLinks?.map((link) => (
+          <DropdownMenuItem asChild key={link.href}>
+            <a href={link.href}>{link.title}</a>
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   )

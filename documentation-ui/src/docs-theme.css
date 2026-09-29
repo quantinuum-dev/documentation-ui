@@ -293,13 +293,6 @@ html:not(.dark) .quantinuum-docs .quantinuum-dark-only,
   color: #2b2b2b;
 }
 
-@media (max-width: 420px) {
-  .quantinuum-docs
-    :where(a[href="https://nexus.quantinuum.com/auth/login"], a[href="/product-updates"]) {
-    padding-inline: 0.625rem;
-  }
-}
-
 .dark .quantinuum-docs {
   --color-fd-background: #2b2b2b;
   --color-fd-foreground: #ffffff;

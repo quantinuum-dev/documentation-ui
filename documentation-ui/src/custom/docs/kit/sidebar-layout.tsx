@@ -12,6 +12,8 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { ComponentProps } from 'react'
 
+import { useDocsNavBarOptions } from '../components/navmenu/NavBarOptions'
+
 function ContentsToggle({ floating = false }: { floating?: boolean }) {
   const { collapsed } = useSidebar()
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -57,11 +59,18 @@ const sidebarSlots = {
   useSidebar,
 }
 
-export function SidebarLayout({ nav, ...props }: ComponentProps<typeof DocsLayout>) {
+export function SidebarLayout({
+  nav,
+  navBarShown = false,
+  ...props
+}: ComponentProps<typeof DocsLayout> & { navBarShown?: boolean }) {
+  // One theme control per page: the site navbar's, when it has one.
+  const { themeToggle } = useDocsNavBarOptions()
   return (
     <DocsLayout
       {...props}
       nav={{ ...nav, children: <ContentsToggle /> }}
+      themeSwitch={{ enabled: !(navBarShown && themeToggle) }}
       slots={{ sidebar: sidebarSlots }}
     />
   )

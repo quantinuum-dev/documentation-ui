@@ -1,13 +1,27 @@
 'use client'
 
 import { Button } from '@quantinuum/quantinuum-ui'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@quantinuum/quantinuum-ui'
+import { EllipsisIcon, SearchIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { openSearch } from '../../kit/search-events'
 import { NexusLogo } from '../logos/NexusLogo'
 import { SystemsLogo } from '../logos/SystemsLogo'
 import { MobileMenu } from './MobileMenu'
-import { ModeSelector } from './ModeSelector'
 import { Navigation } from './NavigationMenu'
+import { useDocsNavBarOptions } from './NavBarOptions'
 import { QuantinuumIdent } from './QuantinuumIdent'
 import { QuantinuumLogo } from './QuantinuumLogo'
+
+const actionLinks = [
+  { title: 'Nexus Portal', href: 'https://nexus.quantinuum.com/auth/login' },
+  { title: 'Platform Updates', href: '/product-updates' },
+]
 
 const navConfig = {
   navTextLinks: [
@@ -120,13 +134,59 @@ const navConfig = {
   ],
 }
 
-export const NavBar = (props: { activePath: string; enableModeSelector?: boolean }) => {
+const SearchTrigger = () => (
+  <button
+    type="button"
+    onClick={() => openSearch()}
+    aria-label="Search all docs"
+    title="Search all docs (⌘K)"
+    className="inline-flex h-9 w-9 items-center justify-center gap-2 rounded-md border border-border bg-background text-sm text-muted-foreground transition-colors hover:bg-muted min-[80rem]:w-48 min-[80rem]:justify-start min-[80rem]:px-3"
+  >
+    <SearchIcon className="h-4 w-4 flex-none" aria-hidden="true" />
+    <span className="hidden min-[80rem]:inline">Search all docs</span>
+    <kbd className="ml-auto hidden rounded border border-border px-1 text-xs min-[80rem]:inline">⌘K</kbd>
+  </button>
+)
+
+// Between md (hamburger hidden) and 80rem the action buttons don't fit beside
+// the product menus, so they collapse into this menu.
+const MoreMenu = () => (
+  <DropdownMenu modal={false}>
+    <DropdownMenuTrigger asChild>
+      <Button
+        variant="outline"
+        className="hidden h-9 w-9 p-0 md:inline-flex min-[80rem]:hidden"
+        aria-label="More links"
+      >
+        <EllipsisIcon className="h-4 w-4" />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end">
+      {actionLinks.map((link) => (
+        <DropdownMenuItem asChild key={link.href}>
+          <a href={link.href}>{link.title}</a>
+        </DropdownMenuItem>
+      ))}
+    </DropdownMenuContent>
+  </DropdownMenu>
+)
+
+export const NavBar = (props: {
+  activePath: string
+  /** Overrides the `DocsNavBarProvider` setting. */
+  search?: boolean
+  /** Overrides the `DocsNavBarProvider` setting. */
+  themeToggle?: ReactNode
+}) => {
+  const options = useDocsNavBarOptions()
+  const search = props.search ?? options.search
+  const themeToggle = props.themeToggle ?? options.themeToggle
   return (
     <div className="bg-background text-foreground border-border sticky top-0 z-[100] w-full border-b shadow text-sm">
       <div className=" bg-background px-3 md:px-4 flex h-12 items-center justify-between mx-auto max-w-[90rem]">
         <div className="mr-4 flex items-center">
           <div className="block md:hidden mr-3">
-            <MobileMenu {...navConfig} />
+            <MobileMenu {...navConfig} actionLinks={actionLinks} />
           </div>
           <div className="whitespace-nowrap flex items-center gap-2">
             <a
@@ -135,10 +195,10 @@ export const NavBar = (props: { activePath: string; enableModeSelector?: boolean
               title="Quantinuum Documentation"
               className="hover:cursor-pointer hover:opacity-50 transition"
             >
-              <div className="hidden sm:block">
+              <div className="hidden lg:block">
                 <QuantinuumLogo />
               </div>
-              <div className="block sm:hidden">
+              <div className="block lg:hidden">
                 <QuantinuumIdent />
               </div>
             </a>
@@ -152,41 +212,21 @@ export const NavBar = (props: { activePath: string; enableModeSelector?: boolean
         </div>
         <div className="flex items-center gap-5 mx-auto">
           <Navigation activePath={props.activePath} navTextLinks={navConfig.navTextLinks} />
-          {props.enableModeSelector ? (
-            <>
-              {' '}
-              <div className="w-px h-6 bg-muted-foreground/50"></div>
-              <ModeSelector />{' '}
-            </>
-          ) : null}
         </div>
         <div className="relative flex items-center gap-2">
-          {/* <svg
-            width="24"
-            height="24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            className="absolute mr-4 ml-2 w-10 flex-none text-slate-300 dark:text-slate-400"
-            aria-hidden="true"
-          >
-            <path d="m19 19-3.5-3.5"></path>
-            <circle cx="11" cy="11" r="6"></circle>
-          </svg> */}
-          {/* <Input
-            id="sphinx-searchbox"
-            type="search"
-            className="pl-10 pb-1.5"
-            placeholder="Search documentation..."
-          /> */}
-          <Button asChild variant="secondary">
-            <a href="https://nexus.quantinuum.com/auth/login">Nexus Portal</a>
-          </Button>
-          <Button asChild variant="secondary">
-            <a href="/product-updates">Platform Updates</a>
-          </Button>
+          {search ? <SearchTrigger /> : null}
+          {themeToggle}
+          {actionLinks.map((link) => (
+            <Button
+              key={link.href}
+              asChild
+              variant="secondary"
+              className="hidden min-[80rem]:inline-flex"
+            >
+              <a href={link.href}>{link.title}</a>
+            </Button>
+          ))}
+          <MoreMenu />
         </div>
       </div>
     </div>

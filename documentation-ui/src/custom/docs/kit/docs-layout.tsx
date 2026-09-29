@@ -111,6 +111,7 @@ export function QuantinuumDocsLayout({
         <SidebarLayout
           tree={tree}
           nav={{ enabled: false, title, url: homeUrl }}
+          navBarShown={showNavBar}
           githubUrl={githubUrl}
           sidebar={{ banner: sidebarBanner }}
           containerProps={{
