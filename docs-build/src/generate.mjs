@@ -1,5 +1,6 @@
 // @ts-check
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -63,6 +64,22 @@ let logRoot = "";
  * @property {{ input: string, filePatterns?: string }} [doxygen] C headers rendered via Doxygen.
  * @property {string} [mergedProse] Absolute path to committed MDX prose (a `merged`
  *   backport): it is staged into the output and only notebooks/API are rebuilt.
+ * @property {NotebookExecution} [execute] Execute notebooks (and MyST-NB `.md`
+ *   pages) at build time instead of rendering only their stored outputs.
+ */
+
+/**
+ * Build-time notebook execution, mirroring myst-nb's `nb_execution_mode = "cache"`.
+ * Every `.ipynb` and MyST-NB page (`file_format: mystnb`) not matched by `exclude`
+ * is run by execute_notebooks.py inside the product's uv project, and the results
+ * are cached under `<cacheRoot>/.nb-exec/<module>/` keyed on each source's hash.
+ *
+ * @typedef {object} NotebookExecution
+ * @property {string} project Absolute path to the uv project providing the kernel
+ *   environment (it must include nbclient and ipykernel).
+ * @property {string[]} [exclude] Sphinx-style globs, relative to `sphinxRoot`, of
+ *   sources to leave unexecuted (`nb_execution_excludepatterns`).
+ * @property {number} [timeout] Per-cell timeout in seconds (default 120).
  */
 
 // The module currently being converted (set by convertModule); module-specific
@@ -1726,6 +1743,86 @@ function renderDoxygenFile(header) {
 }
 
 /**
+ * Bring the module's executed-notebook cache up to date (see NotebookExecution)
+ * and return its directory, or null when the module doesn't execute notebooks.
+ * Without `uv` (e.g. the site image's builder stage) the cache must already have
+ * been produced elsewhere with the same settings.
+ * @param {DocsModule} mod @returns {string | null}
+ */
+function executeNotebooks(mod) {
+  if (!mod.execute) return null;
+  const outDir = path.join(cacheRoot, ".nb-exec", mod.name);
+  const settings = {
+    exclude: [...(mod.execute.exclude ?? [])].sort(),
+    skipDirs: [...(mod.skipDirs ?? [])].sort(),
+    timeout: mod.execute.timeout ?? 120,
+  };
+  const args = [
+    "run",
+    "--project",
+    mod.execute.project,
+    "--frozen",
+    "--with-requirements",
+    path.join(scriptDir, "execute-requirements.txt"),
+    "python",
+    path.join(scriptDir, "execute_notebooks.py"),
+    "--root",
+    mod.sphinxRoot,
+    "--out",
+    outDir,
+    "--timeout",
+    String(settings.timeout),
+    ...settings.exclude.flatMap((p) => ["--exclude", p]),
+    ...settings.skipDirs.flatMap((d) => ["--skip-dir", d]),
+  ];
+  console.log(`[generate-docs] ${mod.name}: executing notebooks`);
+  const run = spawnSync("uv", args, { stdio: "inherit" });
+  if (run.error && /** @type {any} */ (run.error).code === "ENOENT") {
+    console.log(
+      `[generate-docs] ${mod.name}: uv not found, using the pre-executed notebooks in ${outDir}`,
+    );
+  } else if (run.error || run.status !== 0) {
+    throw new Error(`[generate-docs] ${mod.name}: notebook execution failed`, {
+      cause: run.error,
+    });
+  }
+  const manifest = path.join(outDir, ".execution.json");
+  if (!fs.existsSync(manifest)) {
+    throw new Error(
+      `[generate-docs] ${mod.name}: no executed notebooks at ${outDir}`,
+    );
+  }
+  const used = fs.readFileSync(manifest, "utf8");
+  if (JSON.stringify(JSON.parse(used)) !== JSON.stringify(settings)) {
+    throw new Error(
+      `[generate-docs] ${mod.name}: notebooks in ${outDir} were executed with ${used.trim()}, but the module config asks for ${JSON.stringify(settings)}`,
+    );
+  }
+  return outDir;
+}
+
+/**
+ * The executed copy of `source` from the cache, or null if it isn't executed
+ * (excluded, or not a notebook). A copy of an older revision is an error: it
+ * would publish outputs that no longer match the code shown.
+ * @param {string} executedDir @param {string} source @returns {any}
+ */
+function readExecuted(executedDir, source) {
+  const rel = path.relative(M.sphinxRoot, source);
+  const file = path.join(
+    executedDir,
+    rel.endsWith(".ipynb") ? rel : `${rel}.ipynb`,
+  );
+  if (!fs.existsSync(file)) return null;
+  const nb = JSON.parse(fs.readFileSync(file, "utf8"));
+  const digest = createHash("sha256").update(fs.readFileSync(source)).digest("hex");
+  if (nb.metadata?.docs_build?.source_sha256 !== digest) {
+    throw new Error(`executed copy is out of date: ${file}`);
+  }
+  return nb;
+}
+
+/**
  * Run Doxygen over a module's C headers and index the resulting XML by header
  * file name, so `.. doxygenfile::` directives can be rendered inline. Returns an
  * empty map when the headers are missing or Doxygen isn't installed, so the docs
@@ -2052,20 +2149,27 @@ function convertMyst(src, index, relNoExt) {
   return mdxSafe(displayMath(md));
 }
 
-/** Convert a Jupyter notebook to MDX via QUARTO (renders to gfm using the
- * notebook's frozen outputs; build-time execution can be enabled later in
- * _quarto.yml). Quarto output images (`<nb>_files/…`) are staged, then the shared
+/** Convert a Jupyter notebook to MDX via QUARTO (renders to gfm from the
+ * notebook's stored outputs, or those of its executed copy — Quarto itself never
+ * executes). Quarto output images (`<nb>_files/…`) are staged, then the shared
  * transforms clean MyST roles/admonitions/`<center>`, stage `_static` images,
  * and MDX-sanitise. Pandoc still handles whole-file RST prose (Quarto can't read
  * .rst); this path is notebooks only.
  * @param {string} src @param {DocIndex} index @param {string} relNoExt
+ * @param {any} [nbJson] The notebook to render in place of `src`'s contents (an
+ *   executed copy, possibly of a MyST-NB `.md` page).
  * @returns {string} */
-function convertNotebookViaQuarto(src, index, relNoExt) {
+function convertNotebookViaQuarto(
+  src,
+  index,
+  relNoExt,
+  nbJson = JSON.parse(fs.readFileSync(src, "utf8")),
+) {
   const nbDir = path.dirname(src);
-  const nbBase = path.basename(src, ".ipynb");
+  const nbBase = path.basename(src).replace(/\.(ipynb|md)$/, "");
   const relNb = path
     .relative(M.sphinxRoot, src)
-    .replace(/\.ipynb$/, "")
+    .replace(/\.(ipynb|md)$/, "")
     .split(path.sep)
     .join("/");
   const staging = fs.mkdtempSync(path.join(os.tmpdir(), "qdoc-"));
@@ -2074,7 +2178,6 @@ function convertNotebookViaQuarto(src, index, relNoExt) {
     // list tables, `{image}`, `{code}`) BEFORE Quarto — Quarto mangles them into
     // garbled escaped-backtick blocks. Admonitions are left for the post-Quarto
     // mystAdmonitionTransform. The cleaned notebook is rendered from staging.
-    const nbJson = JSON.parse(fs.readFileSync(src, "utf8"));
     for (const cell of nbJson.cells ?? []) {
       if (cell.cell_type === "markdown") {
         let s = convertMystDirectives(
@@ -2096,6 +2199,15 @@ function convertNotebookViaQuarto(src, index, relNoExt) {
         cell.source = lines.map((l, i) =>
           i < lines.length - 1 ? `${l}\n` : l,
         );
+      } else if (cell.cell_type === "code") {
+        for (const output of cell.outputs ?? []) {
+          // Tracebacks and some streams carry terminal colour codes.
+          if (output.traceback) output.traceback = output.traceback.map(stripAnsi);
+          if (output.text) output.text = stripAnsi(nbText(output.text));
+          const html = output.data?.["text/html"];
+          const iframe = html && stageSrcdocIframe(nbText(html), relNb);
+          if (iframe) output.data["text/html"] = iframe;
+        }
       }
     }
     const nbInput = path.join(staging, `${nbBase}.ipynb`);
@@ -2144,6 +2256,31 @@ function convertNotebookViaQuarto(src, index, relNoExt) {
   } finally {
     fs.rmSync(staging, { recursive: true, force: true });
   }
+}
+
+/** @param {string} s @returns {string} */
+function stripAnsi(s) {
+  return s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+}
+
+/** A notebook HTML output embedding a whole document in `<iframe srcdoc>` (e.g.
+ * pytket's interactive circuit renderer) can't be expressed as MDX. Stage that
+ * document as a static page and return a one-line iframe pointing at it; null
+ * when the output has no srcdoc. The sandbox gives the page's scripts an opaque
+ * origin, so they can't reach the docs site.
+ * @param {string} html @param {string} relNb @returns {string | null} */
+function stageSrcdocIframe(html, relNb) {
+  const srcdoc = html.match(/<iframe\b[^>]*?\ssrcdoc="([^"]*)"/i)?.[1];
+  if (srcdoc === undefined) return null;
+  const doc = decodeXml(srcdoc);
+  const hash = createHash("sha256").update(doc).digest("hex").slice(0, 16);
+  const outRel = `${relNb}/_html/${hash}.html`;
+  const dest = path.join(M.assetRoot, outRel);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, doc);
+  const height = html.match(/\bheight:\s*(\d+px)/i)?.[1] ?? "400px";
+  const src = htmlAttr(encodeURI(`/${M.assetSubdir}/${outRel}`));
+  return `<div style="resize: vertical; overflow: auto; height: ${height}"><iframe src="${src}" title="Notebook output" loading="lazy" sandbox="allow-scripts" width="100%" height="100%" style="border: none"></iframe></div>`;
 }
 
 /** `/<module>/...` URL for a sphinx-relative doc path (no extension).
@@ -3325,14 +3462,15 @@ function htmlBalanced(text) {
 }
 
 /** Normalise a collected raw-HTML block into MDX-safe output. Blocks that embed a
- * full document / interactive widget (`<script>`, `<iframe>`, `srcdoc`, a nested
+ * full document / interactive widget (`<script>`, an inline `srcdoc`, a nested
  * `<html>`/`<body>`) or that rely on HTML auto-closing can't be valid JSX, so
- * they render as escaped literal text; cleanly-nested markup is passed through
- * with braces escaped and void elements self-closed.
+ * they render as escaped literal text; cleanly-nested markup (including an
+ * `<iframe src>`) is passed through with braces escaped and void elements
+ * self-closed.
  * @param {string} block @returns {string} */
 function normalizeHtmlBlock(block) {
   if (
-    /<(script|iframe|style)\b/i.test(block) ||
+    /<(script|style)\b/i.test(block) ||
     /\ssrcdoc\s*=/i.test(block) ||
     /<!doctype|<html\b|<body\b/i.test(block) ||
     !htmlBalanced(block)
@@ -4595,6 +4733,7 @@ function convertModule(mod) {
   apiSymbolIndex = buildApiSymbolIndex(mod);
   // C API (Breathe `.. doxygenfile::`) pages are rendered from Doxygen XML.
   doxygenFiles = prepareDoxygen(mod);
+  const executedDir = executeNotebooks(mod);
   const glossarySrc = files.find((f) => path.basename(f) === "glossary.rst");
   const glossaryRelNoExt = glossarySrc
     ? path
@@ -4690,9 +4829,10 @@ function convertModule(mod) {
     }
     let markdown;
     try {
-      if (source.endsWith(".ipynb")) {
+      const executed = executedDir && readExecuted(executedDir, source);
+      if (source.endsWith(".ipynb") || executed) {
         markdown = withFrontmatter(
-          convertNotebookViaQuarto(source, index, relNoExt),
+          convertNotebookViaQuarto(source, index, relNoExt, executed ?? undefined),
           out,
         );
       } else if (source.endsWith(".md")) {

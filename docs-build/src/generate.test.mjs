@@ -107,6 +107,35 @@ test("notebook HTML comments are removed before directive conversion", (context)
   assert.doesNotMatch(generated, /<!--|Hidden|nonexistent\.csv/);
 });
 
+test("notebook srcdoc iframe outputs are staged as static pages", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-notebook-iframe-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nexample\n```\n");
+  const html = '\n\n<div style="resize: vertical; overflow: auto; height: 400px; display: block">\n    <iframe srcdoc="\n&lt;!DOCTYPE html&gt;\n&lt;html&gt;&lt;body&gt;&lt;script&gt;const x = &#34;{}&#34;;&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;\n"\n            width="100%" height="100%"></iframe>\n</div>\n';
+  fs.writeFileSync(path.join(source, "example.ipynb"), JSON.stringify({
+    nbformat: 4,
+    nbformat_minor: 5,
+    metadata: { kernelspec: { name: "python3", display_name: "Python 3", language: "python" } },
+    cells: [
+      { id: "title", cell_type: "markdown", metadata: {}, source: ["# Example\n"] },
+      { id: "code", cell_type: "code", metadata: {}, execution_count: 1, source: ["render(c)"],
+        outputs: [{ output_type: "display_data", metadata: {}, data: { "text/html": html, "text/plain": "<HTML>" } }] },
+    ],
+  }));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/example.mdx"), "utf8");
+  const src = generated.match(/<iframe src="(\/fixture-assets\/example\/_html\/[0-9a-f]+\.html)"[^>]*sandbox="allow-scripts"/)?.[1];
+  assert.ok(src, generated);
+  assert.doesNotMatch(generated, /srcdoc|&lt;/);
+  const page = fs.readFileSync(path.join(root, "public", src), "utf8");
+  assert.match(page, /<!DOCTYPE html>/);
+  assert.match(page, /const x = "\{\}";/);
+});
+
 test("conversion errors fail the process instead of skipping a page", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-build-test-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));

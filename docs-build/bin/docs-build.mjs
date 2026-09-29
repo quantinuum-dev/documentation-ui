@@ -15,7 +15,8 @@
 //       "indexFile": "index.rst",
 //       "mergedProse": "docs",            // committed MDX staged into the output
 //       "quartodoc": "quartodoc",         // quartodoc project (uv) to build
-//       "apiSource": "quartodoc/reference"
+//       "apiSource": "quartodoc/reference",
+//       "execute": { "project": "." }     // optional: run notebooks in this uv project
 //     }]
 //   }
 //
@@ -62,6 +63,9 @@ const modules = (config.modules ?? []).map((entry) => {
     apiSource: resolve(entry.apiSource) ?? null,
     doxygen: entry.doxygen
       ? { ...entry.doxygen, input: resolve(entry.doxygen.input) }
+      : undefined,
+    execute: entry.execute
+      ? { ...entry.execute, project: resolve(entry.execute.project) }
       : undefined,
     quartodoc: resolve(quartodoc),
   };
