@@ -412,29 +412,54 @@ function convertRst(src) {
   );
   fs.writeFileSync(tmp, cleaned, "utf8");
   try {
-    return execFileSync(
-      "pandoc",
-      [
-        "-f",
-        "rst",
-        "-t",
-        "commonmark_x",
-        // Drop raw passthrough (`.. raw:: html`) — unusable, MDX-breaking widgets.
-        "--lua-filter",
-        path.join(scriptDir, "pandoc-mdx.lua"),
-        // preserve source line breaks: sphinx-tabs `code-tab` bodies are parsed
-        // by pandoc as paragraphs, so `--wrap=none` would join every code line
-        // into one; `preserve` keeps them separable for re-fencing.
-        "--wrap=preserve",
-        "--resource-path",
-        dir,
-        tmp,
-      ],
-      { encoding: "utf8" },
+    return pandocHtmlMath(
+      execFileSync(
+        "pandoc",
+        [
+          "-f",
+          "rst",
+          "-t",
+          "commonmark_x",
+          // Math inside raw HTML (figure captions) stays TeX; see pandocHtmlMath.
+          "--mathjax",
+          // Drop raw passthrough (`.. raw:: html`) — unusable, MDX-breaking widgets.
+          "--lua-filter",
+          path.join(scriptDir, "pandoc-mdx.lua"),
+          // preserve source line breaks: sphinx-tabs `code-tab` bodies are parsed
+          // by pandoc as paragraphs, so `--wrap=none` would join every code line
+          // into one; `preserve` keeps them separable for re-fencing.
+          "--wrap=preserve",
+          "--resource-path",
+          dir,
+          tmp,
+        ],
+        { encoding: "utf8" },
+      ),
     );
   } finally {
     fs.rmSync(tmp, { force: true });
   }
+}
+
+/** Pandoc writes math inside raw-HTML blocks (figure captions) as MathJax spans
+ * rather than `$…$`; rewrite them so remark-math/KaTeX render them like prose
+ * math. `<`/`>` become `\lt`/`\gt` since a literal `<` would read as a JSX tag.
+ * @param {string} md @returns {string} */
+function pandocHtmlMath(md) {
+  return md.replace(
+    /<span class="math (inline|display)">\\[([]([\s\S]*?)\\[)\]]<\/span>/g,
+    (_m, kind, body) => {
+      const tex = body
+        .replace(/&lt;/g, "\\lt ")
+        .replace(/&gt;/g, "\\gt ")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, "&")
+        .replace(/\s+/g, " ")
+        .trim();
+      return kind === "display" ? `$$${tex}$$` : `$${tex}$`;
+    },
+  );
 }
 
 /** Reduce common MyST roles found in notebook markdown cells to plain text /
@@ -1242,21 +1267,24 @@ function pandocRstFragment(rst, srcDir) {
   const tmp = path.join(srcDir, `.__generate_docs_${process.pid}_evalrst.rst`);
   fs.writeFileSync(tmp, rewriteCiteRoles(rst), "utf8");
   try {
-    return execFileSync(
-      "pandoc",
-      [
-        "-f",
-        "rst",
-        "-t",
-        "commonmark_x",
-        "--lua-filter",
-        path.join(scriptDir, "pandoc-mdx.lua"),
-        "--wrap=preserve",
-        "--resource-path",
-        srcDir,
-        tmp,
-      ],
-      { encoding: "utf8" },
+    return pandocHtmlMath(
+      execFileSync(
+        "pandoc",
+        [
+          "-f",
+          "rst",
+          "-t",
+          "commonmark_x",
+          "--mathjax",
+          "--lua-filter",
+          path.join(scriptDir, "pandoc-mdx.lua"),
+          "--wrap=preserve",
+          "--resource-path",
+          srcDir,
+          tmp,
+        ],
+        { encoding: "utf8" },
+      ),
     );
   } finally {
     fs.rmSync(tmp, { force: true });
@@ -3407,7 +3435,15 @@ function sanitizeRawHtml(text) {
     .replace(/(<[^>]*>)|([^<]+)/g, (_m, tag, txt) =>
       tag !== undefined
         ? fixJsxTag(tag)
-        : txt.replace(/\{/g, "&#123;").replace(/\}/g, "&#125;"),
+        : txt
+            // LaTeX braces inside `$…$` must reach KaTeX intact.
+            .split(/(\$\$[^$]*\$\$|\$[^$\n]+\$)/)
+            .map((seg, i) =>
+              i % 2 === 1
+                ? seg
+                : seg.replace(/\{/g, "&#123;").replace(/\}/g, "&#125;"),
+            )
+            .join(""),
     );
 }
 

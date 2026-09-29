@@ -85,6 +85,23 @@ test("staging an image also stages its .dark sibling", (context) => {
   assert.match(fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8"), /\/fixture-assets\/img\/a\.png/);
 });
 
+test("RST figure caption math is emitted as KaTeX-ready TeX", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-caption-math-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  fs.writeFileSync(path.join(source, "fig.png"), "");
+  fs.writeFileSync(path.join(source, "page.rst"),
+    "Page\n====\n\n.. figure:: fig.png\n   :align: center\n\n   Overlap :math:`\\text{Re}\\Braket{a | b}` for :math:`k<l`.\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  assert.match(generated, /<figcaption>Overlap \$\\text\{Re\}\\Braket\{a \| b\}\$ for \$k\\lt l\$\.<\/figcaption>/);
+  assert.doesNotMatch(generated, /class(Name)?="math/);
+});
+
 test("notebook HTML comments are removed before directive conversion", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-notebook-comments-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
