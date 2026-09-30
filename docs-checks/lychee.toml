@@ -62,4 +62,14 @@ exclude = [
   "^https?://([a-z0-9-]+\\.)?stackexchange\\.com/",  # Stack Exchange network
   "^https?://([a-z0-9-]+\\.)?stackoverflow\\.com/",  # Stack Overflow
   "^https?://([a-z0-9-]+\\.)?slack\\.com/",      # Slack (invite links need a session)
+
+  # Microsoft's URL shortener. Redirects are normally followed fine, but some
+  # aka.ms targets return a Location header containing unencoded spaces, e.g.
+  #   Location: https://download.microsoft.com/.../Whitepaper - The Windows 10 …
+  # That is not a valid URI, so whether the redirect can be followed depends on
+  # how forgiving the HTTP stack is — it resolves in a browser and often
+  # locally, then fails in CI with an unfollowed "301 Moved Permanently".
+  # Short links are used deliberately (Microsoft repoints them when documents
+  # move), so the link stays and the check is skipped.
+  "^https?://aka\\.ms/",
 ]
