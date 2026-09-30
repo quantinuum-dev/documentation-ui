@@ -185,6 +185,31 @@
   text-align: center;
 }
 
+/* Vary the marker per nesting level: 1. → a. → i. → A. → I.
+   Sphinx/Furo styled RST enumerated lists this way, and the converted docs read
+   as though it still holds ("see 6.1 …" under step 6). Markdown has no syntax
+   for lettered or roman markers — only digits — so authors write plain nested
+   ordered lists and the level supplies the style.
+
+   `:not([type])` leaves an explicit `<ol type="a">` alone: Fumadocs already
+   styles those, and hand-written HTML should keep the marker it asks for.
+   Bullet lists are untouched. */
+.quantinuum-docs .prose ol ol:not([type]) {
+  list-style-type: lower-alpha;
+}
+
+.quantinuum-docs .prose ol ol ol:not([type]) {
+  list-style-type: lower-roman;
+}
+
+.quantinuum-docs .prose ol ol ol ol:not([type]) {
+  list-style-type: upper-alpha;
+}
+
+.quantinuum-docs .prose ol ol ol ol ol:not([type]) {
+  list-style-type: upper-roman;
+}
+
 /* Tailwind Typography wraps inline <code> in literal backtick glyphs via
    ::before/::after; drop them (inline code already has its own styling). */
 .quantinuum-docs .prose :where(code)::before,
