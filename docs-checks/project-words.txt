@@ -14,21 +14,20 @@
 # instead.
 
 # -- Quantinuum products and brands -------------------------------------------
-# Guppy
-# guppylang
-# Helios
-# InQuanto
-# lambeq
-# λambeq
-# Nexus
-# Playpond
-# pytket
-# qnexus
+Guppy
+guppylang
+Helios
+InQuanto
+lambeq
+λambeq
+Nexus
+Playpond
+pytket
+qnexus
 Quantinuum
 # Quantinuum's
-# qnexus
-# Selene
-# TKET
+Selene
+TKET
 
 # -- Quantum computing --------------------------------------------------------
 # ancilla
@@ -41,7 +40,7 @@ Quantinuum
 # bitstring
 # bitstrings
 # bra
-# braket
+braket
 # Clifford
 # cnot
 # codeword
@@ -315,7 +314,7 @@ Quantinuum
 # ansatz
 # ansatze
 # ansatzes
-# ansätze
+ansätze
 # anticommutation
 # AVAS
 # biclosed
@@ -348,11 +347,9 @@ Quantinuum
 # PMSV
 # postselect
 # QAOA
-# QNLP
+QNLP
 # QPDE
 # QSCEOM
-# RDSEED
-# RNDRESEEDCRNG
 # ROHF
 # Rotosolve
 # SPSA
@@ -409,7 +406,7 @@ Quantinuum
 # docstrings
 # Figtree
 # hypertket
-# IBMQ
+IBMQ
 # kwarg
 # kwargs
 # Pennylane
@@ -421,7 +418,7 @@ Quantinuum
 # qsystem
 # qujax
 # Qulacs
-# Rigetti
+Rigetti
 SIEM
 # Shiki
 # Sourcedefender
