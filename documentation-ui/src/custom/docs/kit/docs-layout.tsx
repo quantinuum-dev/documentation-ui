@@ -4,16 +4,16 @@ import { RootProvider } from 'fumadocs-ui/provider/next'
 import { cloneElement, Fragment, isValidElement } from 'react'
 import type { ComponentProps, ComponentType, CSSProperties, ReactNode } from 'react'
 
-import { NavBar as DocsNavBar } from '../components/navmenu/index'
+import { NavBar as DocsNavBar } from '../components/site-navbar/index'
 import { CiteTargetHighlighter } from './cite-target-highlighter'
 import { SidebarLayout } from './sidebar-layout'
 
 /**
- * Height of the sticky site navbar (`h-12` plus its 1px bottom border). The
+ * Height of the sticky site navbar (`h-14` plus its 1px bottom border). The
  * Fumadocs chrome nests *below* it, so both the sticky sidebar/TOC offset and
  * the layout frame height have to account for it.
  */
-export const DOCS_NAV_HEIGHT = 'calc(3rem + 1px)'
+export const DOCS_NAV_HEIGHT = 'calc(3.5rem + 1px)'
 
 /**
  * Frame height for the docs grid. Fumadocs defaults to `100dvh`, which — sitting
@@ -21,7 +21,7 @@ export const DOCS_NAV_HEIGHT = 'calc(3rem + 1px)'
  * off-screen on short pages. Kept off `--fd-docs-height` so the sidebar's own
  * height calculation stays correct.
  */
-export const DOCS_MIN_HEIGHT = 'calc(100dvh - 3rem - 1px)'
+export const DOCS_MIN_HEIGHT = `calc(100dvh - ${DOCS_NAV_HEIGHT})`
 
 export interface QuantinuumDocsLayoutProps {
   /** Page tree from the module's Fumadocs source loader. */
@@ -88,7 +88,15 @@ export function QuantinuumDocsLayout({
     keyedBanner
   )
   return (
-    <div className={['quantinuum-docs', className].filter(Boolean).join(' ')}>
+    <div
+      className={['quantinuum-docs', className].filter(Boolean).join(' ')}
+      // Read by the docs theme's anchor scroll offset as well as the frame below.
+      style={
+        {
+          '--quantinuum-docs-nav-height': showNavBar ? DOCS_NAV_HEIGHT : '0px',
+        } as CSSProperties
+      }
+    >
       {highlightCiteTargets ? <CiteTargetHighlighter /> : null}
       {showNavBar ? <DocsNavBar activePath={activePath} /> : null}
       {/* theme.enabled=false: the host has no next-themes provider, and a nested
@@ -116,8 +124,8 @@ export function QuantinuumDocsLayout({
           sidebar={{ banner: sidebarBanner }}
           containerProps={{
             style: {
-              '--fd-docs-row-1': showNavBar ? DOCS_NAV_HEIGHT : '0px',
-              minHeight: showNavBar ? DOCS_MIN_HEIGHT : '100dvh',
+              '--fd-docs-row-1': 'var(--quantinuum-docs-nav-height)',
+              minHeight: 'calc(100dvh - var(--quantinuum-docs-nav-height))',
             } as CSSProperties,
           }}
         >

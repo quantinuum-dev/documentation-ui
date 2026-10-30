@@ -13,6 +13,8 @@ const CONFIG_FILE = "docs-preview.config.json";
  * @property {string} [navTree] Explicit sidebar tree, relative to the repo.
  * @property {string} [basePath] URL prefix the published docs are served under.
  * @property {string} [generate] Command regenerating notebook/API MDX (full tier).
+ * @property {import("@quantinuum/documentation-ui").DocsNavBarOptions} [navBar]
+ *   Site navbar content (`menus`, `cta`); a product lists just its own pages.
  */
 
 /**
@@ -25,6 +27,7 @@ const CONFIG_FILE = "docs-preview.config.json";
  * @property {string} navTreeFile
  * @property {string} basePath
  * @property {string | null} generateCommand
+ * @property {Pick<import("@quantinuum/documentation-ui").DocsNavBarOptions, "menus" | "cta">} navBar
  */
 
 /**
@@ -87,5 +90,6 @@ export function resolveHarnessPaths(cwd = process.env.DOCS_REPO_DIR || process.c
     // the root-absolute asset URLs in the MDX resolvable without rewriting them.
     basePath: process.env.DOCS_BASE_PATH ?? config.basePath ?? "/",
     generateCommand: process.env.DOCS_GENERATE ?? config.generate ?? null,
+    navBar: { menus: config.navBar?.menus, cta: config.navBar?.cta },
   };
 }

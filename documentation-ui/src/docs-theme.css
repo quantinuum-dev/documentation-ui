@@ -120,12 +120,12 @@
   text-decoration: none;
 }
 
-/* The DocsNavBar (h-12 = 3rem + 1px) is sticky at the top of the scroll area, so
-   without an offset it hides any element scrolled to via a `#hash` (headings and
-   the injected glossary/bibliography anchors). Push anchor targets below it. */
+/* The site navbar is sticky at the top of the scroll area, so without an offset
+   it hides any element scrolled to via a `#hash` (headings and the injected
+   glossary/bibliography anchors). Push anchor targets below it. */
 .quantinuum-docs :where(h1, h2, h3, h4, h5, h6),
 .quantinuum-docs a[id]:not([href]) {
-  scroll-margin-top: calc(3rem + 1px + 1rem);
+  scroll-margin-top: calc(var(--quantinuum-docs-nav-height, 3.5rem + 1px) + 1rem);
 }
 
 /* Following a citation link to the bibliography highlights the targeted entry so
