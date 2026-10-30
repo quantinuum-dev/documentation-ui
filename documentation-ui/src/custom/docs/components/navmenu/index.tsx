@@ -19,9 +19,12 @@ import { QuantinuumIdent } from './QuantinuumIdent'
 import { QuantinuumLogo } from './QuantinuumLogo'
 
 const actionLinks = [
-  { title: 'Nexus Portal', href: 'https://nexus.quantinuum.com/auth/login' },
+  { title: 'Nexus Portal', href: 'https://nexus.quantinuum.com/auth/login', newTab: true },
   { title: 'Platform Updates', href: '/product-updates' },
 ]
+
+const newTabProps = (link: { newTab?: boolean }) =>
+  link.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {}
 
 const navConfig = {
   navTextLinks: [
@@ -164,7 +167,9 @@ const MoreMenu = () => (
     <DropdownMenuContent align="end">
       {actionLinks.map((link) => (
         <DropdownMenuItem asChild key={link.href}>
-          <a href={link.href}>{link.title}</a>
+          <a href={link.href} {...newTabProps(link)}>
+            {link.title}
+          </a>
         </DropdownMenuItem>
       ))}
     </DropdownMenuContent>
@@ -223,7 +228,9 @@ export const NavBar = (props: {
               variant="secondary"
               className="hidden min-[80rem]:inline-flex"
             >
-              <a href={link.href}>{link.title}</a>
+              <a href={link.href} {...newTabProps(link)}>
+                {link.title}
+              </a>
             </Button>
           ))}
           <MoreMenu />

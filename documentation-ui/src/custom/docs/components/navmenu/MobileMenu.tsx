@@ -20,7 +20,7 @@ export const MobileMenu = (props: {
       title: string
     }[]
   }[]
-  actionLinks?: { href: string; title: string }[]
+  actionLinks?: { href: string; title: string; newTab?: boolean }[]
 }) => {
   return (
     <DropdownMenu>
@@ -54,7 +54,12 @@ export const MobileMenu = (props: {
         {props.actionLinks?.length ? <DropdownMenuSeparator /> : null}
         {props.actionLinks?.map((link) => (
           <DropdownMenuItem asChild key={link.href}>
-            <a href={link.href}>{link.title}</a>
+            <a
+              href={link.href}
+              {...(link.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+            >
+              {link.title}
+            </a>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
