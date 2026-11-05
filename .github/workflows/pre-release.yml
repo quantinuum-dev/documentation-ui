@@ -62,7 +62,12 @@ jobs:
           BRANCH_NAME: ${{ github.ref_name }}
         run: |
           # Prerelease identifiers (and npm dist-tags) may only contain [0-9A-Za-z-].
-          export PRERELEASE_ID=$(echo "$BRANCH_NAME" | sed -E 's/[^0-9A-Za-z-]+/-/g; s/^-+//; s/-+$//')
+          PRERELEASE_ID=$(echo "$BRANCH_NAME" | sed -E 's/[^0-9A-Za-z-]+/-/g; s/^-+//; s/-+$//')
+          # Avoid empty ids, numeric ids with leading zeros, and dist-tags that parse as semver ranges.
+          if [[ -z "$PRERELEASE_ID" || "$PRERELEASE_ID" =~ ^v?[0-9] ]]; then
+            PRERELEASE_ID="branch${PRERELEASE_ID:+-$PRERELEASE_ID}"
+          fi
+          export PRERELEASE_ID
           echo "Pre-release identifier / npm dist-tag: $PRERELEASE_ID"
           node -e '
             const fs = require("fs");
@@ -71,7 +76,11 @@ jobs:
               ...pkg.release,
               branches: [
                 "main",
-                { name: process.env.BRANCH_NAME, prerelease: process.env.PRERELEASE_ID },
+                {
+                  name: process.env.BRANCH_NAME,
+                  prerelease: process.env.PRERELEASE_ID,
+                  channel: process.env.PRERELEASE_ID,
+                },
               ],
             };
             fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");

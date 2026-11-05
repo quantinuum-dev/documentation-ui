@@ -5,6 +5,9 @@ on:
       - "**" # matches every branch
       - "!main" # excludes main
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
