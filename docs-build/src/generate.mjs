@@ -51,6 +51,8 @@ let logRoot = "";
  * @property {string} contentSubdir Subtree to convert ("" = the whole tree).
  * @property {string} indexFile Root toctree file, relative to `sphinxRoot`.
  * @property {string | null} apiSource Directory of quartodoc `.qmd` pages (null = no API docs).
+ * @property {string} [autodocSource] Directory of quartodoc `.qmd` pages rendered in
+ *   place of prose `.. autofunction::`/`.. autoclass::` directives (no API section).
  * @property {string} [apiIndexFile] Prose overview for the API landing.
  * @property {string[]} [apiProsePages] Prose pages served alongside an API-only module.
  * @property {string} [apiTitle] API sidebar folder label.
@@ -117,10 +119,13 @@ function collectRst(dir, out) {
   const proseExt = M?.markdown ? ".md" : ".rst";
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
+    // Follow symlinks (e.g. guppyft's `docs/examples -> ../examples`), as Sphinx does.
+    const stat = entry.isSymbolicLink() ? fs.statSync(full, { throwIfNoEntry: false }) : entry;
+    if (stat?.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;
       collectRst(full, out);
     } else if (
+      stat?.isFile() &&
       (entry.name.endsWith(proseExt) || entry.name.endsWith(".ipynb")) &&
       !SKIP_BASENAMES.has(entry.name)
     ) {
@@ -1308,6 +1313,70 @@ function parseDirectiveOptions(body) {
   return { opts, rest: body.slice(i) };
 }
 
+/** @type {Record<string, string>} */
+const LITERALINCLUDE_LANGS = {
+  py: "python",
+  c: "c",
+  h: "c",
+  cc: "cpp",
+  cpp: "cpp",
+  rs: "rust",
+  js: "javascript",
+  ts: "typescript",
+  json: "json",
+  toml: "toml",
+  yaml: "yaml",
+  yml: "yaml",
+  sh: "bash",
+  cmake: "cmake",
+};
+
+/**
+ * Inline a MyST `{literalinclude}` as a code fence. Supports `:language:`,
+ * `:caption:` (as the fence title), `:lines:`, `:start-after:` and
+ * `:end-before:`. Returns null (left verbatim) when the file is missing.
+ * @param {string} target @param {string[]} body @param {string} srcDir
+ * @returns {string | null} */
+function mystLiteralInclude(target, body, srcDir) {
+  const file = target.startsWith("/")
+    ? path.join(M.sphinxRoot, target)
+    : path.resolve(srcDir, target);
+  if (!fs.existsSync(file)) {
+    console.warn(
+      `[generate-docs] literalinclude not found: ${path.relative(logRoot, file)}`,
+    );
+    return null;
+  }
+  const { opts } = parseDirectiveOptions(body);
+  let text = fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n");
+  if (opts["start-after"]) {
+    const at = text.indexOf(opts["start-after"]);
+    if (at >= 0) text = text.slice(text.indexOf("\n", at) + 1);
+  }
+  if (opts["end-before"]) {
+    const at = text.indexOf(opts["end-before"]);
+    if (at >= 0) text = text.slice(0, text.lastIndexOf("\n", at) + 1);
+  }
+  let lines = text.replace(/\n+$/, "").split("\n");
+  if (opts.lines) {
+    const keep = new Set();
+    for (const part of opts.lines.split(",")) {
+      const [a, b] = part.trim().split("-");
+      const start = Number(a) || 1;
+      const end = b === undefined ? start : Number(b) || lines.length;
+      for (let n = start; n <= end; n++) keep.add(n);
+    }
+    lines = lines.filter((_, idx) => keep.has(idx + 1));
+  }
+  const ext = path.extname(file).slice(1).toLowerCase();
+  const lang = opts.language || LITERALINCLUDE_LANGS[ext] || "text";
+  const title = opts.caption ? ` title=${JSON.stringify(opts.caption)}` : "";
+  // A fence longer than any backtick run in the file, so the content can't close it.
+  const longest = Math.max(2, ...(text.match(/`+/g) ?? []).map((s) => s.length));
+  const fence = "`".repeat(longest + 1);
+  return [`${fence}${lang}${title}`, ...lines, fence].join("\n");
+}
+
 /** HTML/JSX-escape an attribute value (MDX parses `<img …>` as JSX, which does
  * NOT honour JS backslash escapes — `\"` is invalid in an attribute name).
  * @param {string} s @returns {string} */
@@ -1979,6 +2048,11 @@ function convertMystDirectives(md, srcDir, opts = {}) {
       if (name === "toctree") continue; // nav comes from the index files
       if (name === "eval-rst") {
         const rst = body.join("\n");
+        const autodoc = renderAutodoc(rst);
+        if (autodoc) {
+          out.push(autodoc);
+          continue;
+        }
         // Breathe C/C++ API directives (`.. doxygenfile::` etc.): rendered from
         // the module's Doxygen XML when available (see prepareDoxygen), else an
         // informative placeholder instead of pandoc's bare-filename output.
@@ -2007,6 +2081,13 @@ function convertMystDirectives(md, srcDir, opts = {}) {
         const lang = arg.split(/\s+/)[0] || "text";
         out.push(`\`\`\`${lang}`, ...body, "```");
         continue;
+      }
+      if (name === "literalinclude") {
+        const included = mystLiteralInclude(arg, body, srcDir);
+        if (included) {
+          out.push(included);
+          continue;
+        }
       }
       // MyST-NB executable cells (`{code-cell} ipython3`). We don't execute `.md`
       // pages (no stored outputs), so render the source as a highlighted fence;
@@ -3906,6 +3987,71 @@ function parseApiIndex(indexPath) {
 }
 
 /**
+ * Render an `{eval-rst}` block made only of Sphinx autodoc directives (with an
+ * optional `.. currentmodule::`) from the module's quartodoc pages
+ * (`M.autodocSource`), one page per documented object. Returns null — falling
+ * back to pandoc — when the block has other content or an object has no page.
+ * @param {string} rst @returns {string | null} */
+function renderAutodoc(rst) {
+  if (!M?.autodocSource) return null;
+  let current = "";
+  /** @type {string[]} */
+  const rendered = [];
+  for (const line of rst.split("\n")) {
+    if (!line.trim() || /^\s+:[\w-]+:/.test(line)) continue;
+    const cm = line.match(/^\.\.\s+(?:py:)?currentmodule::\s*(\S+)\s*$/);
+    if (cm) {
+      current = cm[1];
+      continue;
+    }
+    const ad = line.match(
+      /^\.\.\s+(?:py:)?auto(?:function|class|method|data|attribute|exception)::\s*(\S+)\s*$/,
+    );
+    if (!ad) return null;
+    const page = autodocPage(
+      current && !ad[1].startsWith(`${current}.`) ? `${current}.${ad[1]}` : ad[1],
+    );
+    if (!page) return null;
+    rendered.push(page);
+  }
+  return rendered.length ? rendered.join("\n\n") : null;
+}
+
+/**
+ * A quartodoc page for a fully-qualified object, as a prose fragment: its H1 is
+ * dropped (the signature names it) and its sections nest under the page's
+ * subsection. quartodoc names pages relative to its package, so leading package
+ * segments are tried off in turn.
+ * @param {string} fullName @returns {string | null} */
+function autodocPage(fullName) {
+  const parts = fullName.split(".");
+  for (let i = 0; i < parts.length; i++) {
+    const file = path.join(
+      /** @type {string} */ (M.autodocSource),
+      `${parts.slice(i).join(".")}.qmd`,
+    );
+    if (!fs.existsSync(file)) continue;
+    const md = apiHeadings(
+      stripRstRoles(rstInlineMath(fs.readFileSync(file, "utf8"))),
+    ).replace(/^#\s+.*\n+/m, "");
+    return demoteHeadings(md, 2).trim();
+  }
+  return null;
+}
+
+/** The Python package named in the quartodoc project's `_quarto.yml` (beside `reference/`).
+ * @param {DocsModule} mod @returns {string | null} */
+function quartodocPackage(mod) {
+  if (!mod.apiSource) return null;
+  const config = path.join(mod.apiSource, "..", "_quarto.yml");
+  if (!fs.existsSync(config)) return null;
+  return (
+    fs.readFileSync(config, "utf8").match(/^\s+package:\s*(\S+)\s*$/m)?.[1] ??
+    null
+  );
+}
+
+/**
  * Ingest a module's quartodoc-generated API markdown into `generated/<mod>/api/`.
  * Single-submodule modules become a flat page (`api/<mod>.ansatz.mdx`); modules
  * with multiple submodules become a collapsible folder (`api/<mod>.backend/` with
@@ -4306,8 +4452,9 @@ function convertNexusApi(mod, index) {
   let overview = `# ${mod.apiTitle ?? mod.name}`;
   if (overviewSrc && fs.existsSync(overviewSrc)) {
     const { body } = stripYamlFrontmatter(fs.readFileSync(overviewSrc, "utf8"));
+    // Sphinx's own indexes and autosummary listings are replaced by the generated pages.
     const cleaned = body.replace(
-      /```\{eval-rst\}[\s\S]*?(?:genindex|modindex)[\s\S]*?```/g,
+      /```\{eval-rst\}(?:(?!```)[\s\S])*?(?:genindex|modindex|autosummary::)(?:(?!```)[\s\S])*?```/g,
       "",
     );
     let m = convertMystDirectives(cleaned, path.dirname(overviewSrc)).replace(
@@ -4328,7 +4475,7 @@ function convertNexusApi(mod, index) {
   // Guarantee body text: an index-only overview (just a toctree) collapses to its
   // lone H1, which Fumadocs won't register as a routable folder-index page.
   if (!overview.replace(/^#.*$/gm, "").trim()) {
-    overview = `# ${mod.apiTitle ?? mod.name}\n\nPython API reference for the \`${mod.name}\` package.`;
+    overview = `# ${mod.apiTitle ?? mod.name}\n\nPython API reference for the \`${quartodocPackage(mod) ?? mod.name}\` package.`;
   }
   fs.writeFileSync(
     path.join(apiOut, "index.mdx"),
