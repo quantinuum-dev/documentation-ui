@@ -126,7 +126,7 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
-    "@quantinuum/quantinuum-ui": "link:../../quantinuum-ui",
+    "@quantinuum/quantinuum-ui": "5.4.1-tailwind-v4-sb.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "remeda": "^2.47.0",
