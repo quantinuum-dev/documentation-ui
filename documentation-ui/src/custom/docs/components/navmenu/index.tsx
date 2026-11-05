@@ -14,7 +14,7 @@ import { NexusLogo } from '../logos/NexusLogo'
 import { SystemsLogo } from '../logos/SystemsLogo'
 import { MobileMenu } from './MobileMenu'
 import { Navigation } from './NavigationMenu'
-import { useDocsNavBarOptions } from './NavBarOptions'
+import { useDocsNavBarOptions } from './useDocsNavBarOptions'
 import { QuantinuumIdent } from './QuantinuumIdent'
 import { QuantinuumLogo } from './QuantinuumLogo'
 

@@ -21,8 +21,8 @@ import {
   type NavBarLink,
   type NavBarLinkGroup,
   type NavBarMenu,
-  useDocsNavBarOptions,
 } from '../navmenu/NavBarOptions'
+import { useDocsNavBarOptions } from '../navmenu/useDocsNavBarOptions'
 import { QuantinuumWordmark } from './QuantinuumWordmark'
 
 // Brand fonts: the central site's variables, else the docs theme's.

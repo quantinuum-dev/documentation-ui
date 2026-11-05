@@ -1,7 +1,7 @@
 'use client'
 
-import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
+import { DocsNavBarOptionsContext } from './useDocsNavBarOptions'
 
 export interface NavBarLink {
   title: string
@@ -42,8 +42,6 @@ export interface DocsNavBarOptions {
   cta?: NavBarLink
 }
 
-const DocsNavBarOptionsContext = createContext<DocsNavBarOptions>({})
-
 /**
  * Site-wide navbar options, so every `DocsNavBar` (landing pages and the docs
  * layout's) gets the host's search and theme controls without per-page props.
@@ -57,8 +55,4 @@ export function DocsNavBarProvider({
       {children}
     </DocsNavBarOptionsContext.Provider>
   )
-}
-
-export function useDocsNavBarOptions(): DocsNavBarOptions {
-  return useContext(DocsNavBarOptionsContext)
 }

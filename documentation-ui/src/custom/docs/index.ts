@@ -1,7 +1,8 @@
 export { Footer as DocsFooter } from './components/footer'
 export { NavBar as DocsNavBar } from './components/site-navbar/index'
 export type { NavBarProps as DocsNavBarProps } from './components/site-navbar/index'
-export { DocsNavBarProvider, useDocsNavBarOptions } from './components/navmenu/NavBarOptions'
+export { DocsNavBarProvider } from './components/navmenu/NavBarOptions'
+export { useDocsNavBarOptions } from './components/navmenu/useDocsNavBarOptions'
 export type {
   DocsNavBarOptions,
   NavBarLink,

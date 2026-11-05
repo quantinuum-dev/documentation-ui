@@ -12,7 +12,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { ComponentProps } from 'react'
 
-import { useDocsNavBarOptions } from '../components/navmenu/NavBarOptions'
+import { useDocsNavBarOptions } from '../components/navmenu/useDocsNavBarOptions'
 
 function ContentsToggle({ floating = false }: { floating?: boolean }) {
   const { collapsed } = useSidebar()
