@@ -13,7 +13,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@quantinuum/quantinuum-ui'
-import { ArrowRight, ArrowUpRight, Menu, Search } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Menu, MessageCircleQuestion, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { openSearch } from '../../kit/search-events'
@@ -44,9 +44,14 @@ const itemClass = (active: boolean) =>
 const panelLink =
   'block rounded-lg p-2 transition-colors hover:bg-[#F2F2F2] focus:bg-[#F2F2F2] focus:outline-none dark:hover:bg-white/10 dark:focus:bg-white/10'
 
+const groupLinks = (group: NavBarLinkGroup) => [
+  ...group.links,
+  ...(group.subgroup?.links ?? []),
+]
+
 const allLinks = (menu: NavBarMenu) => [
   ...(menu.featured ?? []),
-  ...menu.groups.flatMap((group) => group.links),
+  ...menu.groups.flatMap(groupLinks),
 ]
 
 export interface NavBarProps {
@@ -62,7 +67,7 @@ export interface NavBarProps {
  * The bar is `h-14` plus a 1px border (`DOCS_NAV_HEIGHT`).
  */
 export function NavBar({ activeMenu, activePath }: NavBarProps) {
-  const { menus = [], cta, search, themeToggle } = useDocsNavBarOptions()
+  const { menus = [], cta, support, search, themeToggle } = useDocsNavBarOptions()
   const root = activePath ? `${activePath.replace(/\/$/, '')}/` : undefined
   const active =
     activeMenu ??
@@ -118,6 +123,18 @@ export function NavBar({ activeMenu, activePath }: NavBarProps) {
             </button>
           ) : null}
           {themeToggle}
+          {support ? (
+            <a
+              href={support.href}
+              {...newTabProps(support.href)}
+              aria-label={support.title}
+              title={support.title}
+              className="hidden h-9 items-center gap-2 rounded-full border border-[#2B2B2B]/15 px-2.5 text-sm text-[#555] transition-colors hover:border-[#30A08E] hover:text-[#2B2B2B] sm:inline-flex dark:border-white/20 dark:text-[#CACACA] dark:hover:text-white"
+            >
+              <MessageCircleQuestion className="h-4 w-4" aria-hidden />
+              <span className="hidden xl:inline">Support</span>
+            </a>
+          ) : null}
           {cta ? (
             <a
               href={cta.href}
@@ -128,7 +145,12 @@ export function NavBar({ activeMenu, activePath }: NavBarProps) {
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
             </a>
           ) : null}
-          {menus.length > 0 || cta ? <MobileMenu menus={menus} cta={cta} /> : null}
+          {menus.length > 0 || cta || support ? (
+            <MobileMenu
+              menus={menus}
+              more={[cta, support].filter((link): link is NavBarLink => link !== undefined)}
+            />
+          ) : null}
         </div>
       </div>
     </header>
@@ -171,7 +193,13 @@ function MenuPanel({ menu }: { menu: NavBarMenu }) {
     )
   } else if (groups.length > 1) {
     body = (
-      <div className="w-[min(52rem,calc(100vw-22rem))]">
+      <div
+        className={
+          groups.length > 2
+            ? 'w-[min(52rem,calc(100vw-22rem))]'
+            : 'w-[min(40rem,calc(100vw-22rem))]'
+        }
+      >
         <div className={`grid gap-4 p-4 ${groups.length > 2 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
           {groups.map((group, i) => (
             <Group key={group.title ?? i} group={group} />
@@ -229,6 +257,20 @@ function Group({ group }: { group: NavBarLinkGroup }) {
           </li>
         ))}
       </ul>
+      {group.subgroup ? (
+        <div className="mt-2 ml-2 border-l border-[#2B2B2B]/10 pl-2 dark:border-white/10">
+          <p className={`${labelFont} px-2 text-[0.75rem] font-bold text-[#7F7F7F]`}>
+            {group.subgroup.title}
+          </p>
+          <ul className="mt-1">
+            {group.subgroup.links.map((link) => (
+              <li key={link.href}>
+                <PanelLink link={link} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -249,7 +291,12 @@ function PanelLink({ link }: { link: NavBarLink }) {
   if (link.description) {
     return (
       <NavigationMenuLink href={link.href} {...newTabProps(link.href)} className={panelLink}>
-        <span className={`${displayFont} block text-sm font-bold`}>{link.title}</span>
+        <span className={`${displayFont} flex items-center gap-1 text-sm font-bold`}>
+          {link.title}
+          {isExternal(link.href) ? (
+            <ArrowUpRight className="h-3.5 w-3.5 text-[#7F7F7F]" aria-hidden />
+          ) : null}
+        </span>
         <span className="block text-xs leading-[1.4] text-[#555] dark:text-[#CACACA]">
           {link.description}
         </span>
@@ -281,7 +328,7 @@ function FooterLink({ link }: { link: NavBarLink }) {
   )
 }
 
-function MobileMenu({ menus, cta }: { menus: NavBarMenu[]; cta?: NavBarLink }) {
+function MobileMenu({ menus, more }: { menus: NavBarMenu[]; more: NavBarLink[] }) {
   const heading = `${labelFont} mb-1 mt-6 text-[0.8rem] font-bold text-[#7F7F7F]`
   const item = (link: NavBarLink) => (
     <li key={link.href}>
@@ -297,9 +344,9 @@ function MobileMenu({ menus, cta }: { menus: NavBarMenu[]; cta?: NavBarLink }) {
     </li>
   )
   // Menus of titled groups list each group under its own heading; others as one list.
-  const sections = menus.flatMap((menu) =>
+  const sections: (NavBarLinkGroup & { title: string })[] = menus.flatMap((menu) =>
     !menu.featured?.length && menu.groups.length > 1
-      ? menu.groups.map((group) => ({ title: group.title ?? menu.title, links: group.links }))
+      ? menu.groups.map((group) => ({ ...group, title: group.title ?? menu.title }))
       : [{ title: menu.title, links: allLinks(menu) }],
   )
 
@@ -320,13 +367,23 @@ function MobileMenu({ menus, cta }: { menus: NavBarMenu[]; cta?: NavBarLink }) {
           {sections.map((section) => (
             <div key={section.title}>
               <p className={heading}>{section.title}</p>
-              <ul>{section.links.map(item)}</ul>
+              <ul>
+                {section.links.map(item)}
+                {section.subgroup ? (
+                  <li>
+                    <p className="px-2 pt-1.5 text-xs font-semibold text-[#7F7F7F]">
+                      {section.subgroup.title}
+                    </p>
+                    <ul className="ml-3">{section.subgroup.links.map(item)}</ul>
+                  </li>
+                ) : null}
+              </ul>
             </div>
           ))}
-          {cta ? (
+          {more.length > 0 ? (
             <>
               <p className={heading}>More</p>
-              <ul>{item(cta)}</ul>
+              <ul>{more.map(item)}</ul>
             </>
           ) : null}
         </nav>

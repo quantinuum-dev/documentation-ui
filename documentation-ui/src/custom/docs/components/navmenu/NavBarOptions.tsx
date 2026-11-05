@@ -17,6 +17,8 @@ export interface NavBarLinkGroup {
   /** Colour of the dot before the group title. */
   accent?: string
   links: NavBarLink[]
+  /** Indented group shown under this group's links. */
+  subgroup?: { title: string; links: NavBarLink[] }
 }
 
 export interface NavBarMenu {
@@ -40,6 +42,8 @@ export interface DocsNavBarOptions {
   menus?: NavBarMenu[]
   /** Prominent external link at the end of the bar, e.g. the Nexus portal. */
   cta?: NavBarLink
+  /** Support link, shown as an icon button before the `cta`. */
+  support?: NavBarLink
 }
 
 /**
