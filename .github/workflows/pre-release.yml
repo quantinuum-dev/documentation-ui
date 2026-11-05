@@ -1,15 +1,16 @@
-name: Pre Release library
+name: Pre-release library
+
 on:
-  push:
-    branches:
-      - "**" # matches every branch
-      - "!main" # excludes main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  lint:
+  lint_node:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: volta-cli/action@v5
       - name: Install pnpm via Volta
         run: volta install node && volta install pnpm
@@ -19,10 +20,10 @@ jobs:
           pnpm i --frozen-lockfile
           pnpm run lint
 
-  test:
+  test_node:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: volta-cli/action@v5
       - name: Install pnpm via Volta
         run: volta install node && volta install pnpm
@@ -32,34 +33,21 @@ jobs:
           pnpm i --frozen-lockfile
           pnpm test -- --run
 
-  build:
+  pre_release_node:
     runs-on: ubuntu-latest
+    needs: [lint_node, test_node]
+    permissions:
+      contents: write
+      id-token: write
     steps:
-      - uses: actions/checkout@v6
-      - uses: volta-cli/action@v5
-      - name: Install pnpm via Volta
-        run: volta install node && volta install pnpm
-      - name: Build documentation UI JS package
-        working-directory: documentation-ui
+      - name: Ensure workflow was run on a non-main branch
+        if: github.ref_type != 'branch' || github.ref_name == 'main'
         run: |
-          pnpm i --frozen-lockfile
-          pnpm run build
-      - name: Build storybook site
-        working-directory: documentation-ui
-        run: pnpm run build-storybook
-
-  build_sphinx:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
+          echo "::error::Pre-releases must be run from a branch other than main."
+          exit 1
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - name: Install UV
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - uses: volta-cli/action@v5
       - name: Install pnpm via Volta
         run: volta install node && volta install pnpm
@@ -68,29 +56,37 @@ jobs:
         run: |
           pnpm i --frozen-lockfile
           pnpm run build
-      - name: Generate UI Assets
-        working-directory: sphinx-ui/react
+      - name: Configure semantic-release for a pre-release from this branch
+        working-directory: documentation-ui
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          echo "🔨 Generating UI assets..."
-          pnpm i --frozen-lockfile
-          pnpm run lint
-          pnpm run build
-          cp ./build/injectNav.iife.js ../quantinuum_sphinx/static/injectNav.iife.js
-          cp ./build/syncTheme.iife.js ../quantinuum_sphinx/static/syncTheme.iife.js
-          cp ./node_modules/@quantinuum/documentation-ui/dist/tokens.css ../quantinuum_sphinx/static/styles/quantinuum-ui-tokens.css
-          pnpm exec tailwindcss --postcss ./postcss.config.mjs -i ./index.css -o ../quantinuum_sphinx/static/styles/quantinuum-ui-tailwind.css
-          echo ✅ "Done. Generated UI assets."
-      - name: Build
-        working-directory: sphinx-ui
-        run: |
-          echo "📦 Building..."
-          uv build
-          echo ✅ "Done."
-      - name: Upload PyPI distributions as artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: quantinuum-sphinx-dist
-          path: |
-            sphinx-ui/dist/*.tar.gz
-            sphinx-ui/dist/*.whl
-          if-no-files-found: error
+          # Prerelease identifiers (and npm dist-tags) may only contain [0-9A-Za-z-].
+          PRERELEASE_ID=$(echo "$BRANCH_NAME" | sed -E 's/[^0-9A-Za-z-]+/-/g; s/^-+//; s/-+$//')
+          # Avoid empty ids, numeric ids with leading zeros, and dist-tags that parse as semver ranges.
+          if [[ -z "$PRERELEASE_ID" || "$PRERELEASE_ID" =~ ^v?[0-9] ]]; then
+            PRERELEASE_ID="branch${PRERELEASE_ID:+-$PRERELEASE_ID}"
+          fi
+          export PRERELEASE_ID
+          echo "Pre-release identifier / npm dist-tag: $PRERELEASE_ID"
+          node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            pkg.release = {
+              ...pkg.release,
+              branches: [
+                "main",
+                {
+                  name: process.env.BRANCH_NAME,
+                  prerelease: process.env.PRERELEASE_ID,
+                  channel: process.env.PRERELEASE_ID,
+                },
+              ],
+            };
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+          '
+      - name: Pre-release documentation UI JS package
+        working-directory: documentation-ui
+        run: pnpm exec semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
