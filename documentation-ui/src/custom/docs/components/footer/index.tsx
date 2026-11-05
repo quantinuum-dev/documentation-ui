@@ -1,6 +1,6 @@
-import { Separator } from "@quantinuum/quantinuum-ui";
+import { Separator } from '@quantinuum/quantinuum-ui'
 
-import { QuantinuumLogo } from '@/custom/docs/QuantinuumLogo';
+import { QuantinuumLogo } from '@/custom/docs/QuantinuumLogo'
 
 const footerConfig = {
   columns: [
@@ -93,21 +93,39 @@ export const Footer = () => {
       <footer className="text-muted-foreground flex flex-col items-start xl:justify-between  xl:flex-row gap-12 xl:gap-24">
         <div>
           <div className="-mt-4">
-            <a href="https://www.quantinuum.com/" target='_blank' className='hover:opacity-75 transition'>
+            <a
+              href="https://www.quantinuum.com/"
+              target="_blank"
+              className="hover:opacity-75 transition"
+            >
               <QuantinuumLogo />
             </a>
           </div>
           <p className="max-w-[24rem] text-xs leading-5">
             Copyright © {new Date().getFullYear()} Quantinuum Inc. All rights reserved.{' '}
           </p>
-          <div className='flex items-center flex-wrap gap-2 mt-2'>
-            <a href="https://www.quantinuum.com/terms-conditions" target="_blank" className='font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300'>
+          <div className="flex items-center flex-wrap gap-2 mt-2">
+            <a
+              href="https://www.quantinuum.com/terms-conditions"
+              target="_blank"
+              className="font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300"
+            >
               Terms and Conditions
-            </a> <div className="text-input">/</div>
-            <a target="_blank" href="https://www.quantinuum.com/privacy-statement" className='font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300'>
+            </a>{' '}
+            <div className="text-input">/</div>
+            <a
+              target="_blank"
+              href="https://www.quantinuum.com/privacy-statement"
+              className="font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300"
+            >
               Privacy Policy
-            </a><div className="text-input">/</div>
-            <a target="_blank" href="https://www.quantinuum.com/cookie-notice" className='font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300'>
+            </a>
+            <div className="text-input">/</div>
+            <a
+              target="_blank"
+              href="https://www.quantinuum.com/cookie-notice"
+              className="font-medium text-xs tracking-tight text-blue-600 dark:text-blue-300"
+            >
               Cookie Notice
             </a>
           </div>

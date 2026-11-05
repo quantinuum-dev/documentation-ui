@@ -147,7 +147,9 @@ const SearchTrigger = () => (
   >
     <SearchIcon className="h-4 w-4 flex-none" aria-hidden="true" />
     <span className="hidden min-[80rem]:inline">Search all docs</span>
-    <kbd className="ml-auto hidden rounded border border-border px-1 text-xs min-[80rem]:inline">⌘K</kbd>
+    <kbd className="ml-auto hidden rounded border border-border px-1 text-xs min-[80rem]:inline">
+      ⌘K
+    </kbd>
   </button>
 )
 

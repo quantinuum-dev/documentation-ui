@@ -51,7 +51,10 @@ export function remarkDarkImages({ publicDir = path.join(process.cwd(), 'public'
     let src: unknown
     if (node.type === 'image') {
       src = node.url
-    } else if ((node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') && node.name === 'img') {
+    } else if (
+      (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') &&
+      node.name === 'img'
+    ) {
       src = node.attributes?.find((a) => a.type === 'mdxJsxAttribute' && a.name === 'src')?.value
     }
     if (typeof src !== 'string') return null

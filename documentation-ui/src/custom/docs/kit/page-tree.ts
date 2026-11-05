@@ -47,14 +47,17 @@ function applyNavTree(root: TreeNode, tree: DocsNavNode[]): void {
   const resolve = (node: DocsNavNode, position: string): TreeNode => {
     if (node.type === 'reference' || (node.type === 'page' && !node.external)) {
       const url = trimSlash(node.url ?? '')
-      const existing = node.type === 'reference' ? folders.get(url) ?? pages.get(url) : pages.get(url)
+      const existing =
+        node.type === 'reference' ? (folders.get(url) ?? pages.get(url)) : pages.get(url)
       if (!existing) throw new Error(`Sidebar page not found: ${url}`)
       return { ...existing, ...(node.name ? { name: node.name } : {}) }
     }
     return {
       ...node,
       ...(node.index ? { index: resolve(node.index, `${position}/index`) } : {}),
-      ...(node.children ? { children: node.children.map((child, index) => resolve(child, `${position}/${index}`)) } : {}),
+      ...(node.children
+        ? { children: node.children.map((child, index) => resolve(child, `${position}/${index}`)) }
+        : {}),
       $id: `docs-nav:${position}`,
     } as TreeNode
   }
@@ -66,7 +69,7 @@ function applyNavTree(root: TreeNode, tree: DocsNavNode[]): void {
 function applyNavNesting(
   root: TreeNode,
   nesting: Record<string, string[]>,
-  titles: Record<string, string>,
+  titles: Record<string, string>
 ): void {
   if (Object.keys(nesting).length === 0) return
 

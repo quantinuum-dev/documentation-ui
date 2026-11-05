@@ -17,11 +17,7 @@ import { ArrowRight, ArrowUpRight, Menu, MessageCircleQuestion, Search } from 'l
 import type { ReactNode } from 'react'
 
 import { openSearch } from '../../kit/search-events'
-import {
-  type NavBarLink,
-  type NavBarLinkGroup,
-  type NavBarMenu,
-} from '../navmenu/NavBarOptions'
+import { type NavBarLink, type NavBarLinkGroup, type NavBarMenu } from '../navmenu/NavBarOptions'
 import { useDocsNavBarOptions } from '../navmenu/useDocsNavBarOptions'
 import { QuantinuumWordmark } from './QuantinuumWordmark'
 
@@ -44,10 +40,7 @@ const itemClass = (active: boolean) =>
 const panelLink =
   'block rounded-lg p-2 transition-colors hover:bg-[#F2F2F2] focus:bg-[#F2F2F2] focus:outline-none dark:hover:bg-white/10 dark:focus:bg-white/10'
 
-const groupLinks = (group: NavBarLinkGroup) => [
-  ...group.links,
-  ...(group.subgroup?.links ?? []),
-]
+const groupLinks = (group: NavBarLinkGroup) => [...group.links, ...(group.subgroup?.links ?? [])]
 
 const allLinks = (menu: NavBarMenu) => [
   ...(menu.featured ?? []),
@@ -70,8 +63,7 @@ export function NavBar({ activeMenu, activePath }: NavBarProps) {
   const { menus = [], cta, support, search, themeToggle } = useDocsNavBarOptions()
   const root = activePath ? `${activePath.replace(/\/$/, '')}/` : undefined
   const active =
-    activeMenu ??
-    menus.find((menu) => allLinks(menu).some((link) => link.href === root))?.id
+    activeMenu ?? menus.find((menu) => allLinks(menu).some((link) => link.href === root))?.id
 
   return (
     <header
@@ -177,9 +169,7 @@ function MenuPanel({ menu }: { menu: NavBarMenu }) {
                     {menu.featuredLabel}
                   </span>
                 ) : null}
-                <span className={`${displayFont} mt-2 font-bold leading-snug`}>
-                  {link.title}
-                </span>
+                <span className={`${displayFont} mt-2 font-bold leading-snug`}>{link.title}</span>
               </NavigationMenuLink>
             ))}
           </div>
@@ -200,7 +190,9 @@ function MenuPanel({ menu }: { menu: NavBarMenu }) {
             : 'w-[min(40rem,calc(100vw-22rem))]'
         }
       >
-        <div className={`grid gap-4 p-4 ${groups.length > 2 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+        <div
+          className={`grid gap-4 p-4 ${groups.length > 2 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}
+        >
           {groups.map((group, i) => (
             <Group key={group.title ?? i} group={group} />
           ))}
@@ -347,7 +339,7 @@ function MobileMenu({ menus, more }: { menus: NavBarMenu[]; more: NavBarLink[] }
   const sections: (NavBarLinkGroup & { title: string })[] = menus.flatMap((menu) =>
     !menu.featured?.length && menu.groups.length > 1
       ? menu.groups.map((group) => ({ ...group, title: group.title ?? menu.title }))
-      : [{ title: menu.title, links: allLinks(menu) }],
+      : [{ title: menu.title, links: allLinks(menu) }]
   )
 
   return (

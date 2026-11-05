@@ -52,13 +52,19 @@ describe('remarkDarkImages', () => {
     const tree = run({ type: 'root', children: [{ type: 'paragraph', children: [image] }] })
     expect(tree).toEqual({
       type: 'root',
-      children: [{
-        type: 'paragraph',
-        children: [
-          span(LIGHT_IMAGE_CLASS, image, 'mdxJsxTextElement'),
-          span(DARK_IMAGE_CLASS, { ...image, url: '/m-assets/with%20space.dark.png' }, 'mdxJsxTextElement'),
-        ],
-      }],
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            span(LIGHT_IMAGE_CLASS, image, 'mdxJsxTextElement'),
+            span(
+              DARK_IMAGE_CLASS,
+              { ...image, url: '/m-assets/with%20space.dark.png' },
+              'mdxJsxTextElement'
+            ),
+          ],
+        },
+      ],
     })
   })
 
