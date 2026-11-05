@@ -7,7 +7,8 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'Quantinuum Sphinx Demo'
-copyright = '2025, Quantinuum'
+# '%Y' expands to the current year (Sphinx 8.1+).
+copyright = '%Y, Quantinuum'
 author = 'aidan.keay@quantinuum.com'
 
 # -- General configuration ---------------------------------------------------

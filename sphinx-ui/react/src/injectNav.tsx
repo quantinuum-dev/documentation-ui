@@ -2,8 +2,6 @@
 import { CookieConsentManager, CookieConsentProvider, DocsNavBar, GoogleAnalyticsWithConsent } from "@quantinuum/documentation-ui";
 import { createRoot } from "react-dom/client";
 
-const GA_ID = __NEXT_PUBLIC_GA_ID__;
-
 const tailwindScopeClassName = 'use-tailwind';
 
 const isTailwindDialogPortalElement = (element: Element): element is HTMLElement => {
@@ -52,6 +50,9 @@ const observeTailwindDialogPortalElements = () => {
   if (!mountElement) return
 
   const analyticsEnabled = mountElement.getAttribute('data-analytics-enabled') === 'true'
+  const analyticsId = analyticsEnabled
+    ? mountElement.getAttribute('data-analytics-id') || ''
+    : ''
 
   observeTailwindDialogPortalElements()
 
@@ -64,7 +65,7 @@ const observeTailwindDialogPortalElements = () => {
     <div className={tailwindScopeClassName}>
       <div className="antialiased" style={{ fontFamily: `Inter, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"` }}>
         <CookieConsentProvider version={1}>
-          {analyticsEnabled && GA_ID && <GoogleAnalyticsWithConsent gaId={GA_ID} />}
+          {analyticsId && <GoogleAnalyticsWithConsent gaId={analyticsId} />}
           <DocsNavBar activePath="/" />
           <CookieConsentManager />
         </CookieConsentProvider>

@@ -68,7 +68,6 @@ jobs:
           pnpm exec semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Detect semantic-release tag
         id: detect_release
         run: |
@@ -131,8 +130,6 @@ jobs:
           pnpm run build
       - name: Generate UI Assets
         working-directory: sphinx-ui/react
-        env:
-          NEXT_PUBLIC_GA_ID: "G-YPQ1FTGDL3"
         run: |
           echo "🔨 Generating UI assets..."
           pnpm i --frozen-lockfile

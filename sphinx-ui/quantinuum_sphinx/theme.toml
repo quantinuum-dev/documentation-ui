@@ -13,3 +13,5 @@ stylesheets = [
 # environments (e.g. staging) do not send analytics. Set to true in the
 # production conf.py via html_theme_options = {"enable_analytics": True}.
 enable_analytics = false
+# Override this when a documentation site reports to a different GA4 property.
+analytics_id = "G-YPQ1FTGDL3"
