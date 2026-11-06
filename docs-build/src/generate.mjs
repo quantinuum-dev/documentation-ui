@@ -55,7 +55,7 @@ let logRoot = "";
  *   place of prose `.. autofunction::`/`.. autoclass::` directives (no API section).
  * @property {string} [apiIndexFile] Prose overview for the API landing.
  * @property {string[]} [apiProsePages] Prose pages served alongside an API-only module.
- * @property {string} [apiTitle] API sidebar folder label.
+ * @property {string} [apiTitle] API sidebar folder label, or the API index page title for RST modules.
  * @property {boolean} [markdown] Prose is MyST markdown rather than RST.
  * @property {string[]} [skipDirs] Module-specific directories to skip.
  * @property {string} [outPrefix] Nest output + URLs under `<name>/<outPrefix>`.
@@ -394,6 +394,25 @@ function dropAutoTableWidths(text) {
   return out.join("\n");
 }
 
+/** Lengthen section underlines that are shorter than their title. Docutils
+ * accepts them (with a warning), but pandoc reads both lines as a paragraph; e.g.
+ * the InQuanto extension examples page generates its headings this way.
+ * @param {string} text @returns {string} */
+function fixShortUnderlines(text) {
+  const adornment = /^([=\-`:'"~^_*+#<>.])\1{3,}\s*$/;
+  const lines = text.split(/\r?\n/);
+  for (let i = 1; i < lines.length; i++) {
+    const m = lines[i].match(adornment);
+    const title = lines[i - 1].trimEnd();
+    if (!m || !/^\S/.test(title) || adornment.test(title)) continue;
+    if (i > 1 && lines[i - 2].trim() !== "") continue; // overlined or mid-paragraph
+    if (lines[i].trimEnd().length < title.length) {
+      lines[i] = m[1].repeat(title.length);
+    }
+  }
+  return lines.join("\n");
+}
+
 function convertRst(src) {
   const dir = path.dirname(src);
   const cleaned = rewriteCiteRoles(
@@ -402,7 +421,11 @@ function convertRst(src) {
         resolveJupyterDirectives(
           separateLabelDirectives(
             dropAutoTableWidths(
-              stripRstComments(inlineIncludes(fs.readFileSync(src, "utf8"), dir)),
+              stripRstComments(
+                fixShortUnderlines(
+                  inlineIncludes(fs.readFileSync(src, "utf8"), dir),
+                ),
+              ),
             ),
           ),
         ),
@@ -631,7 +654,14 @@ function stageDownload(body, nbSrc) {
     .replace(/\.[^./]+$/, "")
     .split(path.sep)
     .join("/");
-  const outRel = `${relNb}/_downloads/${baseName}`;
+  // Keep the target's subdirectories so same-named files from different
+  // folders (e.g. example scripts outside the docs tree) don't overwrite each other.
+  const targetRel = path
+    .relative(path.dirname(nbSrc), abs)
+    .split(path.sep)
+    .filter((seg) => seg !== "..")
+    .join("/");
+  const outRel = `${relNb}/_downloads/${targetRel}`;
   const dest = path.join(M.assetRoot, outRel);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   if (fs.existsSync(abs)) {
@@ -2428,7 +2458,7 @@ function rewriteDocLinks(md, currentRelNoExt, index) {
   });
 }
 
-const RST_UNDERLINE = /^[=\-~^"*#+`'.:_]{3,}\s*$/;
+const RST_UNDERLINE = /^([=\-~^"*#+`'.:_])\1{2,}\s*$/;
 
 /**
  * Reduce RST inline markup in a heading title to the plain text a reader sees, so
@@ -2571,9 +2601,10 @@ function buildIndex(files) {
       .replace(/\.(rst|ipynb|md)$/, "")
       .split(path.sep)
       .join("/");
+    const raw = isNb ? "" : fs.readFileSync(file, "utf8");
     const lines = isNb
       ? notebookMarkdownLines(file)
-      : fs.readFileSync(file, "utf8").split(/\r?\n/);
+      : (isMyst ? raw : fixShortUnderlines(raw)).split(/\r?\n/);
     const headings = isMyst
       ? collectMarkdownHeadings(lines)
       : collectHeadings(lines);
@@ -2606,8 +2637,23 @@ function buildIndex(files) {
       new Set(headings.map((h) => h.slug).filter(Boolean)),
     );
     const url = urlForRel(relNoExt);
+    const labelLines = new Set(labelDefs.map((d) => d.line));
     for (const { line, label } of labelDefs) {
-      const target = headings.find((h) => h.line > line);
+      // A label directly above a title names that section; one above body content
+      // (a paragraph, table, ...) is a spot inside the section it sits in.
+      let next = line + 1;
+      while (
+        next < lines.length &&
+        (lines[next].trim() === "" || labelLines.has(next))
+      ) {
+        next++;
+      }
+      const target =
+        headings.find(
+          (h) =>
+            h.line === next ||
+            (h.line === next + 1 && RST_UNDERLINE.test(lines[next])),
+        ) ?? headings.findLast((h) => h.line < line);
       const isPageTitle =
         target && headings[0] && target.line === headings[0].line;
       labels.set(label.toLowerCase(), {
@@ -4118,7 +4164,7 @@ function convertApi(mod) {
 
   fs.writeFileSync(
     path.join(apiOut, "index.mdx"),
-    convertApiQmd(indexPath, "Function reference", mod, urlMap),
+    convertApiQmd(indexPath, mod.apiTitle ?? "Function reference", mod, urlMap),
     "utf8",
   );
   for (const { base, outRel, title } of pageWrites) {
