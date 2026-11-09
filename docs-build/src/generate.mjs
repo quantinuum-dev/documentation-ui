@@ -3983,6 +3983,76 @@ function rstInlineMath(md) {
 }
 
 /**
+ * Code-block languages Sphinx accepts that Shiki doesn't know by that name.
+ * @type {Record<string, string>}
+ */
+const RST_CODE_LANGS = {
+  python3: "python",
+  py: "python",
+  pycon: "python",
+  "": "python",
+};
+
+/**
+ * Convert the RST block directives that leak from docstrings into quartodoc
+ * pages: `.. math::` -> `$$` display math, `.. code-block::` / `.. code::` /
+ * `.. testcode::` -> a fenced code block, and `.. currentmodule::` is dropped.
+ * A directive's body is the following blank or more-indented lines.
+ * @param {string} md @returns {string}
+ */
+function rstDocstringDirectives(md) {
+  const lines = md.split("\n");
+  /** @type {string[]} */
+  const out = [];
+  let fenced = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    const d = fenced
+      ? null
+      : line.match(
+          /^(\s*)\.\.\s+(math|code-block|code|sourcecode|testcode|(?:py:)?currentmodule)::\s*(.*?)\s*$/,
+        );
+    if (!d) {
+      out.push(line);
+      continue;
+    }
+    const [, pad, name, arg] = d;
+    /** @type {string[]} */
+    const body = [];
+    let j = i + 1;
+    for (; j < lines.length; j++) {
+      const l = lines[j];
+      if (l.trim() && l.search(/\S/) <= pad.length) break;
+      body.push(l);
+    }
+    i = j - 1;
+    // Directive options (`:label:`, `:linenos:`) lead the body.
+    while (body.length && /^\s*$/.test(body[0])) body.shift();
+    while (body.length && /^\s+:[\w-]+:/.test(body[0])) body.shift();
+    while (body.length && !body[body.length - 1].trim()) body.pop();
+    const dents = body.filter((l) => l.trim()).map((l) => l.search(/\S/));
+    const trim = dents.length ? Math.min(...dents) : 0;
+    const text = body.map((l) => l.slice(trim));
+    if (name.endsWith("currentmodule")) continue;
+    if (name === "math") {
+      const tex = [arg, ...text].filter((l) => l.trim());
+      out.push(`${pad}$$`, ...tex.map((l) => pad + l), `${pad}$$`, "");
+      continue;
+    }
+    const lang =
+      name === "testcode" ? "python" : (RST_CODE_LANGS[arg] ?? arg);
+    out.push(
+      `${pad}\`\`\`${lang}`,
+      ...text.map((l) => (l ? pad + l : l)),
+      `${pad}\`\`\``,
+      "",
+    );
+  }
+  return out.join("\n");
+}
+
+/**
  * Convert a single quartodoc `.qmd` API page to committable MDX: reduce RST
  * roles, rewrite heading ids, point cross-file `foo.qmd#id` links at the routed
  * page (via `urlMap`, which knows the flat-vs-foldered layout), drop the module
@@ -3992,7 +4062,9 @@ function rstInlineMath(md) {
  * @returns {string}
  */
 function convertApiQmd(src, title, mod, urlMap) {
-  const roled = stripRstRoles(rstInlineMath(fs.readFileSync(src, "utf8")));
+  const roled = stripRstRoles(
+    rstInlineMath(rstDocstringDirectives(fs.readFileSync(src, "utf8"))),
+  );
   const linked = apiHeadings(roled).replace(
     /\]\(([\w.]+)\.qmd(?:#[\w.-]+)?\)/g,
     (_f, base) =>
@@ -4473,7 +4545,11 @@ function convertNexusApi(mod, index) {
         );
         continue;
       }
-      let q = stripRstRoles(fs.readFileSync(qmdPath, "utf8"));
+      let q = stripRstRoles(
+        rstInlineMath(
+          rstDocstringDirectives(fs.readFileSync(qmdPath, "utf8")),
+        ),
+      );
       q = single
         ? q.replace(/^#\s+.*$/m, "").replace(/^\n+/, "") // drop the lone module H1
         : demoteHeadings(q, 1); // keep the symbol H1 as a subsection

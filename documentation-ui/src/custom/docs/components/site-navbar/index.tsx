@@ -13,7 +13,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@quantinuum/quantinuum-ui'
-import { ArrowRight, ArrowUpRight, Menu, MessageCircleQuestion, Search } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Menu, MessageCircleQuestionMark, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { openSearch } from '../../kit/search-events'
@@ -123,7 +123,7 @@ export function NavBar({ activeMenu, activePath }: NavBarProps) {
               title={support.title}
               className="hidden h-9 items-center gap-2 rounded-full border border-[#2B2B2B]/15 px-2.5 text-sm text-[#555] transition-colors hover:border-[#30A08E] hover:text-[#2B2B2B] sm:inline-flex dark:border-white/20 dark:text-[#CACACA] dark:hover:text-white"
             >
-              <MessageCircleQuestion className="h-4 w-4" aria-hidden />
+              <MessageCircleQuestionMark className="h-4 w-4" aria-hidden />
               <span className="hidden xl:inline">Support</span>
             </a>
           ) : null}

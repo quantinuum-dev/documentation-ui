@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -22,12 +22,6 @@
     }
   },
   "files": {
-    "includes": [
-      "**",
-      "!dist/**",
-      "!storybook-static/**",
-      "!coverage/**",
-      "!node_modules/**"
-    ]
+    "includes": ["**", "!dist/**", "!storybook-static/**", "!coverage/**", "!node_modules/**"]
   }
 }

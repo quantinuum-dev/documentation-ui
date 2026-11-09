@@ -102,6 +102,37 @@ test("RST figure caption math is emitted as KaTeX-ready TeX", (context) => {
   assert.doesNotMatch(generated, /class(Name)?="math/);
 });
 
+test("RST math and code directives in quartodoc docstrings become MDX", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-api-rst-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const apiSource = path.join(root, "api");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.mkdirSync(apiSource);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n");
+  fs.writeFileSync(path.join(apiSource, "index.qmd"), "# API\n\n## pkg.prep\n\n[prep](prep.qmd)\n");
+  fs.writeFileSync(path.join(apiSource, "prep.qmd"), [
+    "# prep { #pkg.prep }", "",
+    "Amplitudes satisfy :math:`\\sum_i |\\alpha_i|^2 = 1`. Prepares", "",
+    ".. math::", "   :label: eq-prep", "",
+    "    \\sum_i \\alpha_i |i\\rangle", "",
+    "Example:", "",
+    ".. code-block:: python3", "",
+    "    prep([1, 0])", "    if True:", "        pass", "",
+    ".. currentmodule:: pkg.prep", "",
+    "Done.", "",
+  ].join("\n"));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true, apiSource }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/api/pkg.prep.mdx"), "utf8");
+  assert.match(generated, /satisfy \$\\sum_i \|\\alpha_i\|\^2 = 1\$\./);
+  assert.match(generated, /^\$\$\n\\sum_i \\alpha_i \|i\\rangle\n\$\$$/m);
+  assert.match(generated, /^```python\nprep\(\[1, 0\]\)\nif True:\n    pass\n```$/m);
+  assert.doesNotMatch(generated, /\.\. [a-z-]+::|:math:|:label:/);
+  assert.match(generated, /Done\./);
+});
+
 test("notebook HTML comments are removed before directive conversion", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-notebook-comments-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
