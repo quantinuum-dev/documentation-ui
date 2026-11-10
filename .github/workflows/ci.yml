@@ -12,10 +12,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: volta-cli/action@v5
-      - name: Install pnpm via Volta
-        run: volta install node && volta install pnpm
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
       - name: Lint documentation UI JS package
         working-directory: documentation-ui
         run: |
@@ -25,10 +23,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: volta-cli/action@v5
-      - name: Install pnpm via Volta
-        run: volta install node && volta install pnpm
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
       - name: Test documentation UI JS package
         working-directory: documentation-ui
         run: |
@@ -38,10 +34,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: volta-cli/action@v5
-      - name: Install pnpm via Volta
-        run: volta install node && volta install pnpm
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
       - name: Build documentation UI JS package
         working-directory: documentation-ui
         run: |

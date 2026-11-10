@@ -60,7 +60,6 @@
       "default": "./dist/src/tailwindTheme.js"
     }
   },
-  "packageManager": "pnpm@12.15.0",
   "types": "./dist/types/src/index.d.ts",
   "mode": "production",
   "repository": {
@@ -164,9 +163,5 @@
     "remark-math": {
       "optional": true
     }
-  },
-  "volta": {
-    "node": "24.22.2",
-    "pnpm": "12.15.0"
   }
 }

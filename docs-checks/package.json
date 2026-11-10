@@ -36,9 +36,5 @@
     "remark-parse": "^11.0.0",
     "typescript": "^5.9.3",
     "unified": "^11.0.5"
-  },
-  "volta": {
-    "node": "24.22.2",
-    "pnpm": "12.15.0"
   }
 }

@@ -43,14 +43,16 @@ runs:
         ref: ${{ inputs.quantinuum-ui-ref }}
         path: ${{ steps.paths.outputs.quantinuum-ui-path }}
 
-    - uses: volta-cli/action@v5
+    - uses: jdx/mise-action@v5
+      with:
+        working_directory: ${{ steps.paths.outputs.docs-ui }}
 
-    - name: Add Node and pnpm to the Volta toolchain
+    # quantinuum-ui is built outside this checkout, so make documentation-ui's
+    # pins (mise.toml) the global default too.
+    - name: Use documentation-ui's Node and pnpm globally
       shell: bash
-      working-directory: ${{ steps.paths.outputs.docs-ui }}/documentation-ui
-      run: |
-        volta install "node@$(jq -r .volta.node package.json)"
-        volta install "pnpm@$(jq -r .volta.pnpm package.json)"
+      working-directory: ${{ steps.paths.outputs.docs-ui }}
+      run: mise use -g "node@$(mise current node)" "pnpm@$(mise current pnpm)"
 
     - name: Build quantinuum-ui
       shell: bash

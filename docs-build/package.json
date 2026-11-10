@@ -18,9 +18,5 @@
   },
   "dependencies": {
     "github-slugger": "^2.0.0"
-  },
-  "volta": {
-    "node": "24.22.2",
-    "pnpm": "12.15.0"
   }
 }
