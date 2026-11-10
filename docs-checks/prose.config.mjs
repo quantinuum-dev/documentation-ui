@@ -8,7 +8,8 @@
 /** @type {Partial<import("./src/prose/types.mjs").ProseConfig>} */
 const houseStyle = {
   // Harper's English dialect. One of: American, British, Australian, Canadian.
-  dialect: "British",
+  // American, matching the brand guidelines ("color", "visualization").
+  dialect: "American",
 
   // JSX attributes whose values are shown to readers. Everything else
   // (className, href, type, value, ...) is treated as code and ignored.
@@ -154,8 +155,9 @@ const houseStyle = {
     warnOnlyKinds: ["Style", "Readability", "Repetition", "WordChoice"],
 
     // Escape hatch for individual false positives that no rule toggle covers.
-    // `text` is matched against the exact flagged word. Prefer adding a term to
-    // project-words.txt first — that clears most domain-vocabulary reports.
+    // `text` is matched against the exact flagged word; `followedBy` limits an
+    // entry to that word when the given phrase comes next. Prefer adding a term
+    // to project-words.txt first — that clears most domain-vocabulary reports.
     ignore: [
       // Harper insists on "WASM"; the ecosystem and our docs use "Wasm".
       { kind: "Capitalization", text: "Wasm" },
@@ -163,6 +165,10 @@ const houseStyle = {
       // These are electrons, not the Electron application framework.
       { kind: "Capitalization", text: "electron" },
       { kind: "Capitalization", text: "electrons" },
+      // "5 min read" is the standard reading-time label.
+      { kind: "Style", text: "min", followedBy: "read" },
+      // Programme name on quantinuum.com.
+      { kind: "WordChoice", text: "Startup", followedBy: "Partner Program" },
     ],
   },
 

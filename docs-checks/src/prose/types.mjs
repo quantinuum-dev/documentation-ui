@@ -10,7 +10,7 @@
  * @property {string[]} proseProperties
  * @property {{ code: string, math: string, expression: string }} placeholders
  * @property {(string | { pattern: string, replacement: string, word?: boolean, caseSensitive?: boolean })[]} terminology
- * @property {{ rules?: Record<string, boolean>, warnOnlyKinds?: string[], ignore?: { kind?: string, text?: string }[] }} harper
+ * @property {{ rules?: Record<string, boolean>, warnOnlyKinds?: string[], ignore?: { kind?: string, text?: string, followedBy?: string }[] }} harper
  * @property {"error" | "warning"} terminologySeverity
  */
 

@@ -160,7 +160,7 @@ async function checkFile(
 
   if (grammar) {
     for (const finding of await grammar.lint(document)) {
-      if (isSuppressed(config, finding)) continue;
+      if (isSuppressed(config, finding, document)) continue;
 
       const { line, column, context } = locate(finding.index, finding.length);
       const suggestion = finding.suggestions[0];
@@ -208,12 +208,23 @@ function dedupe(findings) {
 // Harper hard-codes a few preferences that clash with house style (it insists on
 // "WASM", for example) and they are not individually switchable, so they are
 // suppressed by matching the flagged text instead.
-function isSuppressed(config, finding) {
+function isSuppressed(config, finding, document) {
+  const after = document.text.slice(finding.index + finding.length);
   return (config.harper.ignore ?? []).some(
     (entry) =>
       (entry.kind === undefined || entry.kind === finding.kind) &&
-      (entry.text === undefined || entry.text === finding.problemText),
+      (entry.text === undefined || entry.text === finding.problemText) &&
+      (entry.followedBy === undefined ||
+        startsWithPhrase(after, entry.followedBy)),
   );
+}
+
+function startsWithPhrase(text, phrase) {
+  const words = phrase
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`^\\s+${words.join("\\s+")}\\b`, "i").test(text);
 }
 
 function parseArguments(argv) {
