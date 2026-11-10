@@ -54,6 +54,22 @@ export class SegmentBuilder {
   }
 }
 
+// URLs, bare domain names and email addresses. Their spelling is fixed by
+// whoever owns the address, so house style must not "correct" them.
+const ADDRESS_PATTERN =
+  /\b(?:[a-z][a-z0-9+.-]*:\/\/|www\.)[^\s<>"'`]+|\b[\w.+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+|\b(?:[a-z0-9-]+\.)+(?:com|org|net|io|dev|ai|co\.uk)\b(?:\/[^\s<>"'`]*)?/gi;
+
+const TRAILING_PUNCTUATION = /[.,;:!?'")\]]+$/;
+
+function findAddresses(text) {
+  const ranges = [];
+  for (const match of text.matchAll(ADDRESS_PATTERN)) {
+    const value = match[0].replace(TRAILING_PUNCTUATION, "");
+    ranges.push({ start: match.index, end: match.index + value.length });
+  }
+  return ranges;
+}
+
 export class Segment {
   /**
    * @param {string} text
@@ -62,6 +78,7 @@ export class Segment {
   constructor(text, pieces) {
     this.text = text;
     this.pieces = pieces;
+    this.addresses = findAddresses(text);
   }
 
   /** Source-file offset for `index` within this segment's text. */
@@ -78,6 +95,9 @@ export class Segment {
 
   /** True when the whole range lies inside reader-facing prose. */
   isProse(start, end) {
+    for (const address of this.addresses) {
+      if (address.start < end && address.end > start) return false;
+    }
     for (const piece of this.pieces) {
       if (piece.textEnd <= start || piece.textStart >= end) continue;
       if (!piece.prose) return false;

@@ -18,7 +18,11 @@ import {
 import { extractFile } from "../src/prose/extract.mjs";
 import { discoverFiles, resolveArguments } from "../src/prose/files.mjs";
 import { createGrammarChecker } from "../src/prose/harper.mjs";
-import { reportJson, reportText } from "../src/prose/report.mjs";
+import {
+  excerptLine,
+  reportJson,
+  reportText,
+} from "../src/prose/report.mjs";
 import { joinSegments, PositionIndex } from "../src/prose/segments.mjs";
 import {
   checkTerminology,
@@ -128,15 +132,24 @@ async function checkFile(
   const positions = new PositionIndex(source);
   const findings = [];
 
-  const locate = (index) => positions.locate(document.sourceOffset(index));
+  const locate = (index, length) => {
+    const offset = document.sourceOffset(index);
+    const { line, column } = positions.locate(offset);
+    return {
+      line,
+      column,
+      context: excerptLine(positions.lineText(offset), column - 1, length),
+    };
+  };
 
   if (options.terminology) {
     for (const finding of checkTerminology(document, rules)) {
-      const { line, column } = locate(finding.index);
+      const { line, column, context } = locate(finding.index, finding.length);
       findings.push({
         file,
         line,
         column,
+        context,
         severity: config.terminologySeverity,
         message: `Use "${finding.expected}" instead of "${finding.actual}"`,
         ruleId: finding.ruleId,
@@ -149,12 +162,13 @@ async function checkFile(
     for (const finding of await grammar.lint(document)) {
       if (isSuppressed(config, finding)) continue;
 
-      const { line, column } = locate(finding.index);
+      const { line, column, context } = locate(finding.index, finding.length);
       const suggestion = finding.suggestions[0];
       findings.push({
         file,
         line,
         column,
+        context,
         severity: warnOnlyKinds.has(finding.kind) ? "warning" : "error",
         message: suggestion
           ? `${finding.message} (suggested: "${suggestion}")`

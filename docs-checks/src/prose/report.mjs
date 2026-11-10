@@ -13,8 +13,35 @@ const style = {
   cyan: (value) => paint("36", value),
 };
 
+const MAX_EXCERPT = 100;
+const EXCERPT_LEAD = 40;
+
+// The source line around a finding, minus indentation; long lines are windowed.
+export function excerptLine(line, start, length) {
+  const lineStart = line.length - line.trimStart().length;
+  const lineEnd = line.trimEnd().length;
+  let from = lineStart;
+  let to = lineEnd;
+
+  if (to - from > MAX_EXCERPT) {
+    from = Math.max(
+      lineStart,
+      Math.min(start - EXCERPT_LEAD, lineEnd - MAX_EXCERPT),
+    );
+    to = from + MAX_EXCERPT;
+  }
+
+  const prefix = from > lineStart ? "…" : "";
+  const suffix = to < lineEnd ? "…" : "";
+  return {
+    text: `${prefix}${line.slice(from, to)}${suffix}`,
+    start: prefix.length + start - from,
+    length: Math.max(1, Math.min(length, to - start)),
+  };
+}
+
 /**
- * @param {{ file: string, line: number, column: number, severity: string, message: string, ruleId: string, source: string }[]} findings
+ * @param {{ file: string, line: number, column: number, severity: string, message: string, ruleId: string, source: string, context?: { text: string, start: number, length: number } }[]} findings
  */
 export function reportText(findings, { fileCount, elapsedMs }) {
   if (findings.length === 0) {
@@ -47,6 +74,16 @@ export function reportText(findings, { fileCount, elapsedMs }) {
           `${finding.source}/${finding.ruleId}`,
         )}\n`,
       );
+
+      if (finding.context) {
+        const { text, start, length } = finding.context;
+        const indent = " ".repeat(12);
+        process.stdout.write(
+          `${indent}${text}\n${indent}${" ".repeat(start)}${style.red(
+            "^".repeat(length),
+          )}\n`,
+        );
+      }
     }
   }
 
