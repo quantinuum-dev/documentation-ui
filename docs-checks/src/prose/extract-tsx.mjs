@@ -14,7 +14,6 @@ const INLINE_TAGS = new Set([
   "a",
   "b",
   "br",
-  "code",
   "em",
   "i",
   "Link",
@@ -91,7 +90,15 @@ function collectJsxChildren(node, builder, ctx) {
     }
 
     const tag = jsxTagName(child);
-    if (!tag || !INLINE_TAGS.has(tag)) continue;
+    if (tag === "code") {
+      ctx.consumed.add(child);
+      builder.pushPlaceholder(ctx.config.placeholders.code, child.getStart());
+      continue;
+    }
+    if (!tag || !INLINE_TAGS.has(tag)) {
+      builder.pad(" ");
+      continue;
+    }
 
     ctx.consumed.add(child);
     if (ts.isJsxElement(child)) collectJsxChildren(child, builder, ctx);
@@ -162,16 +169,22 @@ function pushLiteral(literal, ctx) {
 // JSX collapses runs of whitespace, so each word is recorded separately to keep
 // offsets exact while still producing a single readable sentence. Character
 // references are resolved so contractions such as `couldn&apos;t` stay whole.
+// Text touching a neighbouring tag (`</code>, the`) gets no space on that side;
+// nor does edge whitespace containing a newline, which JSX drops when rendering.
 function pushWords(builder, raw, offset) {
   const pattern = /\S+/g;
   let match = pattern.exec(raw);
+  let first = true;
   while (match !== null) {
-    builder.pad(" ");
+    if (first ? /^[^\S\n]+$/.test(raw.slice(0, match.index)) : true)
+      builder.pad(" ");
+    first = false;
     pushMarkdownText(builder, match[0], offset + match.index, {
       escapes: false,
     });
     match = pattern.exec(raw);
   }
+  if (/^[^\S\n]+$/.test(raw.slice(raw.trimEnd().length))) builder.pad(" ");
 }
 
 function jsxTagName(node) {

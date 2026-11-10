@@ -142,10 +142,25 @@ const MARKDOWN_ESCAPABLE = /[!-/:-@[-`{-~]/;
 const NAMED_ENTITIES = {
   amp: "&",
   apos: "'",
+  copy: "©",
   gt: ">",
+  hellip: "…",
+  laquo: "«",
+  ldquo: "“",
+  lsquo: "‘",
   lt: "<",
+  mdash: "—",
+  middot: "·",
   nbsp: " ",
+  ndash: "–",
   quot: '"',
+  raquo: "»",
+  rarr: "→",
+  rdquo: "”",
+  reg: "®",
+  rsquo: "’",
+  times: "×",
+  trade: "™",
 };
 
 const ENTITY_PATTERN = /^&(?:#(\d+)|#[xX]([0-9a-fA-F]+)|([a-zA-Z]+));/;

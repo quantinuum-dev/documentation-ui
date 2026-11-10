@@ -198,7 +198,7 @@ Trotterized
 # mdast
 # MDX
 # memray
-# metaprogramming
+metaprogramming
 # multithreaded
 # mypy
 # namespace
