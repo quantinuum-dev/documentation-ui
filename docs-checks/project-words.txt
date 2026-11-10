@@ -15,8 +15,11 @@
 
 # -- Quantinuum products and brands -------------------------------------------
 Guppy
+guppyalgos
 guppylang
+guppyft
 Helios
+Hugr
 InQuanto
 lambeq
 λambeq
@@ -32,7 +35,7 @@ TKET
 # -- Quantum computing --------------------------------------------------------
 # ancilla
 # ancillae
-# ancillas
+ancillas
 # adjoint
 # anticommute
 # anyon
@@ -94,12 +97,11 @@ braket
 # qubyte
 # qudit
 # qudits
-# QCCD
+QCCD
 # Pauli
 # Paulis
 # postselection
 # purification
-# qiskit
 # quantinuum
 # qubitisation
 # Rydberg
@@ -123,6 +125,7 @@ braket
 # Trotter
 # Trotterisation
 # Trotterization
+Trotterized
 # unitaries
 # unitary
 # variational
@@ -321,8 +324,7 @@ ansätze
 # CASCI
 # CCGSD
 # Coinflip
-# Computables
-# computables
+computables
 # CSWAP
 # DMET
 # eigensolver
@@ -412,6 +414,7 @@ IBMQ
 # Pennylane
 # pennylane
 # Phayes
+Qiskit
 # Quantikz
 # Qermit
 # QOSDK
@@ -422,7 +425,7 @@ Rigetti
 SIEM
 # Shiki
 # Sourcedefender
-# Stim
+Stim
 # tensornetwork
 # urandom
 # WAVM
@@ -476,7 +479,6 @@ SIEM
 # ROKS
 # SCEOM
 # Sivarajah
-# trotterized
 # uncurrying
 # unparameterised
 # Unsympifies
