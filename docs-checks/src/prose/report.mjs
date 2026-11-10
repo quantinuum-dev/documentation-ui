@@ -1,6 +1,9 @@
 // Console and JSON reporting for the prose checker.
 
+import path from "node:path";
+
 const useColour = process.stdout.isTTY && process.env.NO_COLOR === undefined;
+const inGitHubActions = process.env.GITHUB_ACTIONS === "true";
 
 const paint = (code, value) =>
   useColour ? `\u001B[${code}m${value}\u001B[0m` : value;
@@ -63,6 +66,11 @@ export function reportText(findings, { fileCount, elapsedMs }) {
     process.stdout.write(`\n${style.bold(style.cyan(file))}\n`);
 
     for (const finding of fileFindings) {
+      if (inGitHubActions) {
+        process.stdout.write(annotation(finding));
+        continue;
+      }
+
       const position = `${finding.line}:${finding.column}`.padEnd(9);
       const severity =
         finding.severity === "error"
@@ -112,3 +120,34 @@ export function reportText(findings, { fileCount, elapsedMs }) {
 export function reportJson(findings) {
   process.stdout.write(`${JSON.stringify(findings, null, 2)}\n`);
 }
+
+// A workflow command per finding. The runner's stock eslint-stylish matcher
+// stops at the first excerpt line, so it cannot be relied on here.
+function annotation(finding) {
+  const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
+  const properties = {
+    file: path.relative(workspace, path.resolve(finding.file)),
+    line: finding.line,
+    col: finding.column,
+    title: `${finding.source}/${finding.ruleId}`,
+  };
+
+  let message = `${finding.line}:${finding.column}  ${finding.message}  ${properties.title}`;
+  if (finding.context) {
+    const { text, start, length } = finding.context;
+    properties.endColumn = finding.column + length;
+    message += `\n    ${text}\n    ${" ".repeat(start)}${"^".repeat(length)}`;
+  }
+
+  const command = finding.severity === "error" ? "error" : "warning";
+  const props = Object.entries(properties)
+    .map(([key, value]) => `${key}=${escapeProperty(String(value))}`)
+    .join(",");
+  return `::${command} ${props}::${escapeData(message)}\n`;
+}
+
+const escapeData = (value) =>
+  value.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+
+const escapeProperty = (value) =>
+  escapeData(value).replace(/:/g, "%3A").replace(/,/g, "%2C");
