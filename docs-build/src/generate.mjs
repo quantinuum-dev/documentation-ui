@@ -3439,6 +3439,13 @@ const COMPONENT_TAG =
 const RAW_HTML_TAG =
   /^<\/?(figure|figcaption|img|a|div|span|table|thead|tbody|tfoot|tr|td|th|caption|colgroup|col|p|br|hr|b|strong|em|i|u|s|sup|sub|ul|ol|li|dl|dt|dd|section|article|aside|header|footer|nav|details|summary|blockquote|pre|style|h[1-6])\b/i;
 
+/** Inline phrasing tags authors put mid-sentence in Markdown (notebook cells:
+ * `CH<sub>2</sub>`, `<b>…</b>`, `<br>`). Kept as JSX when balanced within their
+ * paragraph; `\<` is pandoc's escaped literal `<`, not a tag. `<s>`/`<u>` are
+ * left out because API docstrings use `<s>` as a literal token. */
+const INLINE_HTML_TAG =
+  /(?<!\\)<(\/?)(b|strong|i|em|sub|sup|small|mark|kbd|code|span|br)\b([^<>]*)>/gi;
+
 /** Void HTML elements — must be self-closed to be valid MDX/JSX. */
 const VOID_HTML_TAG =
   /<(br|hr|img|col|input|meta|link|area|base|embed|source|track|wbr)\b([^>]*)>/gi;
@@ -3638,7 +3645,10 @@ function normalizeHtmlBlock(block) {
     /<!doctype|<html\b|<body\b/i.test(block) ||
     !htmlBalanced(block)
   ) {
-    return block.split("\n").map(escapeInline).join("\n");
+    return block
+      .split("\n")
+      .map((line) => escapeInline(line))
+      .join("\n");
   }
   // Flatten the block onto a single line. MDX parses `<td>text<div>…</div></td>`
   // fine when it's one line, but treats a block child on a following line as a
@@ -3732,20 +3742,132 @@ function wrapAlignedMath(body) {
  * and `{` as a JS expression, so stray occurrences in converted prose must
  * become HTML entities — but LaTeX braces inside math must be preserved for KaTeX.
  * An UNbalanced `<a …>` is left to be escaped (it would break the MDX parse).
- * @param {string} text @returns {string}
+ * With `inlineHtml`, INLINE_HTML_TAG tags are kept as JSX too; mdxSafe then
+ * re-escapes any left unbalanced in their paragraph (balanceInlineHtml).
+ * @param {string} text @param {boolean} [inlineHtml] @returns {string}
  */
-function escapeInline(text) {
+function escapeInline(text, inlineHtml = false) {
+  const escape = (/** @type {string} */ s) =>
+    s
+      .replace(/\{/g, "&#123;")
+      .replace(/\}/g, "&#125;")
+      .replace(/\\?</g, "&lt;");
   return text
-    .split(/(`+[^`]*`+|\$\$[^$]*\$\$|\$[^$\n]+\$|<a\s[^<>]*>[^<>]*<\/a>)/)
-    .map((seg, i) =>
-      i % 2 === 1
-        ? seg
-        : seg
-            .replace(/\{/g, "&#123;")
-            .replace(/\}/g, "&#125;")
-            .replace(/\\?</g, "&lt;"),
-    )
+    .split(PROTECTED_INLINE)
+    .map((seg, i) => {
+      if (i % 2 === 1) return seg;
+      if (!inlineHtml) return escape(seg);
+      let out = "";
+      let last = 0;
+      for (const m of seg.matchAll(INLINE_HTML_TAG)) {
+        const [tag, close, name, attrs] = m;
+        out += escape(seg.slice(last, m.index));
+        last = m.index + tag.length;
+        out +=
+          name.toLowerCase() === "br"
+            ? "<br />"
+            : fixJsxTag(`<${close}${name}${close ? "" : attrs}>`);
+      }
+      return out + escape(seg.slice(last));
+    })
     .join("");
+}
+
+/** Inline code, math and balanced anchors: spans escapeInline leaves verbatim. */
+const PROTECTED_INLINE =
+  /(`+[^`]*`+|\$\$[^$]*\$\$|\$[^$\n]+\$|<a\s[^<>]*>[^<>]*<\/a>)/;
+
+/**
+ * MDX requires an inline tag to close within its paragraph, list item, heading
+ * or table row, or the whole collection fails to compile. Re-escape the inline
+ * tags of any such block that leaves one open (e.g. a source `<b>` with no
+ * `</b>`), so it shows as literal text instead. A closing tag with nothing open
+ * is dropped, as a browser (and Jupyter) would.
+ * @param {string} md @returns {string}
+ */
+function balanceInlineHtml(md) {
+  const lines = md.split("\n");
+  /** @type {number[]} */
+  let block = [];
+  const flush = () => {
+    if (block.length === 0) return;
+    const segs = block.map((n) => lines[n]).join("\n").split(PROTECTED_INLINE);
+    /** @type {string[]} */
+    const stack = [];
+    // Ordinals (among matched tags) of closing tags with nothing open.
+    const orphans = new Set();
+    let ok = true;
+    let k = 0;
+    for (let s = 0; s < segs.length; s += 2) {
+      for (const m of segs[s].matchAll(INLINE_HTML_TAG)) {
+        const ord = k++;
+        const name = m[2].toLowerCase();
+        if (!ok || name === "br" || m[3].trimEnd().endsWith("/")) continue;
+        if (!m[1]) stack.push(name);
+        else if (stack.length === 0) orphans.add(ord);
+        else if (stack.pop() !== name) ok = false;
+      }
+    }
+    const escape = !ok || stack.length > 0;
+    if (escape || orphans.size > 0) {
+      k = 0;
+      const text = segs
+        .map((seg, i) =>
+          i % 2 === 1
+            ? seg
+            : seg.replace(INLINE_HTML_TAG, (tag) => {
+                if (orphans.has(k++)) return "";
+                return escape
+                  ? tag
+                      .replace(/</g, "&lt;")
+                      .replace(/\{/g, "&#123;")
+                      .replace(/\}/g, "&#125;")
+                  : tag;
+              }),
+        )
+        .join("");
+      text.split("\n").forEach((line, j) => {
+        lines[block[j]] = line;
+      });
+    }
+    block = [];
+  };
+  /** @type {string | null} */
+  let fence = null;
+  let inMath = false;
+  for (let n = 0; n < lines.length; n++) {
+    const line = lines[n];
+    const f = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fence) {
+      if (f && line.trim().startsWith(fence)) fence = null;
+      continue;
+    }
+    if (f) {
+      flush();
+      fence = f[1];
+      continue;
+    }
+    const mathToggle = (line.match(/\$\$/g) || []).length % 2 === 1;
+    if (inMath || mathToggle) {
+      flush();
+      if (mathToggle) inMath = !inMath;
+      continue;
+    }
+    if (!line.trim()) {
+      flush();
+      continue;
+    }
+    if (/^\s*([-*+]|\d+[.)])\s|^\s*>/.test(line)) flush();
+    if (/^\s*(#{1,6}\s|\|)/.test(line)) {
+      flush();
+      block.push(n);
+      flush();
+      continue;
+    }
+    block.push(n);
+  }
+  flush();
+  return lines.join("\n");
 }
 
 /**
@@ -3865,9 +3987,9 @@ function mdxSafe(md) {
       .replace(/^:{3,}.*$/, "")
       .replace(/<([^<>@\s]+@[^<>\s]+)>/g, "$1")
       .replace(/<((?:https?):\/\/[^<>\s]+)>/g, "[$1]($1)");
-    out.push(escapeInline(line));
+    out.push(escapeInline(line, true));
   }
-  return out.join("\n").replace(/\n{3,}/g, "\n\n");
+  return balanceInlineHtml(out.join("\n")).replace(/\n{3,}/g, "\n\n");
 }
 
 /**

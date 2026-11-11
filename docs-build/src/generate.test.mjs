@@ -155,6 +155,35 @@ test("notebook HTML comments are removed before directive conversion", (context)
   assert.doesNotMatch(generated, /<!--|Hidden|nonexistent\.csv/);
 });
 
+test("inline HTML in prose renders as markup unless left unclosed", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-inline-html-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nexample\n```\n");
+  fs.writeFileSync(path.join(source, "example.md"), [
+    "# Example",
+    "",
+    "<b>Ground-state energy project for",
+    "CH<sub>2</sub></b>",
+    "",
+    "Run on methylene, CH<sub>2</sub>.<br>Then <i>wait</i>.",
+    "",
+    "A <b>stray tag with no close.",
+    "",
+    "## Next step</b>",
+    "",
+  ].join("\n"));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/example.mdx"), "utf8");
+  assert.match(generated, /<b>Ground-state energy project for\nCH<sub>2<\/sub><\/b>/);
+  assert.match(generated, /CH<sub>2<\/sub>\.<br \/>Then <i>wait<\/i>\./);
+  assert.match(generated, /A &lt;b>stray tag/);
+  assert.match(generated, /^## Next step$/m);
+});
+
 test("notebook srcdoc iframe outputs are staged as static pages", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-notebook-iframe-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
