@@ -96,16 +96,14 @@ const SKIP_BASENAMES = new Set(["version.rst", "README.md", "DEVELOPMENT.md"]);
 
 /**
  * Recursively collect convertible source files (prose + `.ipynb` notebooks) under
- * `dir`, skipping build/theme dirs and Sphinx autodoc (`api/`, which needs
+ * `dir`, skipping hidden dirs (`.git`, `.venv`, myst-nb's `.jupyter_cache`, ...),
+ * build/theme dirs and Sphinx autodoc (`api/`, which needs
  * quartodoc, not pandoc). Prose is `.rst` by default, or `.md` for MyST-markdown
  * modules (`M.markdown`); `M.skipDirs` adds module-specific excludes.
  * @param {string} dir @param {string[]} out
  */
 function collectRst(dir, out) {
   const SKIP_DIRS = new Set([
-    ".venv",
-    ".git",
-    ".github",
     "quantinuum-sphinx",
     "_static",
     "_templates",
@@ -122,7 +120,7 @@ function collectRst(dir, out) {
     // Follow symlinks (e.g. guppyft's `docs/examples -> ../examples`), as Sphinx does.
     const stat = entry.isSymbolicLink() ? fs.statSync(full, { throwIfNoEntry: false }) : entry;
     if (stat?.isDirectory()) {
-      if (SKIP_DIRS.has(entry.name)) continue;
+      if (entry.name.startsWith(".") || SKIP_DIRS.has(entry.name)) continue;
       collectRst(full, out);
     } else if (
       stat?.isFile() &&

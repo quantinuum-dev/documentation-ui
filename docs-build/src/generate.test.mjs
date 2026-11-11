@@ -155,6 +155,27 @@ test("notebook HTML comments are removed before directive conversion", (context)
   assert.doesNotMatch(generated, /<!--|Hidden|nonexistent\.csv/);
 });
 
+test("hidden directories such as .jupyter_cache are not converted", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-hidden-dirs-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  const cached = path.join(source, ".jupyter_cache", "executed", "abc123");
+  fs.mkdirSync(cached, { recursive: true });
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\npage\n```\n");
+  fs.writeFileSync(path.join(source, "page.md"), "# Page\n\nContent.\n");
+  fs.writeFileSync(path.join(cached, "base.ipynb"), JSON.stringify({
+    nbformat: 4,
+    nbformat_minor: 5,
+    metadata: {},
+    cells: [{ id: "m", cell_type: "markdown", metadata: {}, source: ["# Cached\n"] }],
+  }));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  assert.ok(fs.existsSync(path.join(output, "fixture/page.mdx")));
+  assert.ok(!fs.existsSync(path.join(output, "fixture/.jupyter_cache")));
+});
+
 test("inline HTML in prose renders as markup unless left unclosed", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-inline-html-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
