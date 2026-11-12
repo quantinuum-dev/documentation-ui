@@ -193,6 +193,58 @@ function stripToctrees(text) {
   return out.join("\n");
 }
 
+/** Replace each non-`:hidden:` `.. toctree::` with a bullet list of its entries,
+ * as Sphinx shows it in the page; hidden ones are dropped. Page entries use the
+ * private `:tocentry:` role, which resolveRoles turns into a titled link (or drops
+ * when the page isn't generated).
+ * @param {string} text @returns {string} */
+function renderRstToctrees(text) {
+  const lines = text.split(/\r?\n/);
+  /** @type {string[]} */
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^(\s*)\.\.\s+toctree::/);
+    if (!m) {
+      out.push(lines[i]);
+      continue;
+    }
+    const indent = m[1].length;
+    /** @type {string[]} */
+    const body = [];
+    for (i += 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.trim() !== "" && line.search(/\S/) <= indent) break;
+      body.push(line);
+    }
+    i -= 1; // re-examine the dedented line on the next iteration
+    if (body.some((l) => /^\s*:hidden:/.test(l))) continue;
+    const [block] = parseToctreeBlocks([".. toctree::", ...body].join("\n"));
+    const pad = m[1];
+    const items = (block?.entries ?? []).map(({ label, ref }) =>
+      isExternalRef(ref)
+        ? `${pad}- \`${label ?? ref} <${ref}>\`__`
+        : `${pad}- :tocentry:\`${label ? `${label} <${ref}>` : ref}\``,
+    );
+    if (items.length === 0) continue;
+    if (block.caption) out.push("", `${pad}**${block.caption}**`);
+    out.push("", ...items, "");
+  }
+  return out.join("\n");
+}
+
+/** True for RST whose only content is its title and toctrees (plus labels and
+ * comments). @param {string} text @returns {boolean} */
+function isRstToctreeOnly(text) {
+  const lines = stripRstComments(stripToctrees(text)).split(/\r?\n/);
+  return lines.every(
+    (l, i) =>
+      !l.trim() ||
+      RST_UNDERLINE.test(l) ||
+      RST_UNDERLINE.test(lines[i + 1] ?? "") ||
+      /^\.\.\s+_[^:]+:\s*$/.test(l),
+  );
+}
+
 /** Insert a blank line between a `.. _label:` hyperlink target and a directive
  * that immediately follows it. Without the blank line pandoc folds the directive
  * into the target and DROPS it, so labelled `.. figure::` images and
@@ -415,7 +467,7 @@ function fixShortUnderlines(text) {
 function convertRst(src) {
   const dir = path.dirname(src);
   const cleaned = rewriteCiteRoles(
-    stripToctrees(
+    renderRstToctrees(
       resolveOnlyBlocks(
         resolveJupyterDirectives(
           separateLabelDirectives(
@@ -1058,7 +1110,8 @@ function resolveMystRoles(md, index, currentRelNoExt, nbSrc) {
       return viaPath ?? (text || target);
     }
     if (role === "doc" || role === "std:doc") {
-      const viaPath = resolveDocPathRef(target, currentRelNoExt, index, text);
+      // A bare `{doc}` target takes the page title as its text, as in Sphinx.
+      const viaPath = resolveDocPathRef(target, currentRelNoExt, index, m ? text : "");
       return viaPath ?? (text || target);
     }
     return text;
@@ -2056,14 +2109,53 @@ function prepareDoxygen(mod) {
 }
 
 /**
+ * Render a MyST `{toctree}` body the way Sphinx shows a non-`:hidden:` toctree in
+ * the page: a list of links to its entries (page titles only). Hidden toctrees
+ * and entries without a generated page render nothing.
+ * @param {string[]} body @param {{ index: DocIndex, relNoExt: string }} toc
+ * @returns {string[]} */
+function renderToctree(body, toc) {
+  if (body.some((l) => /^\s*:hidden:/.test(l))) return [];
+  const [block] = parseToctreeBlocks(["```{toctree}", ...body, "```"].join("\n"));
+  const dir = path.posix.dirname(toc.relNoExt);
+  /** @type {string[]} */
+  const items = [];
+  for (const { label, ref } of block?.entries ?? []) {
+    if (isExternalRef(ref)) {
+      items.push(`- [${label ?? ref}](${ref})`);
+      continue;
+    }
+    const target = resolveTocTarget(ref, dir);
+    /** @type {string[]} */
+    let rels = [target];
+    if (target.includes("*")) {
+      const re = new RegExp(
+        `^${target.split("*").map(escapeRegExp).join("[^/]*")}$`,
+      );
+      rels = [...toc.index.titles.keys()].filter((k) => re.test(k)).sort();
+    }
+    for (const rel of rels) {
+      const title = toc.index.titles.get(rel);
+      if (title !== undefined) {
+        items.push(`- [${label ?? title}](${urlForRel(rel)})`);
+      }
+    }
+  }
+  if (items.length === 0) return [];
+  return ["", ...(block.caption ? [`**${block.caption}**`, ""] : []), ...items, ""];
+}
+
+/**
  * Single-pass converter for MyST directive fences (backtick ```` ```{name} ````
  * and colon `:::{name}`): `{eval-rst}` -> pandoc, `{image}`/`{figure}` -> `<img>`
  * / `<figure>`, `{code}`/`{code-block}` -> a plain code fence, admonitions ->
- * `<Callout>`, `{toctree}` -> dropped. Plain code fences and other content pass
- * through untouched. `opts.admonitions=false` leaves admonition fences intact
- * (used when preprocessing notebook cells, where a later pass maps them).
+ * `<Callout>`, `{toctree}` -> a link list (with `opts.toc`) or dropped. Plain code
+ * fences and other content pass through untouched. `opts.admonitions=false` leaves
+ * admonition fences intact (used when preprocessing notebook cells, where a later
+ * pass maps them).
  * @param {string} md @param {string} srcDir
- * @param {{ admonitions?: boolean }} [opts] @returns {string}
+ * @param {{ admonitions?: boolean, toc?: { index: DocIndex, relNoExt: string } }} [opts]
+ * @returns {string}
  */
 function convertMystDirectives(md, srcDir, opts = {}) {
   const doAdmonitions = opts.admonitions !== false;
@@ -2086,7 +2178,10 @@ function convertMystDirectives(md, srcDir, opts = {}) {
         if (closeRe.test(lines[i])) break;
         body.push(lines[i]);
       }
-      if (name === "toctree") continue; // nav comes from the index files
+      if (name === "toctree") {
+        if (opts.toc) out.push(...renderToctree(body, opts.toc));
+        continue;
+      }
       if (name === "eval-rst") {
         const rst = body.join("\n");
         const autodoc = renderAutodoc(rst);
@@ -2288,6 +2383,7 @@ function convertMyst(src, index, relNoExt) {
   let md = convertMystDirectives(
     stripMystComments(body.replace(/<!--[\s\S]*?-->/g, "")),
     srcDir,
+    { toc: { index, relNoExt } },
   );
   // Drop standalone MyST `(label)=` target lines (indexed for cross-refs; the
   // following heading carries the rehype-slug id the ref links to).
@@ -2329,6 +2425,9 @@ function convertNotebookViaQuarto(
     // list tables, `{image}`, `{code}`) BEFORE Quarto — Quarto mangles them into
     // garbled escaped-backtick blocks. Admonitions are left for the post-Quarto
     // mystAdmonitionTransform. The cleaned notebook is rendered from staging.
+    // Components lifted out of the cells before Quarto, restored after it.
+    /** @type {string[]} */
+    const shielded = [];
     for (const cell of nbJson.cells ?? []) {
       if (cell.cell_type === "markdown") {
         let s = convertMystDirectives(
@@ -2336,8 +2435,17 @@ function convertNotebookViaQuarto(
           nbDir,
           {
             admonitions: false,
+            toc: { index, relNoExt },
           },
         );
+        // Quarto re-renders pandoc's fenced divs (sphinx-tabs from `{eval-rst}`)
+        // as plain HTML, so build the <Tabs> now and keep it away from Quarto.
+        if (/^:::/m.test(s)) {
+          s = tabsTransform(s).replace(
+            /^<(Tabs|Accordions)\b[^\n]*>\n[\s\S]*?\n<\/\1>$/gm,
+            (block) => `QDOCSHIELDED${shielded.push(block) - 1}`,
+          );
+        }
         // eval-rst expansion emits pandoc role/attr spans; resolve + strip them
         // NOW (before Quarto) — Quarto mangles leftover `{…}` attribute spans.
         if (s.includes("{.interpreted-text") || s.includes("]{")) {
@@ -2377,6 +2485,7 @@ function convertNotebookViaQuarto(
       { stdio: "pipe" },
     );
     let md = fs.readFileSync(path.join(staging, `${nbBase}.md`), "utf8");
+    md = md.replace(/^QDOCSHIELDED(\d+)$/gm, (_m, n) => shielded[Number(n)]);
     // Stage Quarto's extracted output images (<nb>_files/…) under the notebook's
     // asset path and rewrite refs to the served URL (before imageTransform).
     md = md.replace(
@@ -2438,7 +2547,8 @@ function stageSrcdocIframe(html, relNb) {
  * @param {string} rel
  * @returns {string} */
 function urlForRel(rel) {
-  const parts = (outputMap.get(rel) ?? rel).split("/").filter(Boolean);
+  const page = sidebarOnly.get(rel) ?? rel;
+  const parts = (outputMap.get(page) ?? page).split("/").filter(Boolean);
   if (parts[parts.length - 1] === "index") parts.pop();
   return `/${M.routeBase}/${parts.join("/")}/`.replace(/\/{2,}/g, "/");
 }
@@ -2804,6 +2914,13 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
       unresolvedRefs.add(`ref:${target}`);
       return linkText || target;
     }
+    if (role === "tocentry") {
+      const rel = resolveTocTarget(target, path.posix.dirname(currentRelNoExt));
+      const title = index.titles.get(rel);
+      return title === undefined
+        ? TOC_ENTRY_DROP
+        : `[${linkText || title}](${urlForRel(rel)})`;
+    }
     if (role !== "doc") return linkText || target;
     const docRel = target.startsWith("/")
       ? target.replace(/^\/+/, "")
@@ -2839,8 +2956,15 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
                 `<a href="${url}">${text}</a>`,
             ),
       )
+      .replace(
+        new RegExp(`^[ \\t]*[-*+][ \\t]+${TOC_ENTRY_DROP}[ \\t]*\\n?`, "gm"),
+        "",
+      )
   );
 }
+
+/** Placeholder for a toctree entry without a generated page; its list item is removed. */
+const TOC_ENTRY_DROP = "TOCENTRYDROPPED";
 
 /**
  * Parse `.. toctree::` entries (ordered page stems) from an index.rst.
@@ -2951,7 +3075,7 @@ function parseToctreeBlocks(text) {
     if (!cur || trimmed === "") continue;
     const capM = trimmed.match(/^:caption:\s*(.+)$/);
     if (capM) {
-      cur.caption = capM[1].trim();
+      cur.caption = capM[1].trim().replace(/^(['"])(.*)\1$/, "$2");
       continue;
     }
     if (trimmed.startsWith(":")) continue; // other options (:hidden:, :maxdepth:)
@@ -3244,6 +3368,12 @@ const missingImages = new Set();
  * urlForRel so every cross-ref/label URL points at the restructured location.
  * @type {Map<string, string>} */
 let outputMap = new Map();
+
+/** MyST pages that are only a title and a toctree (source rel, no ext) -> the
+ * first page beneath them. They only feed the sidebar (a folder without an index
+ * page), and links to them land on that first page. Rebuilt by planMystNav.
+ * @type {Map<string, string>} */
+let sidebarOnly = new Map();
 
 /** Glossary term (lowercased) -> its page URL + injected anchor slug. Rebuilt per
  * module in convertModule (empty for modules without a `glossary.rst`).
@@ -4575,6 +4705,7 @@ function convertApiOnlyModule(mod) {
   // They keep their bare-name URLs (e.g. /tket/api-docs/install); an index over
   // them plus the landing lets their cross-links resolve to the served URLs.
   outputMap = new Map();
+  sidebarOnly = new Map();
   const proseFiles = (mod.apiProsePages ?? [])
     .map((stem) => path.join(M.sphinxRoot, `${stem}.md`))
     .filter((f) => fs.existsSync(f));
@@ -4785,6 +4916,42 @@ function registerNexusApiLabels(mod, index) {
  */
 
 /**
+ * True for a MyST page or notebook whose only content is its title and toctrees
+ * (plus labels/comments), i.e. a page that exists just to group others.
+ * @param {string | undefined} abs @returns {boolean}
+ */
+function isToctreeOnlyPage(abs) {
+  if (!abs || !fs.existsSync(abs)) return false;
+  let text;
+  if (abs.endsWith(".ipynb")) {
+    const cells = JSON.parse(fs.readFileSync(abs, "utf8")).cells ?? [];
+    if (cells.some((/** @type {any} */ c) => c.cell_type !== "markdown" && nbText(c.source).trim())) {
+      return false;
+    }
+    text = cells.map((/** @type {any} */ c) => nbText(c.source)).join("\n\n");
+  } else if (abs.endsWith(".md")) {
+    text = stripYamlFrontmatter(fs.readFileSync(abs, "utf8")).body;
+  } else return false;
+  const lines = stripMystComments(text.replace(/<!--[\s\S]*?-->/g, "")).split("\n");
+  /** @type {string | null} */
+  let fence = null;
+  for (const line of lines) {
+    if (fence) {
+      if (new RegExp(`^${escapeRegExp(fence)}+\\s*$`).test(line)) fence = null;
+      continue;
+    }
+    const open = line.match(/^(`{3,}|:{3,})\{toctree\}/);
+    if (open) {
+      fence = open[1];
+      continue;
+    }
+    if (!line.trim() || /^#\s/.test(line) || /^\([^)\n]+\)=\s*$/.test(line.trim())) continue;
+    return false;
+  }
+  return true;
+}
+
+/**
  * Plan sidebar nesting independently of source-based page paths. `base` retains
  * the former relocated path solely for generating compatibility redirects.
  * @param {string[]} files
@@ -4792,6 +4959,7 @@ function registerNexusApiLabels(mod, index) {
  */
 function planMystNav(files) {
   outputMap = new Map();
+  sidebarOnly = new Map();
   // Source-rel (no ext) of the module's API index page, if any; its toctree entry
   // is a placeholder for the quartodoc-generated `api` folder.
   const apiIndexRel = M.apiIndexFile
@@ -4879,6 +5047,10 @@ function planMystNav(files) {
         child.label = e.label;
         node.children.push(child);
       }
+    }
+    if (isFolder && isToctreeOnlyPage(byRel.get(srcRel))) {
+      const first = node.children.find((c) => c.srcRel)?.srcRel;
+      if (first) sidebarOnly.set(srcRel, sidebarOnly.get(first) ?? first);
     }
     return node;
   };
@@ -4980,6 +5152,7 @@ function emitMystNavMetas(sections, index, apiNavPages) {
     const name = titleFor(node);
     const children = node.children.map(navNode).filter(Boolean);
     if (node.srcRel === null) return { type: "folder", name, children };
+    if (sidebarOnly.has(node.srcRel)) return { type: "folder", name, children };
     const url = navUrl(node.srcRel);
     const legacyUrl = `/${M.routeBase}/${node.base}`.replace(/\/index$/, "");
     if (legacyUrl !== url && !canonicalUrls.has(legacyUrl)) redirects[legacyUrl] = url;
@@ -5158,6 +5331,7 @@ function convertModule(mod) {
 
   // MyST sidebar planning preserves source paths; RST uses runtime re-parenting.
   outputMap = new Map();
+  sidebarOnly = new Map();
   const navSections = mod.markdown ? planMystNav(files) : [];
 
   // First pass: index labels/titles so `:ref:`/`:doc:` resolve across pages.
@@ -5245,6 +5419,7 @@ function convertModule(mod) {
     ) {
       continue;
     }
+    if (sidebarOnly.has(relNoExt)) continue;
     // A page named after a sibling SOURCE directory (e.g. nlp-101.rst + nlp-101/)
     // is a Sphinx "section landing": emit it as that folder's `index.mdx` so the
     // folder is clickable and shows this page's prose (toctree-only landings with
@@ -5257,6 +5432,11 @@ function convertModule(mod) {
       source.endsWith(".rst") &&
       path.basename(source) !== "index.rst" &&
       files.some((f) => f !== source && f.startsWith(landingDir + path.sep));
+    // A landing that is only a title and toctrees just feeds the sidebar; the
+    // folder stays a plain expander.
+    if (isSectionLanding && isRstToctreeOnly(fs.readFileSync(source, "utf8"))) {
+      continue;
+    }
     // `.mdx` lets Fumadocs parse JSX components. MyST pages keep source paths.
     const out = M.markdown
       ? path.join(M.routeBase, `${outputMap.get(relNoExt) ?? relNoExt}.mdx`)

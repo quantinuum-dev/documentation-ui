@@ -13,8 +13,8 @@ test("MyST navigation nests pages without changing their source-based URLs", (co
   const output = path.join(root, "output");
   fs.mkdirSync(path.join(source, "examples"), { recursive: true });
   fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\n:caption: Guides\n\nstart\n```\n\n```{toctree}\n:caption: Resources\n\nWebsite <https://example.com/>\n```\n");
-  fs.writeFileSync(path.join(source, "start.md"), "# Start\n\n```{toctree}\nFirst steps <examples/first>\nWebsite <https://example.com/>\n```\n");
-  fs.writeFileSync(path.join(source, "examples/first.md"), "# First\n\n```{toctree}\nsecond\n```\n");
+  fs.writeFileSync(path.join(source, "start.md"), "# Start\n\nIntro.\n\n```{toctree}\nFirst steps <examples/first>\nWebsite <https://example.com/>\n```\n");
+  fs.writeFileSync(path.join(source, "examples/first.md"), "# First\n\nIntro.\n\n```{toctree}\nsecond\n```\n");
   fs.writeFileSync(path.join(source, "examples/second.md"), "# Second\n\n[First](first.md)\n");
   convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
     { outputRoot: output, publicRoot: path.join(root, "public") });
@@ -33,6 +33,51 @@ test("MyST navigation nests pages without changing their source-based URLs", (co
   assert.equal(redirects["/fixture/start/first"], "/fixture/examples/first");
   assert.equal(redirects["/fixture/start/first/second"], "/fixture/examples/second");
   assert.equal(redirects["/fixture/start"], undefined);
+});
+
+test("visible toctrees render as link lists and hidden ones are dropped", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-toctree-list-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nguide\n```\n");
+  fs.writeFileSync(path.join(source, "guide.md"), [
+    "# Guide", "", "Intro.", "", "## Examples", "",
+    "```{toctree}", ":maxdepth: 1", "", "first", "Second one <second>", "missing", "Site <https://example.com/>", "```", "",
+    "```{toctree}", ":hidden:", "", "third", "```", "",
+  ].join("\n"));
+  for (const name of ["first", "second", "third"]) {
+    fs.writeFileSync(path.join(source, `${name}.md`), `# Page ${name}\n\nText.\n`);
+  }
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/guide.mdx"), "utf8");
+  assert.match(generated, /## Examples\n\n- \[Page first\]\(\/fixture\/first\/\)\n- \[Second one\]\(\/fixture\/second\/\)\n- \[Site\]\(https:\/\/example\.com\/\)\n/);
+  assert.doesNotMatch(generated, /missing|third|toctree/);
+});
+
+test("a page that is only a title and toctree just feeds the sidebar", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-toctree-only-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(path.join(source, "examples"), { recursive: true });
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nexamples_index\nlinks\n```\n");
+  fs.writeFileSync(path.join(source, "examples_index.md"), "(examples)=\n# Examples Gallery\n\n```{toctree}\nexamples/a\nexamples/b\n```\n");
+  fs.writeFileSync(path.join(source, "examples/a.md"), "# A\n\nText.\n");
+  fs.writeFileSync(path.join(source, "examples/b.md"), "# B\n\nText.\n");
+  fs.writeFileSync(path.join(source, "links.md"), "# Links\n\nSee {doc}`examples_index`.\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  assert.ok(!fs.existsSync(path.join(output, "fixture/examples_index.mdx")));
+  const tree = JSON.parse(fs.readFileSync(path.join(output, "fixture-nav-tree.json"), "utf8"));
+  assert.equal(tree[0].type, "folder");
+  assert.equal(tree[0].name, "Examples Gallery");
+  assert.equal(tree[0].index, undefined);
+  assert.deepEqual(tree[0].children.map((/** @type {any} */ c) => c.url), ["/fixture/examples/a", "/fixture/examples/b"]);
+  const links = fs.readFileSync(path.join(output, "fixture/links.mdx"), "utf8");
+  assert.match(links, /\[Examples Gallery\]\(\/fixture\/examples\/a\/\)/);
 });
 
 test("MyST shared children and external-only groups do not override canonical routes", (context) => {
@@ -153,6 +198,28 @@ test("notebook HTML comments are removed before directive conversion", (context)
   assert.match(generated, /Visible before\./);
   assert.match(generated, /Visible after\./);
   assert.doesNotMatch(generated, /<!--|Hidden|nonexistent\.csv/);
+});
+
+test("sphinx-tabs in notebook markdown become Tabs despite Quarto", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-notebook-tabs-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nexample\n```\n");
+  const markdown = "# Example\n\n```{eval-rst}\n.. tabs::\n\n   .. code-tab:: shell pip\n\n      pip install x\n\n   .. code-tab:: shell uv\n\n      uv add x\n```\n";
+  fs.writeFileSync(path.join(source, "example.ipynb"), JSON.stringify({
+    nbformat: 4,
+    nbformat_minor: 5,
+    metadata: { kernelspec: { name: "python3", display_name: "Python 3", language: "python" } },
+    cells: [{ id: "markdown", cell_type: "markdown", metadata: {}, source: markdown.split(/(?<=\n)/) }],
+  }));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/example.mdx"), "utf8");
+  assert.match(generated, /<Tabs items=\{\["pip","uv"\]\}>/);
+  assert.match(generated, /```shell\npip install x\n```/);
+  assert.doesNotMatch(generated, /QDOCSHIELDED|code-tab/);
 });
 
 test("MyST code-cell YAML options are not rendered as code", (context) => {
