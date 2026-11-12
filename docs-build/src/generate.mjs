@@ -2109,6 +2109,71 @@ function prepareDoxygen(mod) {
 }
 
 /**
+ * Render a MyST `{list-table}` (a two-level bullet list of rows and cells) as a
+ * GFM table. Cells are inline Markdown, so a cell's line breaks and paragraphs
+ * become `<br />`; `:header-rows:` beyond the first can't be expressed in GFM
+ * and render as body rows. The caption (directive argument) is shown above.
+ * @param {string} caption @param {string[]} body @returns {string[]} */
+function renderListTable(caption, body) {
+  const { opts, rest } = parseDirectiveOptions(body);
+  /** @type {string[][][]} rows -> cells -> source lines */
+  const rows = [];
+  /** @type {number | null} */
+  let rowIndent = null;
+  for (const line of rest) {
+    const row = line.match(/^(\s*)[*-][ \t]+[*-][ \t]+(.*)$/);
+    if (row && (rowIndent === null || row[1].length === rowIndent)) {
+      rowIndent = row[1].length;
+      rows.push([[row[2]]]);
+      continue;
+    }
+    const cells = rows[rows.length - 1];
+    if (!cells) continue;
+    const cell = line.match(/^(\s*)[*-][ \t]+(.*)$/);
+    if (cell && cell[1].length === (rowIndent ?? 0) + 2) {
+      cells.push([cell[2]]);
+      continue;
+    }
+    cells[cells.length - 1].push(line.trim() === "" ? "" : line);
+  }
+  if (rows.length === 0) return [];
+  /** @param {string[]} lines */
+  const cellText = (lines) =>
+    lines
+      .join("\n")
+      .trim()
+      .split(/\n[ \t]*\n/)
+      .map((para) =>
+        para
+          .split("\n")
+          .map((l) => l.trimStart())
+          .join("\n")
+          .replace(/(?: {2,}|\\)\n/g, "<br />")
+          .replace(/\n/g, " ")
+          .trim(),
+      )
+      .join("<br /><br />")
+      .replace(/\|/g, "\\|");
+  const width = Math.max(...rows.map((r) => r.length));
+  /** @param {string[][]} cells */
+  const tableRow = (cells) =>
+    `| ${Array.from({ length: width }, (_, i) => cellText(cells[i] ?? [])).join(" | ")} |`;
+  const headerRows = Number.parseInt(opts["header-rows"] ?? "0", 10) || 0;
+  const header = headerRows > 0 ? tableRow(rows[0]) : `|${" |".repeat(width)}`;
+  const bodyRows = rows.slice(headerRows > 0 ? 1 : 0).map(tableRow);
+  const title = caption.replace(/^\*\*(.*)\*\*$/, "$1").trim();
+  return [
+    "",
+    ...(opts.name ? [`<a id="${htmlAttr(opts.name)}" />`, ""] : []),
+    ...(title ? [`**${title}**`, ""] : []),
+    header,
+    `|${" --- |".repeat(width)}`,
+    ...bodyRows,
+    "",
+  ];
+}
+
+/**
  * Render a MyST `{toctree}` body the way Sphinx shows a non-`:hidden:` toctree in
  * the page: a list of links to its entries (page titles only). Hidden toctrees
  * and entries without a generated page render nothing.
@@ -2235,6 +2300,10 @@ function convertMystDirectives(md, srcDir, opts = {}) {
           ? "python"
           : kernel || "python";
         out.push(`\`\`\`${lang}`, ...rest, "```");
+        continue;
+      }
+      if (name === "list-table") {
+        out.push(...renderListTable(arg, body));
         continue;
       }
       if (name === "rubric") {

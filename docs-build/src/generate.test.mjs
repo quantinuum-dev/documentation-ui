@@ -247,6 +247,41 @@ test("MyST code-cell YAML options are not rendered as code", (context) => {
   assert.doesNotMatch(generated, /raises-exception/);
 });
 
+test("MyST list-table renders as a GFM table", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-list-table-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nexample\n```\n");
+  fs.writeFileSync(path.join(source, "example.md"), [
+    "# Example",
+    "",
+    "```{list-table} Options",
+    ":header-rows: 1",
+    ":widths: auto",
+    "",
+    "* - Name",
+    "  - Notes",
+    "* - **Fast**",
+    "  - First line.  ",
+    "    Second $x \\leq 2$.",
+    "",
+    "    New paragraph | with pipe.",
+    "* - Short",
+    "  - —",
+    "```",
+    "",
+  ].join("\n"));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/example.mdx"), "utf8");
+  assert.match(generated, /\*\*Options\*\*\n\n\| Name \| Notes \|\n\| --- \| --- \|\n/);
+  assert.match(generated, /\| \*\*Fast\*\* \| First line\.<br \/>Second \$x \\leq 2\$\.<br \/><br \/>New paragraph \\\| with pipe\. \|/);
+  assert.match(generated, /\| Short \| — \|/);
+  assert.doesNotMatch(generated, /list-table|header-rows/);
+});
+
 test("hidden directories such as .jupyter_cache are not converted", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-hidden-dirs-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
