@@ -79,6 +79,7 @@ let logRoot = "";
  * @typedef {object} NotebookExecution
  * @property {string} project Absolute path to the uv project providing the kernel
  *   environment (it must include nbclient and ipykernel).
+ * @property {string[]} [groups] Extra dependency groups of `project` to install.
  * @property {string[]} [exclude] Sphinx-style globs, relative to `sphinxRoot`, of
  *   sources to leave unexecuted (`nb_execution_excludepatterns`).
  * @property {number} [timeout] Per-cell timeout in seconds (default 120).
@@ -1324,13 +1325,24 @@ function pandocRstFragment(rst, srcDir) {
   }
 }
 
-/** Parse MyST directive option lines (`:key: value`) at the head of a directive
- * body, returning the options and the remaining body lines.
+/** Parse MyST directive options at the head of a directive body — `:key: value`
+ * lines or a `---`-fenced YAML block — returning the options and the remaining
+ * body lines.
  * @param {string[]} body @returns {{ opts: Record<string,string>, rest: string[] }} */
 function parseDirectiveOptions(body) {
   /** @type {Record<string,string>} */
   const opts = {};
   let i = 0;
+  if (body[0]?.trim() === "---") {
+    const end = body.findIndex((l, j) => j > 0 && l.trim() === "---");
+    if (end > 0) {
+      for (const l of body.slice(1, end)) {
+        const m = l.match(/^([\w-]+):\s*(.*)$/);
+        if (m) opts[m[1]] = m[2].trim();
+      }
+      i = end + 1;
+    }
+  }
   for (; i < body.length; i++) {
     const m = body[i].match(/^\s*:([\w-]+):\s*(.*)$/);
     if (!m) break;
@@ -1887,6 +1899,7 @@ function executeNotebooks(mod) {
     "--project",
     mod.execute.project,
     "--frozen",
+    ...(mod.execute.groups ?? []).flatMap((g) => ["--group", g]),
     "--with-requirements",
     path.join(scriptDir, "execute-requirements.txt"),
     "python",
@@ -2155,8 +2168,9 @@ function convertMystDirectives(md, srcDir, opts = {}) {
       // recursively so nested `{figure}`/images/code render inside the card.
       if (name === "grid") {
         const cols = (arg.match(/\d+/g) || []).pop();
+        // An HTML string style survives Quarto (notebook path); mdxSafe makes it JSX.
         const style = cols
-          ? ` style={{ gridTemplateColumns: "repeat(${cols}, minmax(0, 1fr))" }}`
+          ? ` style="grid-template-columns: repeat(${cols}, minmax(0, 1fr))"`
           : "";
         out.push(
           `<Cards${style}>`,
@@ -3936,7 +3950,7 @@ function mdxSafe(md) {
     }
     // Real JSX components may carry `{…}` expressions — pass through untouched.
     if (COMPONENT_TAG.test(trimmed)) {
-      out.push(raw);
+      out.push(convertStyleAttr(raw));
       continue;
     }
     // Pandoc turns an RST indented block holding raw HTML into a blockquote
@@ -4574,12 +4588,19 @@ function convertApiOnlyModule(mod) {
   );
   /** @type {string[]} */
   const prose = [];
+  const executedDir = executeNotebooks(mod);
   for (const src of proseFiles) {
     const stem = path.basename(src, ".md");
     const out = path.join(M.routeBase, `${stem}.mdx`);
+    const executed = executedDir && readExecuted(executedDir, src);
     fs.writeFileSync(
       path.join(outDir, `${stem}.mdx`),
-      withFrontmatter(convertMyst(src, proseIndex, stem), out),
+      withFrontmatter(
+        executed
+          ? convertNotebookViaQuarto(src, proseIndex, stem, executed)
+          : convertMyst(src, proseIndex, stem),
+        out,
+      ),
       "utf8",
     );
     prose.push(stem);

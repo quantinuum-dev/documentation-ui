@@ -85,7 +85,8 @@ def read_mystnb(path: Path):
 
 
 def discover(root: Path, exclude: list[re.Pattern], skip_dirs: set[str]):
-    for dirpath, dirnames, filenames in os.walk(root):
+    # Follow symlinked dirs (e.g. guppyft's docs/examples -> ../examples), as Sphinx does.
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
         dirnames[:] = sorted(
             d for d in dirnames if not d.startswith(".") and d not in SKIP_DIRS | skip_dirs
         )

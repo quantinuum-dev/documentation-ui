@@ -155,6 +155,31 @@ test("notebook HTML comments are removed before directive conversion", (context)
   assert.doesNotMatch(generated, /<!--|Hidden|nonexistent\.csv/);
 });
 
+test("MyST code-cell YAML options are not rendered as code", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-code-cell-options-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nexample\n```\n");
+  fs.writeFileSync(path.join(source, "example.md"), [
+    "# Example",
+    "",
+    "```{code-cell} ipython3",
+    "---",
+    "tags: [raises-exception]",
+    "---",
+    "raise ValueError()",
+    "```",
+    "",
+  ].join("\n"));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/example.mdx"), "utf8");
+  assert.match(generated, /```python\nraise ValueError\(\)\n```/);
+  assert.doesNotMatch(generated, /raises-exception/);
+});
+
 test("hidden directories such as .jupyter_cache are not converted", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-hidden-dirs-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
