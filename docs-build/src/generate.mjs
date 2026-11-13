@@ -34,6 +34,10 @@ import GithubSlugger from "github-slugger";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
+// MDX has no `^sup^`/`~sub~` syntax (GFM reads `~x~` as strikethrough), so have
+// pandoc write `<sup>`/`<sub>` tags instead.
+const PANDOC_MDX_FORMAT = "commonmark_x-superscript-subscript";
+
 // Roots for the current `convertModules` run (see its options).
 let outputRoot = "";
 let publicRoot = "";
@@ -288,8 +292,10 @@ function rewriteCiteRoles(text) {
  * bare math (equation numbering/`:eq:` refs are not reproduced).
  * @param {string} md @returns {string} */
 function resolveMathLabels(md) {
+  // The body must be math that can't run past its own `$$]`, or the match starts
+  // at an earlier link's `[` (or unlabelled math) and eats it.
   return md.replace(
-    /\[([\s\S]*?)\]\{[^}]*\blabel="[^"]+"[^}]*\}/g,
+    /\[(\$\$(?:(?!\$\$\])[\s\S])*\$\$)\]\{[^}]*\blabel="[^"]+"[^}]*\}/g,
     (_m, body) => body,
   );
 }
@@ -349,7 +355,8 @@ function precedingIndent(lines) {
  * @returns {string} */
 function inlineIncludes(text, dir, depth = 0) {
   if (depth > 12) return text;
-  const lines = text.split(/\r?\n/);
+  // A commented-out `.. include::` must not be inlined.
+  const lines = stripRstComments(text).split(/\r?\n/);
   /** @type {string[]} */
   const out = [];
   for (let i = 0; i < lines.length; i++) {
@@ -498,7 +505,7 @@ function convertRst(src) {
           "-f",
           "rst",
           "-t",
-          "commonmark_x",
+          PANDOC_MDX_FORMAT,
           // Math inside raw HTML (figure captions) stays TeX; see pandocHtmlMath.
           "--mathjax",
           // Drop raw passthrough (`.. raw:: html`) — unusable, MDX-breaking widgets.
@@ -1361,7 +1368,7 @@ function pandocRstFragment(rst, srcDir) {
           "-f",
           "rst",
           "-t",
-          "commonmark_x",
+          PANDOC_MDX_FORMAT,
           "--mathjax",
           "--lua-filter",
           path.join(scriptDir, "pandoc-mdx.lua"),
@@ -2435,6 +2442,58 @@ function stripMystComments(md) {
   return out.join("\n");
 }
 
+/** Put a blank line before a list that directly follows a paragraph line.
+ * CommonMark (MyST, so the Sphinx build) starts a list there, but Quarto reads
+ * notebook Markdown with pandoc's dialect, which needs the blank line and would
+ * otherwise flatten the items into the paragraph as literal `*`/`-` text. Only
+ * items that may interrupt a paragraph in CommonMark qualify: a bullet, or an
+ * ordered item numbered 1, indented less than 4 spaces.
+ * @param {string} md @returns {string} */
+function separateListsFromParagraphs(md) {
+  const item = /^ {0,3}(?:[-*+]|1[.)])[ \t]+\S/;
+  const thematicBreak = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+  /** @type {string[]} */
+  const out = [];
+  /** @type {string | null} */
+  let fenceChar = null;
+  let inMath = false;
+  // First line of the current block (null after a blank line).
+  /** @type {string | null} */
+  let blockStart = null;
+  for (const line of md.split("\n")) {
+    if (fenceChar) {
+      out.push(line);
+      if (new RegExp(`^\\s*\\${fenceChar}{3,}\\s*$`).test(line))
+        fenceChar = null;
+      continue;
+    }
+    const open = line.match(/^\s*(`|~){3,}/);
+    if (open) {
+      fenceChar = open[1];
+      blockStart = line;
+      out.push(line);
+      continue;
+    }
+    if ((line.match(/\$\$/g) || []).length % 2 === 1) inMath = !inMath;
+    if (line.trim() === "") {
+      blockStart = null;
+    } else if (blockStart === null) {
+      blockStart = line;
+    } else if (
+      !inMath &&
+      item.test(line) &&
+      !thematicBreak.test(line) &&
+      !item.test(blockStart) &&
+      !/^\s*[>|<#]/.test(blockStart)
+    ) {
+      out.push("");
+      blockStart = line;
+    }
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
 /**
  * Convert a MyST-markdown prose page (`.md`) to MDX. The file is already
  * Markdown, so it is transformed in place: MyST directives -> MDX components
@@ -2500,7 +2559,11 @@ function convertNotebookViaQuarto(
     for (const cell of nbJson.cells ?? []) {
       if (cell.cell_type === "markdown") {
         let s = convertMystDirectives(
-          stripMystComments(nbText(cell.source).replace(/<!--[\s\S]*?-->/g, "")),
+          separateListsFromParagraphs(
+            stripMystComments(
+              nbText(cell.source).replace(/<!--[\s\S]*?-->/g, ""),
+            ),
+          ),
           nbDir,
           {
             admonitions: false,
@@ -2661,9 +2724,13 @@ const RST_UNDERLINE = /^([=\-~^"*#+`'.:_])\1{2,}\s*$/;
 function cleanRstInline(text) {
   return text
     .replace(/`([^`<]+?)\s*<[^`<>]+>`__?/g, (_m, t) => t.trim()) // `text <url>`_
-    .replace(/:[\w:+-]+:`([^`]+)`/g, (_m, body) => {
+    .replace(/:([\w:+-]+):`([^`]+)`/g, (_m, role, body) => {
       const mm = body.match(/^(.*?)\s*<[^<>]+>$/); // :role:`text <target>`
-      return (mm ? mm[1] : body).trim();
+      if (mm) return mm[1].trim();
+      // Python roles show the last name segment, as resolveRoles renders them.
+      return /^py:|^(class|func|meth|mod|attr|obj|data|exc)$/.test(role)
+        ? body.replace(/^~/, "").split(/[.#]/).pop() || body
+        : body.trim();
     })
     .replace(/``([^`]+)``/g, "$1") // ``literal``
     .replace(/`([^`]+)`/g, "$1") // `title-ref`
@@ -3481,7 +3548,15 @@ function stageImage(ref, srcDir) {
   // Already-staged asset URL (e.g. Quarto notebook outputs pre-copied below).
   if (ref.startsWith(`/${M.assetSubdir}/`)) return ref;
   const clean = ref.split(/[?#]/)[0];
-  const absSrc = path.resolve(srcDir, clean);
+  let absSrc = path.resolve(srcDir, clean);
+  // Sphinx `name.*` picks the best format the HTML builder supports, in this order.
+  if (clean.endsWith(".*")) {
+    const base = absSrc.slice(0, -1);
+    absSrc =
+      ["svg", "png", "gif", "jpg", "jpeg"]
+        .map((ext) => base + ext)
+        .find((p) => fs.existsSync(p)) ?? absSrc;
+  }
   if (!fs.existsSync(absSrc)) {
     missingImages.add(path.relative(logRoot, absSrc));
     return null;
@@ -3537,10 +3612,6 @@ function cssStringToJsxObject(css) {
  */
 function imageTransform(md, srcDir) {
   return md
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)(\{[^}]*\})?/g, (_full, alt, src) => {
-      const url = stageImage(src.trim(), srcDir);
-      return url ? `![${alt}](${url})` : "";
-    })
     .replace(/<img\b[^>]*>/g, (tag) => {
       const srcM = tag.match(/\bsrc=["']?([^"'\s>]+)["']?/);
       if (!srcM) return "";
@@ -3560,11 +3631,40 @@ function imageTransform(md, srcDir) {
     })
     .replace(/<figure\b[^>]*>/g, (tag) =>
       inlineAlignCenter(tag).replace(/\sclass=/, " className="),
+    )
+    // After the `<img>` pass, which would re-quote the JSX style object below.
+    .replace(
+      /!\[([^\]]*)\]\(([^)]+)\)(\{[^}]*\})?/g,
+      (_full, alt, src, attrs) => {
+        const url = stageImage(src.trim(), srcDir);
+        if (!url) return "";
+        const style = imageAttrStyle(attrs ?? "");
+        return style
+          ? `<img src="${url}" alt="${htmlAttr(alt)}" style=${cssStringToJsxObject(style)} />`
+          : `![${alt}](${url})`;
+      },
     );
 }
 
+/** Inline CSS for pandoc's RST image attributes (`{.align-right width="350px"}`),
+ * since no stylesheet defines Sphinx's `align-*` classes.
+ * @param {string} attrs @returns {string} */
+function imageAttrStyle(attrs) {
+  const decls = [];
+  const align = attrs.match(/\.align-(left|right|center)\b/)?.[1];
+  if (align === "center") decls.push("margin-inline: auto");
+  else if (align) {
+    const gap = align === "right" ? "0 0 1rem 1.5rem" : "0 1.5rem 1rem 0";
+    decls.push(`float: ${align}`, `margin: ${gap}`, "max-width: 50%");
+  }
+  const width = attrs.match(/\bwidth="([^"]+)"/)?.[1];
+  if (width) decls.push(`width: ${width}`);
+  return decls.join("; ");
+}
+
 /** Scan RST pages for `numfig = True` figures/tables, numbering each kind per page
- * in source order and recording the `.. _label:`'d ones so `:numref:` can link to
+ * in source order and recording the labelled ones (a preceding `.. _label:` or a
+ * `:name:` option) so `:numref:` can link to
  * `Fig. N` / `Table N`. Figures come from `.. figure::`; tables from `.. csv-table::`,
  * `.. list-table::` and `.. table::`.
  * @param {string[]} files */
@@ -3584,7 +3684,21 @@ function buildNumfigIndex(files) {
     let tblN = 0;
     /** @type {string | null} */
     let pendingLabel = null;
+    /** @type {{ kind: "figure" | "table", number: number } | null} */
+    let inOptions = null;
     for (const line of lines) {
+      if (inOptions) {
+        const optM = line.match(/^\s+:([\w-]+):\s*(.*)$/);
+        if (optM) {
+          // pandoc puts a `:name:` on the element as its id.
+          if (optM[1] === "name" && optM[2].trim()) {
+            const name = optM[2].trim();
+            numfigIndex.set(name.toLowerCase(), { ...inOptions, url, anchor: name });
+          }
+          continue;
+        }
+        inOptions = null;
+      }
       const labelM = line.match(RST_LABEL);
       if (labelM) {
         pendingLabel = labelM[1].trim();
@@ -3603,6 +3717,7 @@ function buildNumfigIndex(files) {
           });
         }
         pendingLabel = null;
+        inOptions = { kind, number };
         continue;
       }
       if (line.trim() !== "") pendingLabel = null; // only blanks may separate them

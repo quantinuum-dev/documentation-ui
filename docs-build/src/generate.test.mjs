@@ -147,6 +147,102 @@ test("RST figure caption math is emitted as KaTeX-ready TeX", (context) => {
   assert.doesNotMatch(generated, /class(Name)?="math/);
 });
 
+test("RST image :align: and :width: become inline styles", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-image-align-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  fs.writeFileSync(path.join(source, "logo.png"), "");
+  fs.writeFileSync(path.join(source, "plain.png"), "");
+  fs.writeFileSync(path.join(source, "page.rst"),
+    "Page\n====\n\n.. image:: logo.png\n   :align: right\n   :width: 350px\n\n.. image:: plain.png\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  assert.match(generated,
+    /<img src="\/fixture-assets\/logo\.png" alt="image" style=\{\{ "float": "right", "margin": "0 0 1rem 1\.5rem", "maxWidth": "50%", "width": "350px" \}\} \/>/);
+  assert.match(generated, /!\[image\]\(\/fixture-assets\/plain\.png\)/);
+});
+
+test("Sphinx `name.*` image wildcards resolve to the preferred format", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-image-wildcard-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  for (const name of ["fig.png", "fig.svg", "pic.png"]) fs.writeFileSync(path.join(source, name), "");
+  fs.writeFileSync(path.join(source, "page.rst"),
+    "Page\n====\n\n.. figure:: fig.*\n\n   Caption.\n\n.. image:: pic.*\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  assert.match(generated, /<img src="\/fixture-assets\/fig\.svg"/);
+  assert.match(generated, /!\[image\]\(\/fixture-assets\/pic\.png\)/);
+  assert.deepEqual(fs.readdirSync(path.join(root, "public/fixture-assets")).sort(), ["fig.svg", "pic.png"]);
+});
+
+test(":numref: resolves figures labelled with :name: as well as .. _label:", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-numref-name-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  for (const name of ["a.png", "b.png"]) fs.writeFileSync(path.join(source, name), "");
+  fs.writeFileSync(path.join(source, "page.rst"), [
+    "Page", "====", "",
+    "See :numref:`first-fig` and :numref:`second_fig`.", "",
+    ".. _first-fig:", "",
+    ".. figure:: a.png", "", "   First.", "",
+    ".. figure:: b.png", "   :align: center", "   :name: second_fig", "", "   Second.", "",
+    ".. math::", "   :label: eq-one", "", "   x = 1", "",
+  ].join("\n"));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  assert.match(generated, /See \[Fig\. 1\]\(\/fixture\/page\/?#first-fig\) and \[Fig\. 2\]\(\/fixture\/page\/?#second_fig\)\./);
+  assert.match(generated, /<img src="\/fixture-assets\/b\.png" id="second_fig"/);
+  assert.doesNotMatch(generated, /label=/);
+});
+
+test("commented-out includes are not inlined; toctree titles shorten py roles", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-comment-include-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n   child\n");
+  fs.writeFileSync(path.join(source, "child.rst"),
+    ":class:`~pkg.mod.Alpha` and :class:`pkg.Beta`\n==============================================\n\nChild body text.\n");
+  fs.writeFileSync(path.join(source, "page.rst"),
+    "Page\n====\n\nIntro.\n\n.. toctree::\n\n   child\n\n..\n    .. include:: child.rst\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  assert.doesNotMatch(generated, /Child body text/);
+  assert.match(generated, /\[Alpha and Beta\]\(\/fixture\/child\/?\)/);
+});
+
+test("RST :sup: and :sub: become HTML tags", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-supsub-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  fs.writeFileSync(path.join(source, "page.rst"),
+    "Page\n====\n\nPowered by TKET :sup:`TM`\n------------------------\n\nAn H :sub:`2` molecule.\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  assert.match(generated, /^## Powered by TKET <sup>TM<\/sup>$/m);
+  assert.match(generated, /An H <sub>2<\/sub> molecule\./);
+  assert.doesNotMatch(generated, /\^TM\^|~2~/);
+});
+
 test("RST math and code directives in quartodoc docstrings become MDX", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-api-rst-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -198,6 +294,30 @@ test("notebook HTML comments are removed before directive conversion", (context)
   assert.match(generated, /Visible before\./);
   assert.match(generated, /Visible after\./);
   assert.doesNotMatch(generated, /<!--|Hidden|nonexistent\.csv/);
+});
+
+test("notebook lists directly after a paragraph line stay lists despite Quarto", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-notebook-lists-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nexample\n```\n");
+  const markdown = "# Example\n\nIncluding:\n* `alpha` first\n* `beta` second\n\nSteps:\n1. one\n2. two\n\nLimits between 10 and\n25. Not a list.\n\n```python\nx = 1\n* 2\n```\n";
+  fs.writeFileSync(path.join(source, "example.ipynb"), JSON.stringify({
+    nbformat: 4,
+    nbformat_minor: 5,
+    metadata: { kernelspec: { name: "python3", display_name: "Python 3", language: "python" } },
+    cells: [{ id: "markdown", cell_type: "markdown", metadata: {}, source: markdown.split(/(?<=\n)/) }],
+  }));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/example.mdx"), "utf8");
+  assert.match(generated, /^Including:\n\n[-*] `alpha` first\n[-*] `beta` second$/m);
+  assert.match(generated, /^Steps:\n\n1\. {1,2}one\n2\. {1,2}two$/m);
+  assert.match(generated, /Limits between 10 and\s+25\. Not a list\./);
+  assert.match(generated, /``` ?python\nx = 1\n\* 2\n```/);
+  assert.doesNotMatch(generated, /\\\*/);
 });
 
 test("sphinx-tabs in notebook markdown become Tabs despite Quarto", (context) => {
