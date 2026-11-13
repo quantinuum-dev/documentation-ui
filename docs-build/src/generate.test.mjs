@@ -280,6 +280,26 @@ test("apiGroups splits an RST module's API sidebar into folders", (context) => {
     /\]\(\/pkg\/api\/extensions\/viz#pkg\.extensions\.viz\.Viewer\)/);
 });
 
+test("a multi-equation RST math block becomes one aligned/gathered display", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-multi-math-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  fs.writeFileSync(path.join(source, "page.rst"), [
+    "Page", "====", "",
+    ".. math::", "", "    a &= 0", "", "    b &= 1", "",
+    ".. math::", "", "    x = 1", "", "    y = 2", "",
+  ].join("\n"));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  assert.match(generated, /\\begin\{aligned\}a &= 0 \\\\ b &= 1\\end\{aligned\}/);
+  assert.match(generated, /\\begin\{gathered\}x = 1 \\\\ y = 2\\end\{gathered\}/);
+  assert.doesNotMatch(generated, /\$\$\$\$/);
+});
+
 test("page titles drop pandoc's Markdown escapes", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-title-escape-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));

@@ -542,9 +542,17 @@ function convertRst(src) {
 /** Pandoc writes math inside raw-HTML blocks (figure captions) as MathJax spans
  * rather than `$…$`; rewrite them so remark-math/KaTeX render them like prose
  * math. `<`/`>` become `\lt`/`\gt` since a literal `<` would read as a JSX tag.
+ * A multi-equation `.. math::` comes out as abutting `$$a$$$$b$$`, which
+ * remark-math can't parse; join them as rows of one block, as Sphinx does.
  * @param {string} md @returns {string} */
 function pandocHtmlMath(md) {
-  return md.replace(
+  return md
+    .replace(/(?:\$\$[^$]+\$\$){2,}/g, (run) => {
+      const rows = run.slice(2, -2).split("$$$$");
+      const env = rows.some((r) => /(^|[^\\])&/.test(r)) ? "aligned" : "gathered";
+      return `$$\\begin{${env}}${rows.join(" \\\\ ")}\\end{${env}}$$`;
+    })
+    .replace(
     /<span class="math (inline|display)">\\[([]([\s\S]*?)\\[)\]]<\/span>/g,
     (_m, kind, body) => {
       const tex = body
