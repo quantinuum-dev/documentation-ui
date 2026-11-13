@@ -60,6 +60,7 @@ let logRoot = "";
  * @property {string} [apiIndexFile] Prose overview for the API landing.
  * @property {string[]} [apiProsePages] Prose pages served alongside an API-only module.
  * @property {string} [apiTitle] API sidebar folder label, or the API index page title for RST modules.
+ * @property {ApiGroups} [apiGroups] Split an RST module's API sidebar into collapsible folders.
  * @property {boolean} [markdown] Prose is MyST markdown rather than RST.
  * @property {string[]} [skipDirs] Module-specific directories to skip.
  * @property {string} [outPrefix] Nest output + URLs under `<name>/<outPrefix>`.
@@ -72,6 +73,17 @@ let logRoot = "";
  *   backport): it is staged into the output and only notebooks/API are rebuilt.
  * @property {NotebookExecution} [execute] Execute notebooks (and MyST-NB `.md`
  *   pages) at build time instead of rendering only their stored outputs.
+ */
+
+/**
+ * Sidebar grouping for an RST module's API pages, like Sphinx's per-hub API
+ * toctrees. The `api/` folder (index: the API landing) is labelled `title`; each
+ * group collects the single-page sections whose quartodoc stem starts with
+ * `prefix` into `api/<dir>/<rest-of-stem>`, labelled by the section title.
+ *
+ * @typedef {object} ApiGroups
+ * @property {string} title
+ * @property {{ title: string, dir: string, prefix: string }[]} groups
  */
 
 /**
@@ -650,7 +662,7 @@ function buildApiSymbolIndex(mod) {
       const url = mod.markdown
         ? `/${mod.name}/api/${sec.title}`
         : sec.bases.length === 1
-          ? `/${mod.name}/api/${mod.name}.${base}`
+          ? rstApiPage(mod, base).url
           : `/${mod.name}/api/${mod.name}.${short}/${base.slice(short.length + 1)}`;
       const qmd = path.join(mod.apiSource, `${base}.qmd`);
       if (!fs.existsSync(qmd)) continue;
@@ -4329,9 +4341,11 @@ function withFrontmatter(md, outPath) {
   const idx = lines.findIndex((l) => /^#\s+/.test(l));
   let title;
   if (idx !== -1) {
-    // Strip inline-code backticks (e.g. Sphinx `# ``qnexus```): frontmatter
-    // titles render as plain text, so backticks would show literally.
-    title = lines[idx].replace(/^#\s+/, "").replace(/`/g, "").trim();
+    // Strip inline-code backticks (e.g. Sphinx `# ``qnexus```) and Markdown
+    // escapes (pandoc's `Green\'s`): frontmatter titles render as plain text.
+    title = unescapePandoc(
+      lines[idx].replace(/^#\s+/, "").replace(/`/g, "").trim(),
+    );
     lines.splice(idx, 1);
   }
   if (!title) {
@@ -4501,6 +4515,67 @@ function rstDocstringDirectives(md) {
 }
 
 /**
+ * Render generic RST field lists in docstrings (`:Keyword Arguments:` plus an
+ * indented body) as a section heading one level below the enclosing symbol, like
+ * quartodoc's own Parameters/Returns sections; Sphinx shows these as a labelled
+ * field. The body is dedented, and a bullet whose description sits on the
+ * following, deeper-indented lines keeps it as a separate paragraph under the
+ * item rather than running it into the item text.
+ * @param {string} md @returns {string}
+ */
+function rstFieldLists(md) {
+  const lines = md.split("\n");
+  /** @type {string[]} */
+  const out = [];
+  let level = 1;
+  let fenced = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s*(`{3,}|~{3,})/.test(line)) fenced = !fenced;
+    const heading = !fenced && line.match(/^(#{1,6})\s/);
+    if (heading) level = heading[1].length;
+    const field =
+      !fenced && line.match(/^:([A-Z][A-Za-z]*(?: [A-Za-z]+)*):\s*(.*)$/);
+    if (!field) {
+      out.push(line);
+      continue;
+    }
+    /** @type {string[]} */
+    const body = [];
+    let j = i + 1;
+    for (; j < lines.length; j++) {
+      if (lines[j].trim() && !/^\s/.test(lines[j])) break;
+      body.push(lines[j]);
+    }
+    i = j - 1;
+    while (body.length && !body[body.length - 1].trim()) body.pop();
+    const dents = body.filter((l) => l.trim()).map((l) => l.search(/\S/));
+    const trim = dents.length ? Math.min(...dents) : 0;
+    out.push(`${"#".repeat(Math.min(level + 1, 6))} ${field[1]}`, "");
+    if (field[2].trim()) out.push(field[2].trim(), "");
+    const text = body.map((l) => l.slice(trim));
+    for (let k = 0; k < text.length; k++) {
+      const item = text[k].match(/^(\s*)[-*+]\s+/);
+      out.push(text[k]);
+      if (!item) continue;
+      const col = item[0].length;
+      const next = text[k + 1];
+      if (!next?.trim() || next.search(/\S/) <= col) continue;
+      out.push("");
+      for (k += 1; k < text.length; k++) {
+        const l = text[k];
+        if (l.trim() && (l.search(/\S/) <= item[1].length || /^\s*[-*+]\s/.test(l)))
+          break;
+        out.push(l.trim() ? " ".repeat(col) + l.trimStart() : "");
+      }
+      k -= 1;
+    }
+    out.push("");
+  }
+  return out.join("\n");
+}
+
+/**
  * Convert a single quartodoc `.qmd` API page to committable MDX: reduce RST
  * roles, rewrite heading ids, point cross-file `foo.qmd#id` links at the routed
  * page (via `urlMap`, which knows the flat-vs-foldered layout), drop the module
@@ -4511,7 +4586,9 @@ function rstDocstringDirectives(md) {
  */
 function convertApiQmd(src, title, mod, urlMap) {
   const roled = stripRstRoles(
-    rstInlineMath(rstDocstringDirectives(fs.readFileSync(src, "utf8"))),
+    rstInlineMath(
+      rstDocstringDirectives(rstFieldLists(fs.readFileSync(src, "utf8"))),
+    ),
   );
   const linked = apiHeadings(roled).replace(
     /\]\(([\w.]+)\.qmd(?:#[\w.-]+)?\)/g,
@@ -4654,15 +4731,28 @@ function convertApi(mod) {
   const navPages = ["api/index"];
   /** @type {[string, string][]} */
   const navTitles = [];
+  // With apiGroups, `api/`'s own pages and each group's (paths relative to them).
+  /** @type {string[]} */
+  const corePages = [];
+  /** @type {Map<string, string[]>} */
+  const groupPages = new Map(
+    (mod.apiGroups?.groups ?? []).map((g) => [g.dir, []]),
+  );
   let count = 0;
   for (const sec of sections) {
     const short = sec.title.replace(new RegExp(`^${mod.name}\\.`), "");
     if (sec.bases.length === 1) {
       const base = sec.bases[0];
-      const name = `${mod.name}.${base}`;
-      pageWrites.push({ base, outRel: `${name}.mdx`, title: name });
-      navPages.push(`api/${name}`);
-      urlMap.set(base, `/${mod.name}/api/${name}`);
+      const { group, outRel, url } = rstApiPage(mod, base);
+      pageWrites.push({ base, outRel, title: `${mod.name}.${base}` });
+      navPages.push(`api/${outRel.replace(/\.mdx$/, "")}`);
+      if (group) {
+        groupPages.get(group.dir)?.push(outRel.slice(group.dir.length + 1, -4));
+        navTitles.push([url, sec.title]);
+      } else {
+        corePages.push(outRel.replace(/\.mdx$/, ""));
+      }
+      urlMap.set(base, url);
       count += 1;
     } else {
       const folder = `${mod.name}.${short}`; // e.g. lambeq.backend
@@ -4679,6 +4769,7 @@ function convertApi(mod) {
       }
       folderMetas.push({ dir: folder, title: folder, pages: leaves });
       navPages.push(`api/${folder}`);
+      corePages.push(folder);
     }
   }
 
@@ -4710,7 +4801,48 @@ function convertApi(mod) {
     `[generate-docs] ${mod.name}: api ${count} page(s) in ${sections.length} module group(s)` +
       `, ${folderMetas.length} collapsible.`,
   );
+  if (mod.apiGroups) {
+    // `api/` lists only its own pages, so each group folder sits beside it in the
+    // parent nav rather than inside it.
+    const metas = [
+      { dir: "", title: mod.apiGroups.title, pages: corePages },
+      ...mod.apiGroups.groups.map((g) => ({
+        dir: g.dir,
+        title: g.title,
+        pages: groupPages.get(g.dir) ?? [],
+      })),
+    ].filter((m) => m.dir === "" || m.pages.length);
+    for (const { dir, title, pages } of metas) {
+      fs.writeFileSync(
+        path.join(apiOut, dir, "meta.json"),
+        `${JSON.stringify({ title, pages }, null, 2)}\n`,
+        "utf8",
+      );
+    }
+    return {
+      navPages: metas.map((m) => (m.dir ? `api/${m.dir}` : "api")),
+      navTitles,
+    };
+  }
   return { navPages, navTitles };
+}
+
+/** Output path (relative to the API dir) and routed URL of a single-page API
+ * section in an RST module, honouring the module's `apiGroups`.
+ * @param {DocsModule} mod @param {string} base quartodoc `.qmd` stem
+ * @returns {{ group?: { title: string, dir: string, prefix: string }, outRel: string, url: string }} */
+function rstApiPage(mod, base) {
+  const group = mod.apiGroups?.groups.find((g) => base.startsWith(g.prefix));
+  if (group) {
+    const leaf = base.slice(group.prefix.length);
+    return {
+      group,
+      outRel: `${group.dir}/${leaf}.mdx`,
+      url: `/${mod.name}/api/${group.dir}/${leaf}`,
+    };
+  }
+  const name = `${mod.name}.${base}`;
+  return { outRel: `${name}.mdx`, url: `/${mod.name}/api/${name}` };
 }
 
 /**
@@ -5003,7 +5135,9 @@ function convertNexusApi(mod, index) {
       }
       let q = stripRstRoles(
         rstInlineMath(
-          rstDocstringDirectives(fs.readFileSync(qmdPath, "utf8")),
+          rstDocstringDirectives(
+            rstFieldLists(fs.readFileSync(qmdPath, "utf8")),
+          ),
         ),
       );
       q = single

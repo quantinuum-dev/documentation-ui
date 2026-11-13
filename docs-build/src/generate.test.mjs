@@ -243,6 +243,87 @@ test("RST :sup: and :sub: become HTML tags", (context) => {
   assert.doesNotMatch(generated, /\^TM\^|~2~/);
 });
 
+test("apiGroups splits an RST module's API sidebar into folders", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-api-groups-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const apiSource = path.join(root, "api");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.mkdirSync(apiSource);
+  fs.writeFileSync(path.join(source, "index.rst"), [
+    "Docs", "====", "",
+    ".. toctree::", "   :caption: Guide", "", "   page", "",
+    ".. toctree::", "   :caption: API Reference", "", "   api/pkg_intro", "",
+  ].join("\n"));
+  fs.writeFileSync(path.join(source, "page.rst"), "Page\n====\n\nUses :class:`~pkg.extensions.viz.Viewer`.\n");
+  fs.writeFileSync(path.join(apiSource, "index.qmd"), [
+    "# API", "",
+    "## pkg.core", "", "[core](core.qmd)", "",
+    "## Pkg-Viz", "", "[extensions.viz](extensions.viz.qmd)", "",
+  ].join("\n"));
+  fs.writeFileSync(path.join(apiSource, "core.qmd"), "# core { #pkg.core }\n\nCore.\n");
+  fs.writeFileSync(path.join(apiSource, "extensions.viz.qmd"),
+    "# extensions.viz { #pkg.extensions.viz }\n\n### Viewer { #pkg.extensions.viz.Viewer }\n\nShows things.\n");
+  convertModules([{
+    name: "pkg", sphinxRoot: source, indexFile: "index.rst", apiSource,
+    apiGroups: { title: "Pkg", groups: [{ title: "Pkg-Extensions", dir: "extensions", prefix: "extensions." }] },
+  }], { outputRoot: output, publicRoot: path.join(root, "public") });
+  const read = (rel) => JSON.parse(fs.readFileSync(path.join(output, rel), "utf8"));
+  assert.deepEqual(read("pkg/api/meta.json"), { title: "Pkg", pages: ["pkg.core"] });
+  assert.deepEqual(read("pkg/api/extensions/meta.json"), { title: "Pkg-Extensions", pages: ["viz"] });
+  const rootPages = read("pkg/meta.json").pages;
+  assert.deepEqual(rootPages.slice(rootPages.indexOf("---API Reference---")), ["---API Reference---", "api", "api/extensions"]);
+  assert.equal(read("pkg-nav-titles.json")["/pkg/api/extensions/viz"], "Pkg-Viz");
+  assert.ok(fs.existsSync(path.join(output, "pkg/api/extensions/viz.mdx")));
+  assert.match(fs.readFileSync(path.join(output, "pkg/page.mdx"), "utf8"),
+    /\]\(\/pkg\/api\/extensions\/viz#pkg\.extensions\.viz\.Viewer\)/);
+});
+
+test("page titles drop pandoc's Markdown escapes", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-title-escape-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  fs.writeFileSync(path.join(source, "page.rst"), "Krylov subspace & Green's functions\n===================================\n\nBody.\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  assert.match(generated, /^title: "Krylov subspace & Green's functions"$/m);
+});
+
+test("RST field lists in quartodoc docstrings become section headings", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-api-fieldlist-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const apiSource = path.join(root, "api");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.mkdirSync(apiSource);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n");
+  fs.writeFileSync(path.join(apiSource, "index.qmd"), "# API\n\n## pkg.run\n\n[run](run.qmd)\n");
+  fs.writeFileSync(path.join(apiSource, "run.qmd"), [
+    "# run { #pkg.run }", "",
+    "##### process { #pkg.run.process }", "",
+    "See the base method.", "",
+    ":Keyword Arguments:",
+    "    * `postprocess`:",
+    "        apply simplifications",
+    "        (bool, default False)",
+    "    * `seed`:",
+    "        random seed", "",
+    "Trailing prose.", "",
+  ].join("\n"));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true, apiSource }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/api/pkg.run.mdx"), "utf8");
+  assert.match(generated,
+    /^###### Keyword Arguments\n\n\* `postprocess`:\n\n  apply simplifications\n  \(bool, default False\)\n\* `seed`:\n\n  random seed\n\nTrailing prose\.$/m);
+  assert.doesNotMatch(generated, /:Keyword Arguments:/);
+});
+
 test("RST math and code directives in quartodoc docstrings become MDX", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-api-rst-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
