@@ -300,15 +300,19 @@ function rewriteCiteRoles(text) {
 /** Unwrap pandoc's labeled-equation output. A `.. math::` with a `:label:`
  * becomes `[$$…$$]{label="id"}`; the `{label=…}` attribute is not a valid MDX
  * attribute span (mdxSafe only strips `.`/`#` spans) and MDX parses it as an
- * undefined `label` expression, crashing the page. Drop the wrapper and keep the
- * bare math (equation numbering/`:eq:` refs are not reproduced).
+ * undefined `label` expression, crashing the page. Keep the bare math, numbered
+ * (`\tag`) and anchored for `:eq:` references (see buildEqIndex).
  * @param {string} md @returns {string} */
 function resolveMathLabels(md) {
   // The body must be math that can't run past its own `$$]`, or the match starts
   // at an earlier link's `[` (or unlabelled math) and eats it.
   return md.replace(
-    /\[(\$\$(?:(?!\$\$\])[\s\S])*\$\$)\]\{[^}]*\blabel="[^"]+"[^}]*\}/g,
-    (_m, body) => body,
+    /\[(\$\$(?:(?!\$\$\])[\s\S])*\$\$)\]\{[^}]*\blabel="([^"]+)"[^}]*\}/g,
+    (_m, math, label) => {
+      const e = eqIndex.get(label.toLowerCase());
+      if (!e) return math;
+      return `<a id="${e.anchor}" />\n\n${math.slice(0, -2)} \\tag{${e.number}}$$`;
+    },
   );
 }
 
@@ -3043,6 +3047,12 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
       unresolvedRefs.add(`numref:${target}`);
       return linkText || target;
     }
+    if (role === "eq") {
+      const e = eqIndex.get(target.toLowerCase());
+      if (e) return `[(${e.number})](${e.url}#${e.anchor})`;
+      unresolvedRefs.add(`eq:${target}`);
+      return target;
+    }
     if (
       /^py:/.test(role) ||
       /^(class|func|meth|mod|attr|obj|data|exc)$/.test(role)
@@ -3557,6 +3567,12 @@ let bibEntries = [];
  * @type {Map<string, { kind: "figure" | "table", number: number, url: string, anchor: string }>} */
 let numfigIndex = new Map();
 
+/** Labelled equation (lowercased label) -> its per-page number, page URL and
+ * anchor, for `:eq:` references. Only labelled equations are numbered: the
+ * others are never referenced.
+ * @type {Map<string, { number: number, url: string, anchor: string }>} */
+let eqIndex = new Map();
+
 /**
  * Copy an image referenced from `srcDir` into public/origin-assets (mirroring its
  * path relative to the sphinx root) and return its root-absolute URL. Returns
@@ -3741,6 +3757,46 @@ function buildNumfigIndex(files) {
         continue;
       }
       if (line.trim() !== "") pendingLabel = null; // only blanks may separate them
+    }
+  }
+}
+
+/** Number each RST page's labelled `.. math::` blocks (`:label:` option) in
+ * source order, including inlined `.. include::` partials, so `:eq:` can link to
+ * `(N)`. Mirrors the order resolveMathLabels meets them in the converted page.
+ * @param {string[]} files */
+function buildEqIndex(files) {
+  eqIndex = new Map();
+  for (const file of files) {
+    if (!file.endsWith(".rst")) continue;
+    const relNoExt = path
+      .relative(M.sphinxRoot, file)
+      .replace(/\.rst$/, "")
+      .split(path.sep)
+      .join("/");
+    const url = urlForRel(relNoExt);
+    const lines = inlineIncludes(
+      fs.readFileSync(file, "utf8"),
+      path.dirname(file),
+    ).split(/\r?\n/);
+    let n = 0;
+    let inOptions = false;
+    for (const line of lines) {
+      if (/^\s*\.\.\s+math::/.test(line)) {
+        inOptions = true;
+        continue;
+      }
+      if (!inOptions) continue;
+      const opt = line.match(/^\s+:([\w-]+):\s*(.*)$/);
+      if (!opt) {
+        inOptions = false;
+        continue;
+      }
+      if (opt[1] === "label" && opt[2].trim()) {
+        const label = opt[2].trim();
+        n += 1;
+        eqIndex.set(label.toLowerCase(), { number: n, url, anchor: `eq-${label}` });
+      }
     }
   }
 }
@@ -4076,9 +4132,12 @@ function displayMath(md) {
  * piecewise/aligned block) would otherwise fail to render.
  * @param {string} body @returns {string} */
 function wrapAlignedMath(body) {
-  if (/\\begin\{/.test(body)) return body; // already has an environment
-  if (!/(^|[^\\])&/.test(body)) return body; // no alignment column
-  return `\\begin{aligned}${body}\\end{aligned}`;
+  // An equation number must stay outside the environment (KaTeX rejects it inside).
+  const tag = body.match(/\s*\\tag\{[^}]*\}\s*$/)?.[0] ?? "";
+  const core = body.slice(0, body.length - tag.length);
+  if (/\\begin\{/.test(core)) return body; // already has an environment
+  if (!/(^|[^\\])&/.test(core)) return body; // no alignment column
+  return `\\begin{aligned}${core}\\end{aligned}${tag}`;
 }
 
 /**
@@ -5720,6 +5779,7 @@ function convertModule(mod) {
   );
   // Figure/table numbers for `:numref:` (numfig = True).
   buildNumfigIndex(files);
+  buildEqIndex(files);
 
   let converted = 0;
   /** @type {Set<string>} page paths (module-relative, no ext) actually emitted */

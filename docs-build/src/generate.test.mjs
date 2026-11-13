@@ -300,6 +300,33 @@ test("a multi-equation RST math block becomes one aligned/gathered display", (co
   assert.doesNotMatch(generated, /\$\$\$\$/);
 });
 
+test("labelled RST equations are numbered and :eq: links to them", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-eq-refs-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(path.join(source, "parts"), { recursive: true });
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  fs.writeFileSync(path.join(source, "parts", "more.rst.inc"),
+    ".. math::\n   :label: second\n\n   a &= b\n\n   c &= d\n");
+  fs.writeFileSync(path.join(source, "page.rst"), [
+    "Page", "====", "",
+    ".. math::", "", "   u = v", "",
+    ".. math::", "   :label: first", "", "   x = 1", "",
+    ".. include:: parts/more.rst.inc", "",
+    "Using :eq:`first` and :eq:`second`.", "",
+  ].join("\n"));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  assert.match(generated, /^<a id="eq-first" \/>\n\n\$\$\nx = 1 \\tag\{1\}\n\$\$$/m);
+  assert.match(generated, /^<a id="eq-second" \/>$/m);
+  assert.match(generated, /\\end\{aligned\} \\tag\{2\}/);
+  assert.match(generated,
+    /Using \[\(1\)\]\(\/fixture\/page\/?#eq-first\) and \[\(2\)\]\(\/fixture\/page\/?#eq-second\)\./);
+  assert.doesNotMatch(generated, /u = v \\tag/);
+});
+
 test("page titles drop pandoc's Markdown escapes", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-title-escape-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
