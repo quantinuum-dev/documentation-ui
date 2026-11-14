@@ -45,7 +45,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
           class="mb-4 md:mb-5 last:mb-0"
         >
           <div
-            class="space-y-2"
+            class="space-y-2 [&.space-y-2]:*:not-first:mt-2 [&.space-y-2]:*:not-first:mb-0 [:where(&.space-y-2>:first-child)]:mb-0"
           >
             <div
               class="flex items-center"
@@ -76,7 +76,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
           class="mb-4 md:mb-5 last:mb-0"
         >
           <div
-            class="space-y-2"
+            class="space-y-2 [&.space-y-2]:*:not-first:mt-2 [&.space-y-2]:*:not-first:mb-0 [:where(&.space-y-2>:first-child)]:mb-0"
           >
             <div
               class="flex items-center"
@@ -92,7 +92,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
                 aria-checked="false"
                 aria-describedby="_r_4_-form-item-description"
                 aria-invalid="false"
-                class="peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input mx-2"
+                class="peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-xs transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input mx-2"
                 data-state="unchecked"
                 id="_r_4_-form-item"
                 role="switch"
@@ -178,13 +178,13 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
         class="flex flex-row-reverse sm:flex-row gap-4 mt-8 md:mt-10 px-1"
       >
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 flex-1 md:flex-initial"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 h-9 px-4 py-2 flex-1 md:flex-initial"
           type="button"
         >
           Accept All
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 h-9 px-4 py-2 flex-1 md:flex-initial"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80 h-9 px-4 py-2 flex-1 md:flex-initial"
           type="submit"
         >
           Save Settings
@@ -193,7 +193,7 @@ exports[`CookieSettingsDialog component > should render as expected 1`] = `
     </form>
   </article>
   <button
-    class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+    class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
     type="button"
   >
     <svg

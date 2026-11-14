@@ -6,9 +6,8 @@ repos:
   - repo: builtin
     hooks:
       - id: trailing-whitespace
-        exclude: '(^sphinx-ui/demo/|\.snap$)'
+        exclude: '\.snap$'
       - id: end-of-file-fixer
-        exclude: '^sphinx-ui/demo/'
       - id: check-yaml
       - id: check-json
         exclude: 'tsconfig.*\.json$'
@@ -20,7 +19,7 @@ repos:
         language: pygrep
         entry: '\t'
         types_or: [ts, tsx, javascript, jsx, python, css]
-        exclude: '(node_modules|sphinx-ui/demo/build)'
+        exclude: 'node_modules'
 
       - id: documentation-ui-format
         name: Biome format (documentation-ui)
