@@ -118,6 +118,27 @@ def use_this_python_as_kernel() -> None:
     )
 
 
+def execute(nb, timeout: int, cwd: Path, attempts: int = 3) -> None:
+    """Run `nb` in place, retrying a kernel that dies on startup.
+
+    jupyter_client picks free ports that the kernel binds later, so a concurrent
+    executor (parallel build stages share a network) can take one in between.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            NotebookClient(
+                nb,
+                timeout=timeout,
+                kernel_name="python3",
+                resources={"metadata": {"path": str(cwd)}},
+            ).execute()
+            return
+        except RuntimeError as err:
+            if "before replying to kernel_info" not in str(err) or attempt == attempts:
+                raise
+            print(f"execute_notebooks: kernel failed to start, retrying ({err})", flush=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--root", required=True, type=Path)
@@ -144,12 +165,7 @@ def main() -> int:
         print(f"execute_notebooks: executing {rel}", flush=True)
         nb = nbformat.read(path, as_version=4) if rel.endswith(".ipynb") else read_mystnb(path)
         try:
-            NotebookClient(
-                nb,
-                timeout=args.timeout,
-                kernel_name="python3",
-                resources={"metadata": {"path": str(path.parent)}},
-            ).execute()
+            execute(nb, args.timeout, path.parent)
         except CellExecutionError as err:
             failures.append(f"{rel}:\n{err}")
             dest.unlink(missing_ok=True)
