@@ -2622,6 +2622,7 @@ function convertNotebookViaQuarto(
           const html = output.data?.["text/html"];
           const iframe = html && stageSrcdocIframe(nbText(html), relNb);
           if (iframe) output.data["text/html"] = iframe;
+          else if (html) output.data["text/html"] = stripDataframeChrome(nbText(html));
         }
       }
     }
@@ -2677,6 +2678,16 @@ function convertNotebookViaQuarto(
 /** @param {string} s @returns {string} */
 function stripAnsi(s) {
   return s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+}
+
+/** pandas wraps DataFrame HTML in `<div><style scoped>…</style>…</div>`; Quarto
+ * converts the table but leaves those tags raw, so they'd show as literal text.
+ * @param {string} html @returns {string} */
+function stripDataframeChrome(html) {
+  const m = html.match(
+    /^\s*<div>\s*<style scoped>[\s\S]*?<\/style>\s*([\s\S]*?)\s*<\/div>\s*$/,
+  );
+  return m ? m[1] : html;
 }
 
 /** A notebook HTML output embedding a whole document in `<iframe srcdoc>` (e.g.
@@ -5948,8 +5959,8 @@ function convertModule(mod) {
   const folderLabels = new Map();
   /** @type {Map<string,{title: string, pages: string[]}>} */
   const captionMeta = new Map();
-  // Sidebar label for a leaf PAGE = the caption its own folder's index.rst gives
-  // it (`Introduction <introduction.rst>`), keyed by page URL. Lets the sidebar
+  // Sidebar label for a leaf PAGE = the caption an index.rst toctree gives it
+  // (`Introduction <introduction.rst>`), keyed by page URL. Lets the sidebar
   // read "Introduction" while the page keeps its H1 title (e.g. with a version).
   /** @type {Map<string,string>} */
   const pageCaptions = new Map();
@@ -5975,9 +5986,9 @@ function convertModule(mod) {
         if (label && folder !== "." && !folderLabels.has(folder)) {
           folderLabels.set(folder, label);
         }
-        // A caption whose target is a direct child page of this index titles that
-        // page in the sidebar (folder-pointer captions are handled above).
-        if (label && folder === srcDir) {
+        // A caption also labels its target page in the sidebar, as in Sphinx
+        // (root `Extensions overview <extensions/extensions-overview.rst>`).
+        if (label) {
           const key = navUrl(target);
           if (!pageCaptions.has(key)) pageCaptions.set(key, label);
         }

@@ -180,8 +180,9 @@
 
 /* Display equations (`.. math::` / `$$…$$`) render here as inline math-text — a
    lone .katex in its own paragraph — rather than a centered .katex-display block,
-   so centre that paragraph to match conventional display-math layout. */
-.quantinuum-docs .prose p:has(> .katex:only-child) {
+   so centre that paragraph to match conventional display-math layout. The class
+   comes from remarkMathParagraphs (`:only-child` would ignore surrounding text). */
+.quantinuum-docs .prose p.quantinuum-math-paragraph {
   text-align: center;
 }
 
@@ -239,6 +240,20 @@
 
 .quantinuum-docs .prose :where(td, th):last-child {
   padding-inline-end: 0.75rem;
+}
+
+/* Match Furo's tight paragraph spacing in cells; prose's 1.25em paragraph
+   margins make multi-paragraph cells (e.g. RST grid tables) look double-spaced. */
+.quantinuum-docs .prose :where(td, th) > p {
+  margin-block: 0.25rem;
+}
+
+.quantinuum-docs .prose :where(td, th) > p:first-child {
+  margin-top: 0;
+}
+
+.quantinuum-docs .prose :where(td, th) > p:last-child {
+  margin-bottom: 0;
 }
 
 .quantinuum-docs [role="tab"] {

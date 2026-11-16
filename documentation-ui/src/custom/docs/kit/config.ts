@@ -5,6 +5,7 @@ import remarkMath from 'remark-math'
 import type { PluggableList } from 'unified'
 
 import { remarkDarkImages } from './remark-dark-images'
+import { remarkMathParagraphs } from './remark-math-paragraphs'
 import { quantinuumDark, quantinuumLight } from './shiki-theme'
 
 export { quantinuumDark, quantinuumLight } from './shiki-theme'
@@ -63,7 +64,7 @@ export interface DocsMdxOptions {
 export const docsMdxOptions: DocsMdxOptions = {
   // remarkDarkImages must precede Fumadocs' remarkImage; remarkMath keeps its
   // previous place after the preset's syntax extensions.
-  remarkPlugins: (plugins) => [remarkDarkImages, ...plugins, remarkMath],
+  remarkPlugins: (plugins) => [remarkDarkImages, ...plugins, remarkMath, remarkMathParagraphs],
   rehypePlugins: (plugins) => [rehypeKatex, ...plugins],
   rehypeCodeOptions: docsRehypeCodeOptions,
 }

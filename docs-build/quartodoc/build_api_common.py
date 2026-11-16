@@ -24,8 +24,12 @@ Patches applied on import (quartodoc 0.11.1):
   dropped. We merge the ``__init__`` docstring's sections (Parameters, etc.) into
   the class output. Re-exported classes reach the renderer as griffe ``Alias``
   objects (not ``dc.Class``), so both dispatches are needed.
+* Return names. griffe misreads ``Type: description`` and ``Word :role:`x```
+  returns as named values; ``_return_row`` moves them back (see there).
 """
 from __future__ import annotations
+
+import re
 
 import quartodoc.ast as qast
 from quartodoc import Builder
@@ -74,14 +78,41 @@ def render(self: MdRenderer, el: ds.DocstringSectionYields):  # noqa: F811
     return self._render_table(rows, header, "returns")
 
 
+_BUILTIN_TYPES = {
+    "bool", "bytes", "complex", "dict", "float", "frozenset", "int", "list",
+    "None", "object", "set", "str", "tuple",
+}
+# What griffe took for a description is really an RST role (`class:`X``).
+_RE_ROLE_START = re.compile(r"^(?:[a-z][\w-]*:)+`")
+
+
+def _return_row(self: MdRenderer, el) -> ParamRow:
+    """Row for a Returns/Yields item, undoing griffe's ``name: description`` misreads.
+
+    griffe reads ANY ``word:`` leading a Google return as a name, so
+    ``Package: The compiled package.`` (Napoleon's ``type: description``) names the
+    value "Package", and ``Mapped :class:`X` object.`` splits at the role's colon,
+    naming it "Mapped".
+    """
+    name, desc, anno = el.name, el.description, el.annotation
+    if name and _RE_ROLE_START.match(desc):
+        name, desc = "", f"{name} :{desc}"
+    elif name:
+        base = str(anno).split("[", 1)[0].rsplit(".", 1)[-1] if anno else None
+        if name == base or name in _BUILTIN_TYPES:
+            name, anno = "", anno or name
+    return ParamRow(name, desc, annotation=self.render_annotation(anno))
+
+
+@MdRenderer.render.dispatch
+def render(self: MdRenderer, el: ds.DocstringReturn):  # noqa: F811
+    return _return_row(self, el)
+
+
 @MdRenderer.render.dispatch
 def render(self: MdRenderer, el: ds.DocstringYield):  # noqa: F811
     # Same shape as DocstringReturn: no name/default, just type + description.
-    return ParamRow(
-        el.name,
-        el.description,
-        annotation=self.render_annotation(el.annotation),
-    )
+    return _return_row(self, el)
 
 
 @MdRenderer.render.dispatch
