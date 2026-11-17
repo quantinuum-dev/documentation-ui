@@ -1,3 +1,4 @@
+import { MarkdownCopyButton } from 'fumadocs-ui/layouts/docs/page'
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/page'
 import type { MDXComponents } from 'mdx/types'
 import type { ComponentProps, ComponentType } from 'react'
@@ -12,6 +13,8 @@ export interface QuantinuumDocsPageProps {
   toc?: ComponentProps<typeof DocsPage>['toc']
   /** Additional or overriding MDX components for this module. */
   components?: MDXComponents
+  /** URL of the page's Markdown version; adds a "Copy Markdown" button. */
+  markdownUrl?: string
 }
 
 /**
@@ -25,10 +28,14 @@ export function QuantinuumDocsPage({
   description,
   toc,
   components,
+  markdownUrl,
 }: QuantinuumDocsPageProps) {
   return (
     <DocsPage toc={toc}>
-      <DocsTitle>{title}</DocsTitle>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <DocsTitle>{title}</DocsTitle>
+        {markdownUrl && <MarkdownCopyButton markdownUrl={markdownUrl} className="shrink-0" />}
+      </div>
       <DocsDescription>{description}</DocsDescription>
       <DocsBody>
         <MDX components={getDocsMdxComponents(components)} />
