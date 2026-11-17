@@ -308,6 +308,26 @@ html:not(.dark) .quantinuum-docs .quantinuum-dark-only,
   border-color: #606060;
 }
 
+/* Fumadocs' `fd-scroll-container` gives code blocks a 5px scrollbar that is hard
+   to grab; widen the hit area and keep the thumb inset so it still looks light. */
+.quantinuum-docs figure.shiki .fd-scroll-container::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.quantinuum-docs figure.shiki .fd-scroll-container::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background-clip: padding-box;
+  background-color: color-mix(in srgb, var(--color-fd-muted-foreground) 45%, transparent);
+}
+
+.quantinuum-docs figure.shiki .fd-scroll-container::-webkit-scrollbar-thumb:hover,
+.quantinuum-docs figure.shiki .fd-scroll-container::-webkit-scrollbar-thumb:active {
+  border-width: 2px;
+  background-color: color-mix(in srgb, var(--color-fd-muted-foreground) 75%, transparent);
+}
+
 .quantinuum-docs [style*="--callout-color"] {
   background-color: color-mix(in srgb, var(--callout-color) 10%, white);
   border-color: color-mix(in srgb, var(--callout-color) 45%, white);
