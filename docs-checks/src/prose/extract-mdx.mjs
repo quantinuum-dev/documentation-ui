@@ -239,8 +239,9 @@ function collectInline(node, builder, ctx, fallback) {
   }
 }
 
-// Every table quartodoc emits is `Name | [Type |] Description [| Default]`, so
-// only the Description column holds docstring prose. The rest are identifiers,
+// Every table quartodoc emits is `Name | Description` or `Type | Description`
+// (older builds: `Name | [Type |] Description [| Default]`), so only the
+// Description column holds docstring prose. The rest are identifiers,
 // type expressions and default values.
 function collectApiTable(node, ctx) {
   const rows = (node.children ?? []).filter((row) => row.type === "tableRow");
