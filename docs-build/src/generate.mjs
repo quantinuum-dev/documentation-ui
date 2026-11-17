@@ -69,6 +69,8 @@ let logRoot = "";
  * @property {boolean} [apiOnly] No prose; the whole sidebar comes from the API.
  * @property {string} [apiSubdir] Where API pages land under routeBase (default "api").
  * @property {{ input: string, filePatterns?: string }} [doxygen] C headers rendered via Doxygen.
+ * @property {string} [tikzLibraries] TikZ libraries loaded for every `{tikz}` diagram
+ *   (Sphinx's `tikz_tikzlibraries`), comma-separated.
  * @property {string} [mergedProse] Absolute path to committed MDX prose (a `merged`
  *   backport): it is staged into the output and only notebooks/API are rebuilt.
  * @property {NotebookExecution} [execute] Execute notebooks (and MyST-NB `.md`
@@ -1521,6 +1523,116 @@ function mystImgTag(src, opts) {
   return `<img ${attrs.join(" ")} />`;
 }
 
+// sphinxcontrib-tikz's document, so diagrams compile exactly as in Sphinx.
+const TIKZ_DOC_HEAD = [
+  "\\documentclass[12pt,tikz]{standalone}",
+  "\\usepackage[utf8]{inputenc}",
+  "\\usepackage{amsmath}",
+  "\\usepackage{pgfplots}",
+];
+
+// Set once pdflatex/pdftocairo is found missing, so that is reported only once.
+let tikzToolsMissing = false;
+
+/**
+ * Render a sphinxcontrib-tikz `{tikz}` directive to SVG (pdflatex, then
+ * pdftocairo) in the module's assets, plus a `.dark.svg` sibling with greys
+ * inverted for the dark theme, and return the `<img>` (in a `<figure>` when the
+ * directive has a caption). Renders are cached in `<cacheRoot>/.tikz/` by content
+ * hash. Returns null when the toolchain is missing or LaTeX fails.
+ * @param {string} arg @param {string[]} body @returns {string | null}
+ */
+function renderTikz(arg, body) {
+  if (tikzToolsMissing) return null;
+  const { opts, rest } = parseDirectiveOptions(body);
+  // As sphinxcontrib-tikz: the argument is the caption when there is content,
+  // comment/blank lines are dropped, and bare commands get a tikzpicture.
+  let code = rest.filter((l) => !/^\s*(%.*)?$/.test(l)).join("\n");
+  const caption = code ? arg : "";
+  if (!code) code = arg;
+  if (!code) return null;
+  if (!code.includes("\\begin{tikz")) {
+    code = `\\begin{tikzpicture}\n${code}\n\\end{tikzpicture}`;
+  }
+  const libs = [M.tikzLibraries, opts.libs].filter(Boolean).join(",");
+  const tex = [
+    ...TIKZ_DOC_HEAD,
+    ...(libs ? [`\\usetikzlibrary{${libs}}`] : []),
+    "\\pagestyle{empty}",
+    "\\begin{document}",
+    code,
+    "\\end{document}",
+    "",
+  ].join("\n");
+  const name = `tikz-${createHash("sha256").update(tex).digest("hex").slice(0, 16)}`;
+  const cacheDir = path.join(cacheRoot, ".tikz");
+  const cached = path.join(cacheDir, `${name}.svg`);
+  if (!fs.existsSync(cached)) {
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), "docs-tikz-"));
+    try {
+      fs.writeFileSync(path.join(work, "tikz.tex"), tex, "utf8");
+      execFileSync(
+        "pdflatex",
+        ["-interaction=nonstopmode", "-halt-on-error", "tikz.tex"],
+        { cwd: work, stdio: "pipe" },
+      );
+      execFileSync("pdftocairo", ["-svg", "tikz.pdf", "tikz.svg"], {
+        cwd: work,
+        stdio: "pipe",
+      });
+      const svg = fs.readFileSync(path.join(work, "tikz.svg"), "utf8");
+      const dark = svg.replace(
+        /rgb\(([\d.]+)%,\s*([\d.]+)%,\s*([\d.]+)%\)/g,
+        (m, r, g, b) =>
+          r === g && g === b
+            ? `rgb(${100 - Number(r)}%, ${100 - Number(r)}%, ${100 - Number(r)}%)`
+            : m,
+      );
+      fs.mkdirSync(cacheDir, { recursive: true });
+      fs.writeFileSync(path.join(cacheDir, `${name}.dark.svg`), dark, "utf8");
+      fs.writeFileSync(cached, svg, "utf8");
+    } catch (err) {
+      if (/** @type {any} */ (err).code === "ENOENT") {
+        tikzToolsMissing = true;
+        console.warn(
+          "[generate-docs] pdflatex/pdftocairo not found — TikZ diagrams render as their LaTeX source",
+        );
+        return null;
+      }
+      const logFile = path.join(work, "tikz.log");
+      const latexError = fs.existsSync(logFile)
+        ? fs.readFileSync(logFile, "utf8").match(/^!.*$/m)?.[0]
+        : undefined;
+      console.warn(
+        `[generate-docs] ${M.name}: TikZ diagram failed (${
+          latexError ??
+          (err instanceof Error ? err.message.split("\n")[0] : err)
+        }) — rendering its LaTeX source`,
+      );
+      return null;
+    } finally {
+      fs.rmSync(work, { recursive: true, force: true });
+    }
+  }
+  const destDir = path.join(M.assetRoot, "_tikz");
+  fs.mkdirSync(destDir, { recursive: true });
+  for (const file of [`${name}.svg`, `${name}.dark.svg`]) {
+    fs.copyFileSync(path.join(cacheDir, file), path.join(destDir, file));
+  }
+  const margin =
+    opts.align === "left"
+      ? ""
+      : opts.align === "right"
+        ? "margin-left: auto"
+        : "margin-inline: auto";
+  const img = `<img src="/${M.assetSubdir}/_tikz/${name}.svg" alt="${htmlAttr(
+    opts.alt || "Figure made with TikZ",
+  )}"${margin ? ` style="${margin}"` : ""} />`;
+  return caption
+    ? `<figure>${img}<figcaption>${caption}</figcaption></figure>`
+    : img;
+}
+
 /**
  * Resolve a sphinx_design card `:link:` target to a Fumadocs `<Card href>`.
  * External URLs pass through (opened externally); relative targets (PDF/JSON/etc.)
@@ -2335,6 +2447,15 @@ function convertMystDirectives(md, srcDir, opts = {}) {
       }
       if (name === "list-table") {
         out.push(...renderListTable(arg, body));
+        continue;
+      }
+      if (name === "tikz") {
+        const rendered = renderTikz(arg, body);
+        out.push(
+          ...(rendered
+            ? [rendered]
+            : ["```latex", ...parseDirectiveOptions(body).rest, "```"]),
+        );
         continue;
       }
       if (name === "rubric") {

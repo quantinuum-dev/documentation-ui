@@ -636,3 +636,31 @@ test("conversion errors fail the process instead of skipping a page", (context) 
   assert.equal(succeeded.status, 0, succeeded.stderr);
   assert.match(fs.readFileSync(path.join(output, "fixture", "access.mdx"), "utf8"), /Example/);
 });
+
+const hasLatex = ["pdflatex", "pdftocairo"].every(
+  (tool) => spawnSync(tool, ["-v"], { stdio: "ignore" }).error === undefined,
+);
+
+test("tikz directives render to SVG images with a dark variant", { skip: !hasLatex && "needs pdflatex + pdftocairo" }, (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-tikz-test-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  const publicRoot = path.join(root, "public");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\npage\n```\n");
+  fs.writeFileSync(path.join(source, "page.md"), [
+    "# Page", "", "```{tikz}", ":alt: A box", "", "\\draw (0,0) rectangle (1,1);", "```", "",
+  ].join("\n"));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot });
+
+  const mdx = fs.readFileSync(path.join(output, "fixture", "page.mdx"), "utf8");
+  const src = mdx.match(/<img src="(\/fixture-assets\/_tikz\/tikz-\w+)\.svg" alt="A box"/)?.[1];
+  assert.ok(src, mdx);
+  assert.doesNotMatch(mdx, /:alt:|\\draw/);
+  const svg = fs.readFileSync(path.join(publicRoot, `${src}.svg`), "utf8");
+  const dark = fs.readFileSync(path.join(publicRoot, `${src}.dark.svg`), "utf8");
+  assert.match(svg, /rgb\(0%, 0%, 0%\)/);
+  assert.doesNotMatch(dark, /rgb\(0%, 0%, 0%\)/);
+});
