@@ -2548,6 +2548,9 @@ function convertMyst(src, index, relNoExt) {
   return mdxSafe(displayMath(md));
 }
 
+/** Stand-in scheme for root-absolute links while a notebook goes through Quarto. */
+const QUARTO_ROOT_LINK = "qdocroot:";
+
 /** Convert a Jupyter notebook to MDX via QUARTO (renders to gfm from the
  * notebook's stored outputs, or those of its executed copy — Quarto itself never
  * executes). Quarto output images (`<nb>_files/…`) are staged, then the shared
@@ -2607,6 +2610,9 @@ function convertNotebookViaQuarto(
         if (s.includes("{.interpreted-text") || s.includes("]{")) {
           s = resolveRoles(s, index, relNoExt, src).replace(/\{\.[^}]*\}/g, "");
         }
+        // Quarto rewrites root-absolute link targets (e.g. toctree links built
+        // above) to `./...`, which breaks them; a URL scheme keeps them intact.
+        s = s.replaceAll("](/", `](${QUARTO_ROOT_LINK}/`);
         // Store back as an nbformat LINE LIST (not a single string): Quarto's
         // .ipynb reader mis-parses a joined-string source and merges a heading
         // into the paragraph that follows it.
@@ -2643,6 +2649,7 @@ function convertNotebookViaQuarto(
     );
     let md = fs.readFileSync(path.join(staging, `${nbBase}.md`), "utf8");
     md = md.replace(/^QDOCSHIELDED(\d+)$/gm, (_m, n) => shielded[Number(n)]);
+    md = md.replaceAll(`](${QUARTO_ROOT_LINK}/`, "](/");
     // Stage Quarto's extracted output images (<nb>_files/…) under the notebook's
     // asset path and rewrite refs to the served URL (before imageTransform).
     md = md.replace(
