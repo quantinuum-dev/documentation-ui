@@ -75,6 +75,12 @@ let logRoot = "";
  *   backport): it is staged into the output and only notebooks/API are rebuilt.
  * @property {NotebookExecution} [execute] Execute notebooks (and MyST-NB `.md`
  *   pages) at build time instead of rendering only their stored outputs.
+ * @property {NotebookExecution} [executeBlocks] Run the ```` ```python exec ````
+ *   blocks of committed MDX pages (one kernel per page) and insert their outputs.
+ * @property {{ pages: string[], outDir: string }} [freeze] Also write these RST
+ *   pages (module-relative, no extension) as committable MDX into `outDir`:
+ *   `jupyter-execute` becomes ```` ```python exec ```` and each top-level
+ *   `.. include::` becomes an `<include>` of an `_<name>.mdx` partial.
  */
 
 /**
@@ -318,14 +324,22 @@ function resolveMathLabels(md) {
   );
 }
 
+/** Code-block language marking a `.. jupyter-execute::` body when freezing, so
+ * it can be told apart from plain Python after pandoc (see writeFrozenPage). */
+const EXEC_LANG = "pythonexec";
+
+/** Paragraph markers bracketing a top-level `.. include::` when freezing, so the
+ * included part can be split back out into its own partial after conversion. */
+const INCLUDE_MARK = "QDOCINCLUDE";
+
 /** Rewrite jupyter_sphinx directives so pandoc renders them as code blocks. The
  * docs embed executable Python in RST prose via `.. jupyter-execute::` (281×);
  * we don't execute RST, so each becomes a `.. code-block:: python` showing its
- * source (no output). `.. jupyter-input::` -> python, `.. jupyter-output::` ->
- * a plain-text output block. Directive option lines (`:hide-output:`, …) are
- * dropped; the indented body is kept for pandoc to fence.
- * @param {string} text @returns {string} */
-function resolveJupyterDirectives(text) {
+ * source (no output), or `executeLang` when freezing. `.. jupyter-input::` ->
+ * python, `.. jupyter-output::` -> a plain-text output block. Directive option
+ * lines (`:hide-output:`, …) are dropped; the indented body is kept for pandoc.
+ * @param {string} text @param {string} [executeLang] @returns {string} */
+function resolveJupyterDirectives(text, executeLang = "python") {
   const lines = text.split(/\r?\n/);
   /** @type {string[]} */
   const out = [];
@@ -337,7 +351,8 @@ function resolveJupyterDirectives(text) {
       out.push(lines[i]);
       continue;
     }
-    const lang = m[2] === "output" ? "text" : "python";
+    const lang =
+      m[2] === "output" ? "text" : m[2] === "execute" ? executeLang : "python";
     out.push(`${m[1]}.. code-block:: ${lang}`);
     // Drop the directive's option lines (`:key:` / `:key: value`) that follow
     // it directly; the blank line + indented body are left for pandoc.
@@ -368,10 +383,12 @@ function precedingIndent(lines) {
  * splices the raw text into the surrounding prose, which shreds the enclosing
  * list/paragraph. Missing files are dropped (the inquanto source has one stale
  * include). InQuanto's `.rst.inc` partials contain no images/nested includes, so
- * textual inlining is safe.
+ * textual inlining is safe. When `includes` is given, each top-level include is
+ * bracketed by INCLUDE_MARK paragraphs and its path recorded at that index.
  * @param {string} text @param {string} dir @param {number} [depth]
+ * @param {string[]} [includes]
  * @returns {string} */
-function inlineIncludes(text, dir, depth = 0) {
+function inlineIncludes(text, dir, depth = 0, includes = undefined) {
   if (depth > 12) return text;
   // A commented-out `.. include::` must not be inlined.
   const lines = stripRstComments(text).split(/\r?\n/);
@@ -409,7 +426,13 @@ function inlineIncludes(text, dir, depth = 0) {
       out.push("");
       continue;
     }
-    out.push(inlineIncludes(body, path.dirname(incPath), depth + 1));
+    const inlined = inlineIncludes(body, path.dirname(incPath), depth + 1);
+    if (includes && depth === 0 && indent === "") {
+      const n = includes.push(incPath) - 1;
+      out.push("", `${INCLUDE_MARK}BEGIN${n}`, "", inlined, "", `${INCLUDE_MARK}END${n}`, "");
+      continue;
+    }
+    out.push(inlined);
   }
   return out.join("\n");
 }
@@ -489,7 +512,11 @@ function fixShortUnderlines(text) {
   return lines.join("\n");
 }
 
-function convertRst(src) {
+/** @param {string} src @param {{ includes: string[] }} [freeze] Convert for
+ * committing: marks executable blocks and top-level includes (see EXEC_LANG,
+ * INCLUDE_MARK), recording the included files in `freeze.includes`.
+ * @returns {string} */
+function convertRst(src, freeze = undefined) {
   const dir = path.dirname(src);
   const cleaned = rewriteCiteRoles(
     renderRstToctrees(
@@ -499,11 +526,17 @@ function convertRst(src) {
             dropAutoTableWidths(
               stripRstComments(
                 fixShortUnderlines(
-                  inlineIncludes(fs.readFileSync(src, "utf8"), dir),
+                  inlineIncludes(
+                    fs.readFileSync(src, "utf8"),
+                    dir,
+                    0,
+                    freeze?.includes,
+                  ),
                 ),
               ),
             ),
           ),
+          freeze ? EXEC_LANG : "python",
         ),
       ),
     ),
@@ -2084,24 +2117,39 @@ function renderDoxygenFile(header) {
  */
 function executeNotebooks(mod) {
   if (!mod.execute) return null;
-  const outDir = path.join(cacheRoot, ".nb-exec", mod.name);
+  return runNotebookExecutor(
+    mod.name,
+    mod.execute,
+    mod.sphinxRoot,
+    path.join(cacheRoot, ".nb-exec", mod.name),
+    mod.skipDirs ?? [],
+  );
+}
+
+/**
+ * Run execute_notebooks.py over `root` into the cache `outDir` and check the
+ * cache was produced with these settings. Returns `outDir`.
+ * @param {string} name @param {NotebookExecution} cfg @param {string} root
+ * @param {string} outDir @param {string[]} skipDirs @returns {string}
+ */
+function runNotebookExecutor(name, cfg, root, outDir, skipDirs) {
   const settings = {
-    exclude: [...(mod.execute.exclude ?? [])].sort(),
-    skipDirs: [...(mod.skipDirs ?? [])].sort(),
-    timeout: mod.execute.timeout ?? 120,
+    exclude: [...(cfg.exclude ?? [])].sort(),
+    skipDirs: [...skipDirs].sort(),
+    timeout: cfg.timeout ?? 120,
   };
   const args = [
     "run",
     "--project",
-    mod.execute.project,
+    cfg.project,
     "--frozen",
-    ...(mod.execute.groups ?? []).flatMap((g) => ["--group", g]),
+    ...(cfg.groups ?? []).flatMap((g) => ["--group", g]),
     "--with-requirements",
     path.join(scriptDir, "execute-requirements.txt"),
     "python",
     path.join(scriptDir, "execute_notebooks.py"),
     "--root",
-    mod.sphinxRoot,
+    root,
     "--out",
     outDir,
     "--timeout",
@@ -2109,27 +2157,27 @@ function executeNotebooks(mod) {
     ...settings.exclude.flatMap((p) => ["--exclude", p]),
     ...settings.skipDirs.flatMap((d) => ["--skip-dir", d]),
   ];
-  console.log(`[generate-docs] ${mod.name}: executing notebooks`);
+  console.log(`[generate-docs] ${name}: executing notebooks`);
   const run = spawnSync("uv", args, { stdio: "inherit" });
   if (run.error && /** @type {any} */ (run.error).code === "ENOENT") {
     console.log(
-      `[generate-docs] ${mod.name}: uv not found, using the pre-executed notebooks in ${outDir}`,
+      `[generate-docs] ${name}: uv not found, using the pre-executed notebooks in ${outDir}`,
     );
   } else if (run.error || run.status !== 0) {
-    throw new Error(`[generate-docs] ${mod.name}: notebook execution failed`, {
+    throw new Error(`[generate-docs] ${name}: notebook execution failed`, {
       cause: run.error,
     });
   }
   const manifest = path.join(outDir, ".execution.json");
   if (!fs.existsSync(manifest)) {
     throw new Error(
-      `[generate-docs] ${mod.name}: no executed notebooks at ${outDir}`,
+      `[generate-docs] ${name}: no executed notebooks at ${outDir}`,
     );
   }
   const used = fs.readFileSync(manifest, "utf8");
   if (JSON.stringify(JSON.parse(used)) !== JSON.stringify(settings)) {
     throw new Error(
-      `[generate-docs] ${mod.name}: notebooks in ${outDir} were executed with ${used.trim()}, but the module config asks for ${JSON.stringify(settings)}`,
+      `[generate-docs] ${name}: notebooks in ${outDir} were executed with ${used.trim()}, but the module config asks for ${JSON.stringify(settings)}`,
     );
   }
   return outDir;
@@ -5731,12 +5779,17 @@ function emitMystNavMetas(sections, index, apiNavPages) {
  * meta.json and nav titles that travel with it, and its images) into the
  * generated tree the notebook/API passes are about to fill in.
  * `xref-manifest.json` is read separately rather than published as content.
+ * `_`-prefixed MDX files are partials: they are inlined where a page includes
+ * them (so the staged page is self-contained) rather than published.
  * @param {string} src repo docs dir @param {string} outDir @param {string} assetRoot
- * @returns {string[]} the directories whose meta.json came from the repo */
+ * @returns {{ metaDirs: string[], pages: { rel: string, dest: string }[] }}
+ *   the directories whose meta.json came from the repo, and the staged pages */
 function stageFrozenProse(src, outDir, assetRoot) {
   /** @type {string[]} */
   const metaDirs = [];
-  if (!fs.existsSync(src)) return metaDirs;
+  /** @type {{ rel: string, dest: string }[]} */
+  const pages = [];
+  if (!fs.existsSync(src)) return { metaDirs, pages };
   fs.mkdirSync(outDir, { recursive: true });
   /** @param {string} dir */
   const walk = (dir) => {
@@ -5747,13 +5800,21 @@ function stageFrozenProse(src, outDir, assetRoot) {
         continue;
       }
       if (!/\.mdx$/.test(entry.name) && entry.name !== "meta.json") continue;
+      if (entry.name.startsWith("_")) continue;
       const rel = path.relative(src, full);
       const dest = path.join(outDir, rel);
       fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.copyFileSync(full, dest);
       if (entry.name === "meta.json") {
+        fs.copyFileSync(full, dest);
         metaDirs.push(path.dirname(rel).split(path.sep).join("/"));
+        continue;
       }
+      fs.writeFileSync(
+        dest,
+        expandIncludes(fs.readFileSync(full, "utf8"), path.dirname(full)),
+        "utf8",
+      );
+      pages.push({ rel: rel.split(path.sep).join("/"), dest });
     }
   };
   walk(src);
@@ -5769,7 +5830,269 @@ function stageFrozenProse(src, outDir, assetRoot) {
   }
   const assets = path.join(src, "public", path.basename(assetRoot));
   if (fs.existsSync(assets)) fs.cpSync(assets, assetRoot, { recursive: true });
-  return metaDirs;
+  return { metaDirs, pages };
+}
+
+const INCLUDE_LINE = /^<include>\s*(.+?)\s*<\/include>[ \t]*$/gm;
+
+/** Inline Fumadocs `<include>./file.mdx</include>` lines (paths relative to the
+ * including file), recursively.
+ * @param {string} text @param {string} dir @param {number} [depth] @returns {string} */
+function expandIncludes(text, dir, depth = 0) {
+  if (depth > 12) return text;
+  return text.replace(INCLUDE_LINE, (_line, target) => {
+    const file = path.resolve(dir, target);
+    if (!fs.existsSync(file)) throw new Error(`included file not found: ${file}`);
+    return expandIncludes(
+      fs.readFileSync(file, "utf8").replace(/\n+$/, ""),
+      path.dirname(file),
+      depth + 1,
+    );
+  });
+}
+
+/**
+ * Write a page converted with `convertRst(src, { includes })` into the module's
+ * freeze directory as committable MDX: executable blocks become ```` ```python
+ * exec ````, each bracketed include becomes an `_<name>.mdx` partial next to its
+ * RST source path plus an `<include>` line, and the images they use are copied
+ * to `<outDir>/public/<module>-assets/`. Partials the page used to include are
+ * removed first so a dropped include doesn't leave one behind.
+ * @param {string} rel output path relative to the module root (`manual/x.mdx`)
+ * @param {string} md @param {string[]} includes
+ */
+function writeFrozenPage(rel, md, includes) {
+  if (!M.freeze) return;
+  const outDir = M.freeze.outDir;
+  const pageDir = path.posix.dirname(rel);
+  const existing = path.join(outDir, rel);
+  if (fs.existsSync(existing)) {
+    for (const [, target] of fs
+      .readFileSync(existing, "utf8")
+      .matchAll(INCLUDE_LINE)) {
+      fs.rmSync(path.resolve(path.dirname(existing), target), { force: true });
+    }
+  }
+  /** @type {Map<string, string>} */
+  const files = new Map();
+  const page = md
+    .replace(
+      new RegExp(`^([ \\t]*\`{3,})[ \\t]*${EXEC_LANG}[ \\t]*$`, "gm"),
+      "$1python exec",
+    )
+    .replace(
+      new RegExp(
+        `^${INCLUDE_MARK}BEGIN(\\d+)\\n([\\s\\S]*?)^${INCLUDE_MARK}END\\1$`,
+        "gm",
+      ),
+      (_m, n, body) => {
+        const src = path
+          .relative(M.sphinxRoot, includes[Number(n)])
+          .split(path.sep)
+          .join("/");
+        const name = path.posix.basename(src).replace(/\.rst(\.inc)?$/, "");
+        const partial = path.posix.join(path.posix.dirname(src), `_${name}.mdx`);
+        files.set(partial, `${body.trim()}\n`);
+        const target = path.posix.relative(pageDir, partial);
+        return `<include>${target.startsWith(".") ? target : `./${target}`}</include>`;
+      },
+    );
+  if (page.includes(INCLUDE_MARK)) {
+    throw new Error(`unpaired include marker while freezing ${rel}`);
+  }
+  files.set(rel, page);
+  const assetUrl = new RegExp(`/${M.assetSubdir}/[^\\s)"'<>{}]+`, "g");
+  for (const [file, text] of files) {
+    const dest = path.join(outDir, file);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, text, "utf8");
+    for (const [url] of text.matchAll(assetUrl)) {
+      const assetRel = decodeURI(url.slice(M.assetSubdir.length + 2));
+      const ext = path.extname(assetRel);
+      const dark = ext ? `${assetRel.slice(0, -ext.length)}.dark${ext}` : "";
+      for (const a of [assetRel, dark]) {
+        const from = path.join(M.assetRoot, a);
+        if (!a || !fs.existsSync(from)) continue;
+        const to = path.join(outDir, "public", M.assetSubdir, a);
+        fs.mkdirSync(path.dirname(to), { recursive: true });
+        fs.copyFileSync(from, to);
+      }
+    }
+  }
+}
+
+const EXEC_FENCE = /^([ \t]*)(`{3,})python exec[ \t]*$/;
+
+/** The ```` ```python exec ```` block bodies of an MDX page, in order.
+ * @param {string} text @returns {string[]} */
+function execBlocks(text) {
+  const lines = text.split("\n");
+  /** @type {string[]} */
+  const blocks = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(EXEC_FENCE);
+    if (!m) continue;
+    const close = new RegExp(`^[ \\t]*\`{${m[2].length},}[ \\t]*$`);
+    /** @type {string[]} */
+    const body = [];
+    for (i++; i < lines.length && !close.test(lines[i]); i++) {
+      body.push(lines[i].startsWith(m[1]) ? lines[i].slice(m[1].length) : lines[i]);
+    }
+    blocks.push(body.join("\n"));
+  }
+  return blocks;
+}
+
+/**
+ * Run the ```` ```python exec ```` blocks of staged MDX pages, each page as one
+ * notebook (one kernel, top to bottom, like `jupyter-execute`), and write the
+ * outputs after each block. Results are cached under `<cacheRoot>/.mdx-exec/`.
+ * @param {DocsModule} mod @param {{ rel: string, dest: string }[]} pages
+ */
+function executeStagedBlocks(mod, pages) {
+  const runnable = pages
+    .map((p) => ({ ...p, text: fs.readFileSync(p.dest, "utf8") }))
+    .filter((p) => execBlocks(p.text).length > 0);
+  if (runnable.length === 0) return;
+  if (!mod.executeBlocks) {
+    throw new Error(
+      `[generate-docs] ${mod.name}: ${runnable[0].rel} has \`python exec\` blocks but the module has no executeBlocks config`,
+    );
+  }
+  const srcRoot = path.join(cacheRoot, ".mdx-exec-src", mod.name);
+  fs.rmSync(srcRoot, { recursive: true, force: true });
+  for (const p of runnable) {
+    const file = path.join(srcRoot, p.rel.replace(/\.mdx$/, ".ipynb"));
+    const nb = {
+      cells: execBlocks(p.text).map((source) => ({
+        cell_type: "code",
+        execution_count: null,
+        metadata: {},
+        outputs: [],
+        source,
+      })),
+      metadata: {
+        kernelspec: { name: "python3", display_name: "Python 3", language: "python" },
+        language_info: { name: "python" },
+      },
+      nbformat: 4,
+      nbformat_minor: 4,
+    };
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, `${JSON.stringify(nb, null, 1)}\n`, "utf8");
+  }
+  const outDir = runNotebookExecutor(
+    mod.name,
+    mod.executeBlocks,
+    srcRoot,
+    path.join(cacheRoot, ".mdx-exec", mod.name),
+    [],
+  );
+  for (const p of runnable) {
+    const nbRel = p.rel.replace(/\.mdx$/, ".ipynb");
+    const executed = JSON.parse(fs.readFileSync(path.join(outDir, nbRel), "utf8"));
+    const digest = createHash("sha256")
+      .update(fs.readFileSync(path.join(srcRoot, nbRel)))
+      .digest("hex");
+    if (executed.metadata?.docs_build?.source_sha256 !== digest) {
+      throw new Error(`executed copy is out of date: ${path.join(outDir, nbRel)}`);
+    }
+    const key = `${p.rel.replace(/\.mdx$/, "")}/_exec`;
+    fs.writeFileSync(p.dest, spliceExecOutputs(p.text, executed.cells, key), "utf8");
+  }
+}
+
+/** Replace each ```` ```python exec ```` fence with a plain python one followed
+ * by the matching executed cell's outputs.
+ * @param {string} text @param {any[]} cells @param {string} key asset path prefix
+ * @returns {string} */
+function spliceExecOutputs(text, cells, key) {
+  const lines = text.split("\n");
+  /** @type {string[]} */
+  const out = [];
+  let cell = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(EXEC_FENCE);
+    if (!m) {
+      out.push(lines[i]);
+      continue;
+    }
+    out.push(`${m[1]}${m[2]}python`);
+    const close = new RegExp(`^[ \\t]*\`{${m[2].length},}[ \\t]*$`);
+    for (i++; i < lines.length; i++) {
+      out.push(lines[i]);
+      if (close.test(lines[i])) break;
+    }
+    const rendered = renderExecOutputs(cells[cell]?.outputs ?? [], `${key}/cell${cell}`);
+    cell += 1;
+    if (rendered) {
+      out.push("", ...rendered.split("\n").map((l) => (l ? m[1] + l : l)));
+    }
+  }
+  return out.join("\n");
+}
+
+/** A fenced plain-text block, or "" for blank text. @param {string} t */
+function textBlock(t) {
+  const body = t.replace(/\s+$/, "");
+  if (!body.trim()) return "";
+  const fence = "`".repeat(Math.max(3, ...[...body.matchAll(/`{3,}/g)].map((f) => f[0].length + 1)));
+  return `${fence}text\n${body}\n${fence}`;
+}
+
+/** Render a code cell's outputs as MDX: streams (merged per stream, as
+ * myst-nb's `nb_merge_streams`), tracebacks and text reprs as text blocks,
+ * images staged under `<key>-out<n>`, HTML tables as Markdown tables, and
+ * srcdoc iframes (pytket circuit renderer) as staged pages.
+ * @param {any[]} outputs @param {string} key @returns {string} */
+function renderExecOutputs(outputs, key) {
+  /** @type {any[]} */
+  const merged = [];
+  for (const o of outputs) {
+    const prev = merged[merged.length - 1];
+    if (o.output_type === "stream" && prev?.output_type === "stream" && prev.name === o.name) {
+      prev.text = nbText(prev.text) + nbText(o.text);
+    } else {
+      merged.push({ ...o });
+    }
+  }
+  /** @type {string[]} */
+  const blocks = [];
+  merged.forEach((o, n) => {
+    if (o.output_type === "stream") {
+      blocks.push(textBlock(stripAnsi(nbText(o.text))));
+      return;
+    }
+    if (o.output_type === "error") {
+      blocks.push(textBlock(stripAnsi((o.traceback ?? []).join("\n"))));
+      return;
+    }
+    const d = o.data ?? {};
+    const html = d["text/html"] ? nbText(d["text/html"]) : "";
+    const iframe = html && stageSrcdocIframe(html, key);
+    if (iframe) {
+      blocks.push(mdxSafe(iframe));
+    } else if (d["image/png"] || d["image/svg+xml"]) {
+      const ext = d["image/png"] ? "png" : "svg";
+      const data = nbText(d[ext === "png" ? "image/png" : "image/svg+xml"]);
+      const rel = `${key}-out${n}.${ext}`;
+      const dest = path.join(M.assetRoot, rel);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, ext === "svg" ? data : Buffer.from(data.trim(), "base64"));
+      const url = `/${M.assetSubdir}/${rel}`;
+      stagedImages.add(url);
+      blocks.push(`![output](${url})`);
+    } else if (/<table\b/i.test(html)) {
+      const table = execFileSync("pandoc", ["-f", "html", "-t", "gfm", "--wrap=none"], {
+        encoding: "utf8",
+        input: stripDataframeChrome(html),
+      });
+      blocks.push(mdxSafe(table));
+    } else if (d["text/plain"]) {
+      blocks.push(textBlock(stripAnsi(nbText(d["text/plain"]))));
+    }
+  });
+  return blocks.filter(Boolean).join("\n\n");
 }
 
 /** @param {DocsModule} mod */
@@ -5827,13 +6150,22 @@ function convertModule(mod) {
   let frozen = {};
   /** @type {string[]} */
   let stagedMetaDirs = [];
+  /** @type {Set<string>} pages (module-relative, no ext) staged as committed MDX */
+  const frozenPages = new Set();
   if (mergedRepoDir) {
     const src = mergedRepoDir;
-    stagedMetaDirs = stageFrozenProse(
+    const staged = stageFrozenProse(
       src,
       path.join(outputRoot, M.routeBase),
       M.assetRoot,
     );
+    stagedMetaDirs = staged.metaDirs;
+    for (const { rel } of staged.pages) {
+      const page = rel.replace(/\.mdx$/, "");
+      frozenPages.add(page);
+      if (page.endsWith("/index")) frozenPages.add(page.slice(0, -"/index".length));
+    }
+    executeStagedBlocks(mod, staged.pages);
     try {
       frozen = JSON.parse(
         fs.readFileSync(path.join(src, "xref-manifest.json"), "utf8"),
@@ -5842,16 +6174,13 @@ function convertModule(mod) {
       console.warn(`[generate-docs] ${mod.name}: no xref-manifest.json found`);
     }
   }
+  // Pages being (re)frozen are converted from their RST even when committed.
+  const freezePages = new Set(mod.freeze?.pages ?? []);
   /** @type {string[]} */
   const files = [];
+  // A merged backport's committed pages are skipped in the conversion loop, but
+  // any RST still present is indexed so links into and out of it resolve live.
   collectRst(contentRoot, files);
-  // A merged backport's prose is already staged as committed MDX; only its
-  // code-tracked pages (notebooks; the API has its own pass) are rebuilt.
-  if (mergedRepoDir) {
-    const notebooks = files.filter((f) => f.endsWith(".ipynb"));
-    files.length = 0;
-    files.push(...notebooks);
-  }
 
   // MyST sidebar planning preserves source paths; RST uses runtime re-parenting.
   outputMap = new Map();
@@ -5929,6 +6258,10 @@ function convertModule(mod) {
       .replace(/\.(rst|ipynb|md)$/, "")
       .split(path.sep)
       .join("/");
+    if (frozenPages.has(relNoExt) && !freezePages.has(relNoExt)) {
+      convertedPages.add(relNoExt);
+      continue;
+    }
     // The module-root index (its toctrees drive the sidebar) is owned by the
     // bespoke /<module> overview page, so it is never emitted as a doc page —
     // unless `emitIndex` is set (e.g. tket, whose Getting Started index is the
@@ -5993,15 +6326,26 @@ function convertModule(mod) {
         // the author-year reference list from the parsed bibtex instead.
         markdown = withFrontmatter(mdxSafe(renderBibliography()), out);
       } else {
-        const resolved = resolveMathLabels(
-          resolveRoles(convertRst(source), index, relNoExt, source),
-        );
-        const withImages = imageTransform(resolved, path.dirname(source));
-        const withAnchors = numberFigures(figureDivAnchors(withImages));
-        let withComponents = tabsTransform(calloutTransform(withAnchors));
-        if (relNoExt === glossaryRelNoExt)
-          withComponents = glossaryAnchors(withComponents, glossaryTerms);
-        markdown = withFrontmatter(displayMath(mdxSafe(withComponents)), out);
+        /** @param {{ includes: string[] }} [freeze] */
+        const rstPage = (freeze) => {
+          const resolved = resolveMathLabels(
+            resolveRoles(convertRst(source, freeze), index, relNoExt, source),
+          );
+          const withImages = imageTransform(resolved, path.dirname(source));
+          const withAnchors = numberFigures(figureDivAnchors(withImages));
+          let withComponents = tabsTransform(calloutTransform(withAnchors));
+          if (relNoExt === glossaryRelNoExt)
+            withComponents = glossaryAnchors(withComponents, glossaryTerms);
+          return withFrontmatter(displayMath(mdxSafe(withComponents)), out);
+        };
+        markdown = rstPage();
+        if (freezePages.has(relNoExt)) {
+          /** @type {string[]} */
+          const includes = [];
+          const frozenMd = unlinkHeadings(rstPage({ includes }));
+          writeFrozenPage(path.relative(M.routeBase, out).split(path.sep).join("/"), frozenMd, includes);
+          freezePages.delete(relNoExt);
+        }
       }
     } catch (err) {
       throw new Error(
@@ -6430,19 +6774,28 @@ function convertModule(mod) {
   /** @param {Map<string, unknown>} m */
   const sortedEntries = (m) =>
     Object.fromEntries([...m].sort(([a], [b]) => a.localeCompare(b)));
+  const manifest = `${JSON.stringify(
+    {
+      labels: sortedEntries(index.labels),
+      terms: sortedEntries(glossaryIndex),
+      titles: sortedEntries(index.titles),
+    },
+    null,
+    2,
+  )}\n`;
   fs.writeFileSync(
     path.join(outputRoot, `${mod.name}-xref-manifest.json`),
-    `${JSON.stringify(
-      {
-        labels: sortedEntries(index.labels),
-        terms: sortedEntries(glossaryIndex),
-        titles: sortedEntries(index.titles),
-      },
-      null,
-      2,
-    )}\n`,
+    manifest,
     "utf8",
   );
+  if (mod.freeze) {
+    fs.writeFileSync(path.join(mod.freeze.outDir, "xref-manifest.json"), manifest, "utf8");
+    if (freezePages.size) {
+      console.warn(
+        `[generate-docs] ${mod.name}: not frozen (no RST page converted): ${[...freezePages].join(", ")}`,
+      );
+    }
+  }
 
   console.log(
     `[generate-docs] ${mod.name}: converted ${converted} page(s), ${metas} meta.json` +

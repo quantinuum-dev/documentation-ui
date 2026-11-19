@@ -67,6 +67,9 @@ const modules = (config.modules ?? []).map((entry) => {
     execute: entry.execute
       ? { ...entry.execute, project: resolve(entry.execute.project) }
       : undefined,
+    executeBlocks: entry.executeBlocks
+      ? { ...entry.executeBlocks, project: resolve(entry.executeBlocks.project) }
+      : undefined,
     quartodoc: resolve(quartodoc),
   };
 });

@@ -327,6 +327,49 @@ test("labelled RST equations are numbered and :eq: links to them", (context) => 
   assert.doesNotMatch(generated, /u = v \\tag/);
 });
 
+test("freezing writes exec blocks and include partials that staging re-inlines", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-freeze-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const committed = path.join(root, "docs");
+  const output = path.join(root, "output");
+  fs.mkdirSync(path.join(source, "page"), { recursive: true });
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n   other\n");
+  fs.writeFileSync(path.join(source, "page", "part.rst.inc"),
+    "Part\n----\n\n.. jupyter-execute::\n\n   x = 2\n");
+  fs.writeFileSync(path.join(source, "page.rst"), [
+    "Page", "====", "",
+    "Intro.", "",
+    ".. include:: page/part.rst.inc", "",
+    ".. code-block:: python", "", "   y = 3", "",
+  ].join("\n"));
+  fs.writeFileSync(path.join(source, "other.rst"), "Other\n=====\n\nText.\n");
+  const mod = { name: "fixture", sphinxRoot: source, indexFile: "index.rst" };
+  const roots = { outputRoot: output, publicRoot: path.join(root, "public") };
+
+  convertModules([{ ...mod, freeze: { pages: ["page"], outDir: committed } }], roots);
+  const page = fs.readFileSync(path.join(committed, "page.mdx"), "utf8");
+  const part = fs.readFileSync(path.join(committed, "page", "_part.mdx"), "utf8");
+  assert.match(page, /^<include>\.\/page\/_part\.mdx<\/include>$/m);
+  assert.match(page, /^``` ?python\ny = 3\n```$/m);
+  assert.match(part, /^## Part$/m);
+  assert.match(part, /^```python exec\nx = 2\n```$/m);
+  assert.ok(fs.existsSync(path.join(committed, "xref-manifest.json")));
+  assert.doesNotMatch(fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8"), /exec|<include>/);
+
+  // Without executeBlocks a page with exec blocks is an error, so drop the block
+  // to check staging: the partial is inlined and the committed page wins.
+  fs.writeFileSync(path.join(committed, "page", "_part.mdx"), "## Part\n\nCommitted.\n");
+  convertModules([{ ...mod, mergedProse: committed }], roots);
+  const staged = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  assert.match(staged, /^## Part\n\nCommitted\.$/m);
+  assert.doesNotMatch(staged, /<include>/);
+  assert.equal(fs.existsSync(path.join(output, "fixture/page/_part.mdx")), false);
+  assert.ok(fs.existsSync(path.join(output, "fixture/other.mdx")));
+  const meta = JSON.parse(fs.readFileSync(path.join(output, "fixture/meta.json"), "utf8"));
+  assert.deepEqual(meta.pages, ["page", "other"]);
+});
+
 test("page titles drop pandoc's Markdown escapes", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-title-escape-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
