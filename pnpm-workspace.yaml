@@ -1,13 +1,18 @@
 packages:
   - "documentation-ui"
-  - "sphinx-ui/react"
+  - "docs-build"
+  - "docs-checks"
+  - "docs-preview"
 
 minimumReleaseAge: 20160 # 14 days
 minimumReleaseAgeStrict: true
+minimumReleaseAgeExclude:
+  - "@quantinuum/quantinuum-ui@5.4.2-tailwind-v4-sb.1"
 trustPolicy: no-downgrade
 trustPolicyIgnoreAfter: 43200 # 30 days, See https://pnpm.io/settings#trustpolicyignoreafter
-trustPolicyExclude:
-  - "tinyexec@1.2.2"
 allowBuilds:
   esbuild: true
   sharp: false
+overrides:
+  # rehype-katex pins KaTeX 0.16, whose markup doesn't match the 0.18+ stylesheet we import.
+  'rehype-katex>katex': ^0.19.0

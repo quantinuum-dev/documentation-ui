@@ -1,6 +1,6 @@
 'use client'
 
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useSyncExternalStore } from 'react'
 import { CookieSettingsButton } from 'src/custom/docs/components/gdpr/_components/CookieSettingsButton/CookieSettingsButton'
 import { CookieSettingsDialog } from 'src/custom/docs/components/gdpr/_components/CookieSettingsDialog/CookieSettingsDialog'
 import { useCookieConsent } from 'src/custom/docs/components/gdpr/contexts/useCookieConsent'
@@ -11,14 +11,17 @@ const CookieBanner = lazy(() =>
   )
 )
 
+const subscribeNoop = () => () => {}
+
 export function CookieConsentManager() {
   // Every branch below depends on client-only consent state (cookies), so render
   // nothing until after mount to keep SSR and the first client render in sync
   // (otherwise the settings button hydration-mismatches once consent is set).
-  const [isMounted, setIsMounted] = useState(false)
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
+  const isMounted = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  )
 
   const {
     isCookieBannerVisible,
