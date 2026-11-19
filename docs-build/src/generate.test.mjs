@@ -652,6 +652,32 @@ test("notebook srcdoc iframe outputs are staged as static pages", (context) => {
   assert.match(page, /const x = "\{\}";/);
 });
 
+test("notebook cell outputs are wrapped in a code-output panel", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-notebook-output-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nexample\n```\n");
+  fs.writeFileSync(path.join(source, "example.ipynb"), JSON.stringify({
+    nbformat: 4,
+    nbformat_minor: 5,
+    metadata: { kernelspec: { name: "python3", display_name: "Python 3", language: "python" } },
+    cells: [
+      { id: "title", cell_type: "markdown", metadata: {}, source: ["# Example\n"] },
+      { id: "out", cell_type: "code", metadata: {}, execution_count: 1, source: ["print(1)"],
+        outputs: [{ output_type: "stream", name: "stdout", text: ["1\n"] }] },
+      { id: "quiet", cell_type: "code", metadata: {}, execution_count: 2, source: ["x = 2"], outputs: [] },
+    ],
+  }));
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/example.mdx"), "utf8");
+  assert.match(generated, /print\(1\)\n```\n\n<div className="code-output">\n\n```text\n1\n```\n\n<\/div>/);
+  assert.equal(generated.match(/code-output/g)?.length, 1);
+  assert.doesNotMatch(generated, /QDOCOUTPUT/);
+});
+
 test("conversion errors fail the process instead of skipping a page", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-build-test-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));

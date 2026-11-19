@@ -308,6 +308,67 @@ html:not(.dark) .quantinuum-docs .quantinuum-dark-only,
   border-color: #606060;
 }
 
+/* Executed-code output (`.code-output`, emitted by docs-build after a code block):
+   one panel joined to the code above, on the page background so it reads as
+   output rather than more code, as in Sphinx/Jupyter. */
+.quantinuum-docs figure.shiki:has(+ .code-output) {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.quantinuum-docs .code-output {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid #cacaca;
+  border-radius: var(--radius-xl, 0.75rem);
+  background-color: var(--color-fd-background);
+  overflow: hidden;
+}
+
+/* Without code above (a hidden-input notebook cell) the panel stands alone. */
+.quantinuum-docs figure.shiki + .code-output {
+  margin-top: 0;
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.dark .quantinuum-docs .code-output {
+  border-color: #606060;
+}
+
+.quantinuum-docs .code-output > * {
+  margin: 0;
+}
+
+.quantinuum-docs .code-output > :not(figure) {
+  padding: 0.75rem 1rem;
+}
+
+.quantinuum-docs .code-output figure.shiki {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background-color: transparent;
+}
+
+/* As with sphinx-copybutton, a code block's copy button only shows while the
+   block is hovered or focused; touch screens (no hover) always show it. The
+   button's wrapper is faded, not the button: it has a backdrop blur that would
+   otherwise leave a grey patch over long lines. */
+@media (hover: hover) {
+  .quantinuum-docs figure.shiki > div:has(> button) {
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+
+  .quantinuum-docs figure.shiki:hover > div:has(> button),
+  .quantinuum-docs figure.shiki:focus-within > div:has(> button) {
+    opacity: 1;
+  }
+}
+
 /* Fumadocs' `fd-scroll-container` gives code blocks a 5px scrollbar that is hard
    to grab; widen the hit area and keep the thumb inset so it still looks light. */
 .quantinuum-docs figure.shiki .fd-scroll-container::-webkit-scrollbar {

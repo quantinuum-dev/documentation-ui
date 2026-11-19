@@ -2720,6 +2720,21 @@ function convertMyst(src, index, relNoExt) {
 /** Stand-in scheme for root-absolute links while a notebook goes through Quarto. */
 const QUARTO_ROOT_LINK = "qdocroot:";
 
+/** Paragraph markers around a notebook cell's outputs while it goes through Quarto. */
+const OUTPUT_MARK = "QDOCOUTPUT";
+
+/** Turn the output markers into `.code-output` panels (styled by the docs theme
+ * as a box attached to the code above). Runs after mdxSafe, which would
+ * otherwise flatten the `<div>` and its Markdown body onto one line; markers
+ * whose outputs rendered to nothing are dropped.
+ * @param {string} md @returns {string} */
+function codeOutputPanels(md) {
+  return md
+    .replace(new RegExp(`^${OUTPUT_MARK}BEGIN\\s*${OUTPUT_MARK}END$`, "gm"), "")
+    .replace(new RegExp(`^${OUTPUT_MARK}BEGIN$`, "gm"), '<div className="code-output">')
+    .replace(new RegExp(`^${OUTPUT_MARK}END$`, "gm"), "</div>");
+}
+
 /** Convert a Jupyter notebook to MDX via QUARTO (renders to gfm from the
  * notebook's stored outputs, or those of its executed copy — Quarto itself never
  * executes). Quarto output images (`<nb>_files/…`) are staged, then the shared
@@ -2799,6 +2814,21 @@ function convertNotebookViaQuarto(
           if (iframe) output.data["text/html"] = iframe;
           else if (html) output.data["text/html"] = stripDataframeChrome(nbText(html));
         }
+        // Quarto passes text/markdown outputs through verbatim, so these mark
+        // where each cell's outputs start and end (see codeOutputPanels).
+        if (cell.outputs?.length) {
+          /** @param {string} text */
+          const marker = (text) => ({
+            output_type: "display_data",
+            metadata: {},
+            data: { "text/markdown": [text] },
+          });
+          cell.outputs = [
+            marker(`${OUTPUT_MARK}BEGIN`),
+            ...cell.outputs,
+            marker(`${OUTPUT_MARK}END`),
+          ];
+        }
       }
     }
     const nbInput = path.join(staging, `${nbBase}.ipynb`);
@@ -2845,7 +2875,7 @@ function convertNotebookViaQuarto(
     md = imageTransform(md, nbDir);
     md = fenceIndentedCode(md);
     md = tabsTransform(calloutTransform(md));
-    return mdxSafe(displayMath(md));
+    return codeOutputPanels(mdxSafe(displayMath(md)));
   } finally {
     fs.rmSync(staging, { recursive: true, force: true });
   }
@@ -6026,7 +6056,15 @@ function spliceExecOutputs(text, cells, key) {
     const rendered = renderExecOutputs(cells[cell]?.outputs ?? [], `${key}/cell${cell}`);
     cell += 1;
     if (rendered) {
-      out.push("", ...rendered.split("\n").map((l) => (l ? m[1] + l : l)));
+      // The docs theme styles `.code-output` as a panel attached to the code above.
+      out.push(
+        "",
+        `${m[1]}<div className="code-output">`,
+        "",
+        ...rendered.split("\n").map((l) => (l ? m[1] + l : l)),
+        "",
+        `${m[1]}</div>`,
+      );
     }
   }
   return out.join("\n");
