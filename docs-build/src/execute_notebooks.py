@@ -7,6 +7,11 @@ executed notebook to --out at the source's relative path (`.md` sources gain an
 sources are not re-run. Cells tagged `skip-execution` are not run and cells
 tagged `raises-exception` may fail, as in myst-nb.
 
+Committed MDX pages (`.mdx`, not `_`-prefixed partials) with ```` ```python exec
+```` blocks run the same way: the page with its Fumadocs `<include>`s inlined is
+one notebook of those blocks, written as `<page>.mdx.ipynb` and keyed on that
+inlined text (generate.mjs mirrors the inlining and checks the key).
+
 Run it inside the documented product's environment, which must provide
 nbformat, nbclient and ipykernel, adding this script's own requirements
 (jupytext reads the MyST-NB pages):
@@ -84,6 +89,56 @@ def read_mystnb(path: Path):
     return nb
 
 
+# Kept in step with INCLUDE_LINE / EXEC_FENCE in generate.mjs.
+INCLUDE_LINE = re.compile(r"^<include>\s*(.+?)\s*</include>[ \t]*$", re.M)
+EXEC_FENCE = re.compile(r"^([ \t]*)(`{3,})python exec[ \t]*$")
+
+
+def expand_includes(text: str, base: Path, depth: int = 0) -> str:
+    """Inline `<include>./file.mdx</include>` lines, as generate.mjs does."""
+    if depth > 12:
+        return text
+
+    def inline(m: re.Match) -> str:
+        target = (base / m.group(1)).resolve()
+        body = target.read_bytes().decode("utf-8").rstrip("\n")
+        return expand_includes(body, target.parent, depth + 1)
+
+    return INCLUDE_LINE.sub(inline, text)
+
+
+def mdx_text(path: Path) -> str:
+    # Bytes, not read_text: newline translation would change the key.
+    return expand_includes(path.read_bytes().decode("utf-8"), path.parent)
+
+
+def exec_blocks(text: str) -> list[str]:
+    lines = text.split("\n")
+    blocks = []
+    i = 0
+    while i < len(lines):
+        m = EXEC_FENCE.match(lines[i])
+        i += 1
+        if not m:
+            continue
+        indent, close = m.group(1), re.compile(rf"^[ \t]*`{{{len(m.group(2))},}}[ \t]*$")
+        body = []
+        while i < len(lines) and not close.match(lines[i]):
+            line = lines[i]
+            body.append(line[len(indent):] if line.startswith(indent) else line)
+            i += 1
+        blocks.append("\n".join(body))
+    return blocks
+
+
+def read_mdx(path: Path):
+    nb = nbformat.v4.new_notebook(
+        cells=[nbformat.v4.new_code_cell(src) for src in exec_blocks(mdx_text(path))],
+        metadata={"kernelspec": KERNELSPEC, "language_info": {"name": "python"}},
+    )
+    return nb
+
+
 def discover(root: Path, exclude: list[re.Pattern], skip_dirs: set[str]):
     # Follow symlinked dirs (e.g. guppyft's docs/examples -> ../examples), as Sphinx does.
     for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
@@ -96,6 +151,12 @@ def discover(root: Path, exclude: list[re.Pattern], skip_dirs: set[str]):
             if any(p.match(rel) for p in exclude):
                 continue
             if name.endswith(".ipynb") or (name.endswith(".md") and is_mystnb(path)):
+                yield path, rel
+            elif (
+                name.endswith(".mdx")
+                and not name.startswith("_")
+                and exec_blocks(mdx_text(path))
+            ):
                 yield path, rel
 
 
@@ -157,15 +218,28 @@ def main() -> int:
     for path, rel in discover(root, exclude, set(args.skip_dir)):
         dest = out / (rel if rel.endswith(".ipynb") else f"{rel}.ipynb")
         written.add(dest)
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        is_mdx = rel.endswith(".mdx")
+        source = mdx_text(path).encode("utf-8") if is_mdx else path.read_bytes()
+        digest = hashlib.sha256(source).hexdigest()
         if dest.exists():
             done = json.loads(dest.read_text(encoding="utf-8"))
             if done.get("metadata", {}).get("docs_build", {}).get("source_sha256") == digest:
                 continue
         print(f"execute_notebooks: executing {rel}", flush=True)
-        nb = nbformat.read(path, as_version=4) if rel.endswith(".ipynb") else read_mystnb(path)
+        if is_mdx:
+            nb = read_mdx(path)
+        elif rel.endswith(".ipynb"):
+            nb = nbformat.read(path, as_version=4)
+        else:
+            nb = read_mystnb(path)
         try:
-            execute(nb, args.timeout, path.parent)
+            # An MDX page's blocks run in a scratch dir so files they write don't
+            # land in the docs repo.
+            if is_mdx:
+                with tempfile.TemporaryDirectory(prefix="docs-build-exec-") as cwd:
+                    execute(nb, args.timeout, Path(cwd))
+            else:
+                execute(nb, args.timeout, path.parent)
         except CellExecutionError as err:
             failures.append(f"{rel}:\n{err}")
             dest.unlink(missing_ok=True)

@@ -77,10 +77,16 @@ let logRoot = "";
  *   pages) at build time instead of rendering only their stored outputs.
  * @property {NotebookExecution} [executeBlocks] Run the ```` ```python exec ````
  *   blocks of committed MDX pages (one kernel per page) and insert their outputs.
- * @property {{ pages: string[], outDir: string }} [freeze] Also write these RST
- *   pages (module-relative, no extension) as committable MDX into `outDir`:
- *   `jupyter-execute` becomes ```` ```python exec ```` and each top-level
- *   `.. include::` becomes an `<include>` of an `_<name>.mdx` partial.
+ * @property {{ prefixDocument?: boolean }} [autosectionlabel] As Sphinx's
+ *   `sphinx.ext.autosectionlabel`: section titles are `:ref:` labels, prefixed
+ *   with `<page>:` when `prefixDocument` (`autosectionlabel_prefix_document`).
+ * @property {{ pages: string[], outDir: string, exclude?: string[], nav?: boolean }} [freeze]
+ *   Also write the RST pages matching these globs (module-relative, no
+ *   extension; `*` within a segment, `**` across) as committable MDX into
+ *   `outDir`, except those matching `exclude`: `jupyter-execute` becomes
+ *   ```` ```python exec ```` and each top-level `.. include::` becomes an
+ *   `<include>` of an `_<name>.mdx` partial. `nav` also writes the sidebar
+ *   (meta.json files and nav sidecars) for once the RST is gone.
  */
 
 /**
@@ -1128,8 +1134,8 @@ function intersphinxRefUrl(target) {
  * @param {string} nbSrc @returns {string} */
 function resolveMystRoles(md, index, currentRelNoExt, nbSrc) {
   return md.replace(/\{([\w:+-]+)\}`([^`]+)`/g, (_full, role, body) => {
-    const m = body.match(/^(.*?)\s*<([^<>]+)>$/); // "text <target>"
-    const text = (m ? m[1] : body).trim();
+    const m = body.match(/^([\s\S]*?)\s*<([^<>]+)>$/); // "text <target>"
+    const text = (m ? m[1] : body).replace(/\s+/g, " ").trim();
     const target = (m ? m[2] : body).trim();
     // `{nb-download}` (MyST-NB) points at the notebook source file itself.
     if (role === "download" || role === "nb-download") {
@@ -1165,7 +1171,7 @@ function resolveMystRoles(md, index, currentRelNoExt, nbSrc) {
       return text;
     }
     if (role === "ref") {
-      const e = index.labels.get(target.toLowerCase());
+      const e = index.labels.get(target.replace(/\s+/g, " ").toLowerCase());
       if (e) {
         const url = e.anchor ? `${e.url}#${e.anchor}` : e.url;
         return `[${text || e.title || target}](${url})`;
@@ -3100,7 +3106,12 @@ function buildIndex(files) {
       .replace(/\.(rst|ipynb|md)$/, "")
       .split(path.sep)
       .join("/");
-    const raw = isNb ? "" : fs.readFileSync(file, "utf8");
+    const raw = isNb
+      ? ""
+      : isMyst
+        ? fs.readFileSync(file, "utf8")
+        : // Labels and headings in `.. include::`d partials belong to this page.
+          inlineIncludes(fs.readFileSync(file, "utf8"), path.dirname(file));
     const lines = isNb
       ? notebookMarkdownLines(file)
       : (isMyst ? raw : fixShortUnderlines(raw)).split(/\r?\n/);
@@ -3160,6 +3171,14 @@ function buildIndex(files) {
         anchor: target && !isPageTitle ? target.slug : "",
         title: target ? target.text : pageTitle,
       });
+    }
+    // sphinx.ext.autosectionlabel: every section title is also a label.
+    if (M.autosectionlabel) {
+      for (const h of headings) {
+        const name = h.text.replace(/\s+/g, " ").trim().toLowerCase();
+        const key = M.autosectionlabel.prefixDocument ? `${relNoExt.toLowerCase()}:${name}` : name;
+        if (!labels.has(key)) labels.set(key, { url, anchor: h.slug, title: h.text });
+      }
     }
   }
   return { labels, titles, headingSlugs };
@@ -3239,8 +3258,8 @@ function decodeHtmlEntities(s) {
 function resolveRoles(md, index, currentRelNoExt, srcPath) {
   /** @param {string} inner @param {string} role @returns {string} */
   const rewrite = (inner, role) => {
-    const m = inner.match(/^(.*?)\s*<([^<>]+)>$/);
-    const linkText = m ? m[1].trim() : "";
+    const m = inner.match(/^([\s\S]*?)\s*<([^<>]+)>$/);
+    const linkText = m ? m[1].replace(/\s+/g, " ").trim() : "";
     const target = (m ? m[2] : inner).trim();
     if (role === "download") {
       return srcPath ? stageDownload(inner, srcPath) : linkText || target;
@@ -3280,7 +3299,7 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
     }
     if (role === "ref") {
       // Sphinx label ref: look up the indexed `.. _label:` / MyST `(label)=`.
-      const e = index.labels.get(target.toLowerCase());
+      const e = index.labels.get(target.replace(/\s+/g, " ").toLowerCase());
       if (e) {
         const url = e.anchor ? `${e.url}#${e.anchor}` : e.url;
         return `[${linkText || e.title || target}](${url})`;
@@ -3932,7 +3951,10 @@ function buildNumfigIndex(files) {
       .split(path.sep)
       .join("/");
     const url = urlForRel(relNoExt);
-    const lines = fs.readFileSync(file, "utf8").split(/\r?\n/);
+    const lines = inlineIncludes(
+      fs.readFileSync(file, "utf8"),
+      path.dirname(file),
+    ).split(/\r?\n/);
     let figN = 0;
     let tblN = 0;
     /** @type {string | null} */
@@ -5853,10 +5875,11 @@ function stageFrozenProse(src, outDir, assetRoot) {
     fs.copyFileSync(navTitles, `${outDir}-nav-titles.json`);
   }
   // The nesting map is derived from toctrees, so it cannot be rebuilt once the
-  // module's RST is gone; a merged backport must carry its own.
-  const navNesting = path.join(src, "nav-nesting.json");
-  if (fs.existsSync(navNesting)) {
-    fs.copyFileSync(navNesting, `${outDir}-nav-nesting.json`);
+  // module's RST is gone; a merged backport must carry its own (and likewise
+  // the redirects for pages folded into their includer).
+  for (const sidecar of ["nav-nesting", "route-redirects"]) {
+    const file = path.join(src, `${sidecar}.json`);
+    if (fs.existsSync(file)) fs.copyFileSync(file, `${outDir}-${sidecar}.json`);
   }
   const assets = path.join(src, "public", path.basename(assetRoot));
   if (fs.existsSync(assets)) fs.cpSync(assets, assetRoot, { recursive: true });
@@ -5864,6 +5887,90 @@ function stageFrozenProse(src, outDir, assetRoot) {
 }
 
 const INCLUDE_LINE = /^<include>\s*(.+?)\s*<\/include>[ \t]*$/gm;
+
+/** A page glob (module-relative, no extension): `*` stays within a path
+ * segment, `**` spans segments. @param {string} glob @returns {RegExp} */
+function pageGlob(glob) {
+  const re = glob
+    .split(/(\*\*\/?|\*)/)
+    .map((part) =>
+      part.startsWith("**") ? ".*" : part === "*" ? "[^/]*" : escapeRegExp(part),
+    )
+    .join("");
+  return new RegExp(`^${re}$`);
+}
+
+/**
+ * RST pages that are `.. include::`d (not as `:literal:`/`:code:`) by another
+ * collected page and are not a toctree entry anywhere. Sphinx builds them as
+ * stray standalone pages too; here they are only part of the including page.
+ * @param {string[]} files @returns {Map<string, string>} page -> its includer
+ */
+function includedOnlyPages(files) {
+  const rst = files.filter((f) => f.endsWith(".rst"));
+  /** @type {Map<string, string>} */
+  const included = new Map();
+  /** @type {Set<string>} */
+  const tocTargets = new Set();
+  for (const file of [...rst, path.join(M.sphinxRoot, M.indexFile)]) {
+    if (!fs.existsSync(file)) continue;
+    const text = stripRstComments(fs.readFileSync(file, "utf8"));
+    const relDir = path
+      .dirname(path.relative(M.sphinxRoot, file))
+      .split(path.sep)
+      .join("/");
+    for (const ref of parseToctree(text)) {
+      if (!isExternalRef(ref)) tocTargets.add(resolveTocTarget(ref, relDir));
+    }
+    const lines = text.split(/\r?\n/);
+    lines.forEach((line, i) => {
+      const m = line.match(/^\s*\.\.\s+include::\s*(\S+)\s*$/);
+      if (!m) return;
+      for (let j = i + 1; /^\s+:[\w-]+:/.test(lines[j] ?? ""); j++) {
+        if (/^\s+:(literal|code):/.test(lines[j])) return;
+      }
+      included.set(path.resolve(path.dirname(file), m[1]), file);
+    });
+  }
+  return new Map(
+    rst
+      .filter((f) => {
+        const rel = path
+          .relative(M.sphinxRoot, f)
+          .replace(/\.rst$/, "")
+          .split(path.sep)
+          .join("/");
+        return included.has(path.resolve(f)) && !tocTargets.has(rel);
+      })
+      .map((f) => [f, /** @type {string} */ (included.get(path.resolve(f)))]),
+  );
+}
+
+/** Copy the module's generated sidebar (every meta.json outside the rebuilt
+ * `api/` folder, plus the nav-titles and nav-nesting sidecars) into a merged
+ * backport's docs dir, so the nav survives once its RST toctrees are deleted.
+ * @param {string} name @param {string} outDir */
+function writeFrozenNav(name, outDir) {
+  const root = path.join(outputRoot, M.routeBase);
+  /** @param {string} dir */
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      const rel = path.relative(root, full);
+      if (entry.isDirectory()) {
+        if (rel !== M.apiSubdir) walk(full);
+      } else if (entry.name === "meta.json") {
+        fs.mkdirSync(path.dirname(path.join(outDir, rel)), { recursive: true });
+        fs.copyFileSync(full, path.join(outDir, rel));
+      }
+    }
+  };
+  walk(root);
+  for (const sidecar of ["nav-titles", "nav-nesting", "route-redirects"]) {
+    const file = path.join(outputRoot, `${name}-${sidecar}.json`);
+    if (fs.existsSync(file)) fs.copyFileSync(file, path.join(outDir, `${sidecar}.json`));
+  }
+}
 
 /** Inline Fumadocs `<include>./file.mdx</include>` lines (paths relative to the
  * including file), recursively.
@@ -5974,12 +6081,17 @@ function execBlocks(text) {
 }
 
 /**
- * Run the ```` ```python exec ```` blocks of staged MDX pages, each page as one
- * notebook (one kernel, top to bottom, like `jupyter-execute`), and write the
- * outputs after each block. Results are cached under `<cacheRoot>/.mdx-exec/`.
- * @param {DocsModule} mod @param {{ rel: string, dest: string }[]} pages
+ * Run the ```` ```python exec ```` blocks of a merged backport's committed MDX,
+ * each page (with its `<include>`s inlined) as one notebook — one kernel, top to
+ * bottom, like `jupyter-execute` — and write the outputs after each block in the
+ * staged copies. execute_notebooks.py reads the MDX itself, so a build stage
+ * with only the product's Python env can produce the cache
+ * (`<cacheRoot>/.mdx-exec/<module>/<page>.mdx.ipynb`), keyed on the SHA-256 of
+ * the page with its includes inlined.
+ * @param {DocsModule} mod @param {string} src committed MDX dir
+ * @param {{ rel: string, dest: string }[]} pages staged pages
  */
-function executeStagedBlocks(mod, pages) {
+function executeStagedBlocks(mod, src, pages) {
   const runnable = pages
     .map((p) => ({ ...p, text: fs.readFileSync(p.dest, "utf8") }))
     .filter((p) => execBlocks(p.text).length > 0);
@@ -5989,43 +6101,22 @@ function executeStagedBlocks(mod, pages) {
       `[generate-docs] ${mod.name}: ${runnable[0].rel} has \`python exec\` blocks but the module has no executeBlocks config`,
     );
   }
-  const srcRoot = path.join(cacheRoot, ".mdx-exec-src", mod.name);
-  fs.rmSync(srcRoot, { recursive: true, force: true });
-  for (const p of runnable) {
-    const file = path.join(srcRoot, p.rel.replace(/\.mdx$/, ".ipynb"));
-    const nb = {
-      cells: execBlocks(p.text).map((source) => ({
-        cell_type: "code",
-        execution_count: null,
-        metadata: {},
-        outputs: [],
-        source,
-      })),
-      metadata: {
-        kernelspec: { name: "python3", display_name: "Python 3", language: "python" },
-        language_info: { name: "python" },
-      },
-      nbformat: 4,
-      nbformat_minor: 4,
-    };
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, `${JSON.stringify(nb, null, 1)}\n`, "utf8");
-  }
   const outDir = runNotebookExecutor(
     mod.name,
     mod.executeBlocks,
-    srcRoot,
+    src,
     path.join(cacheRoot, ".mdx-exec", mod.name),
     [],
   );
   for (const p of runnable) {
-    const nbRel = p.rel.replace(/\.mdx$/, ".ipynb");
-    const executed = JSON.parse(fs.readFileSync(path.join(outDir, nbRel), "utf8"));
-    const digest = createHash("sha256")
-      .update(fs.readFileSync(path.join(srcRoot, nbRel)))
-      .digest("hex");
+    const file = path.join(outDir, `${p.rel}.ipynb`);
+    if (!fs.existsSync(file)) {
+      throw new Error(`[generate-docs] ${mod.name}: ${p.rel} was not executed (no ${file})`);
+    }
+    const executed = JSON.parse(fs.readFileSync(file, "utf8"));
+    const digest = createHash("sha256").update(p.text).digest("hex");
     if (executed.metadata?.docs_build?.source_sha256 !== digest) {
-      throw new Error(`executed copy is out of date: ${path.join(outDir, nbRel)}`);
+      throw new Error(`executed copy is out of date: ${file}`);
     }
     const key = `${p.rel.replace(/\.mdx$/, "")}/_exec`;
     fs.writeFileSync(p.dest, spliceExecOutputs(p.text, executed.cells, key), "utf8");
@@ -6179,6 +6270,8 @@ function convertModule(mod) {
     force: true,
   });
   fs.rmSync(M.assetRoot, { recursive: true, force: true });
+  // Redirects are rebuilt (or restaged) every run: a stale one would shadow a page.
+  fs.rmSync(path.join(outputRoot, `${mod.name}-route-redirects.json`), { force: true });
   // A `merged` backport authors its prose in the module repo but still builds
   // notebook/API pages from code. Stage the committed prose into the freshly
   // cleaned tree so both halves end up in one collection, and take the frozen
@@ -6203,7 +6296,7 @@ function convertModule(mod) {
       frozenPages.add(page);
       if (page.endsWith("/index")) frozenPages.add(page.slice(0, -"/index".length));
     }
-    executeStagedBlocks(mod, staged.pages);
+    executeStagedBlocks(mod, src, staged.pages);
     try {
       frozen = JSON.parse(
         fs.readFileSync(path.join(src, "xref-manifest.json"), "utf8"),
@@ -6213,12 +6306,23 @@ function convertModule(mod) {
     }
   }
   // Pages being (re)frozen are converted from their RST even when committed.
-  const freezePages = new Set(mod.freeze?.pages ?? []);
+  const freezePatterns = (mod.freeze?.pages ?? []).map((p) => ({ p, re: pageGlob(p) }));
+  const freezeExclude = (mod.freeze?.exclude ?? []).map(pageGlob);
+  /** @param {string} rel */
+  const isFreezePage = (rel) =>
+    freezePatterns.some(({ re }) => re.test(rel)) &&
+    !freezeExclude.some((re) => re.test(rel));
+  /** @type {Set<string>} freeze patterns that matched a converted RST page */
+  const freezeUsed = new Set();
   /** @type {string[]} */
   const files = [];
   // A merged backport's committed pages are skipped in the conversion loop, but
   // any RST still present is indexed so links into and out of it resolve live.
   collectRst(contentRoot, files);
+  // RST pages that only exist to be `.. include::`d into another page (and are in
+  // no toctree) are part of that page, not pages of their own.
+  const includedOnly = includedOnlyPages(files);
+  files.splice(0, files.length, ...files.filter((f) => !includedOnly.has(f)));
 
   // MyST sidebar planning preserves source paths; RST uses runtime re-parenting.
   outputMap = new Map();
@@ -6296,7 +6400,7 @@ function convertModule(mod) {
       .replace(/\.(rst|ipynb|md)$/, "")
       .split(path.sep)
       .join("/");
-    if (frozenPages.has(relNoExt) && !freezePages.has(relNoExt)) {
+    if (frozenPages.has(relNoExt) && !isFreezePage(relNoExt)) {
       convertedPages.add(relNoExt);
       continue;
     }
@@ -6377,12 +6481,12 @@ function convertModule(mod) {
           return withFrontmatter(displayMath(mdxSafe(withComponents)), out);
         };
         markdown = rstPage();
-        if (freezePages.has(relNoExt)) {
+        if (isFreezePage(relNoExt)) {
           /** @type {string[]} */
           const includes = [];
           const frozenMd = unlinkHeadings(rstPage({ includes }));
           writeFrozenPage(path.relative(M.routeBase, out).split(path.sep).join("/"), frozenMd, includes);
-          freezePages.delete(relNoExt);
+          for (const { p, re } of freezePatterns) if (re.test(relNoExt)) freezeUsed.add(p);
         }
       }
     } catch (err) {
@@ -6801,6 +6905,20 @@ function convertModule(mod) {
     "utf8",
   );
 
+  // Folded-in included pages were standalone pages under Sphinx; send their old
+  // URLs to the page that includes them.
+  const redirectsFile = path.join(outputRoot, `${mod.name}-route-redirects.json`);
+  const redirects = stagedJson(redirectsFile);
+  /** @param {string} file */
+  const relOf = (file) =>
+    path.relative(M.sphinxRoot, file).replace(/\.rst$/, "").split(path.sep).join("/");
+  for (const [page, includer] of includedOnly) {
+    redirects[navUrl(relOf(page))] = navUrl(relOf(includer));
+  }
+  if (Object.keys(redirects).length) {
+    fs.writeFileSync(redirectsFile, `${JSON.stringify(redirects, null, 2)}\n`, "utf8");
+  }
+
   // Cross-reference bridge for backporting a module to committed MDX. Once the
   // prose is frozen and its RST deleted, the ONGOING notebook/API build steps
   // lose the in-memory indexes they resolve against, so persist them here.
@@ -6828,9 +6946,11 @@ function convertModule(mod) {
   );
   if (mod.freeze) {
     fs.writeFileSync(path.join(mod.freeze.outDir, "xref-manifest.json"), manifest, "utf8");
-    if (freezePages.size) {
+    if (mod.freeze.nav) writeFrozenNav(mod.name, mod.freeze.outDir);
+    const unused = freezePatterns.filter(({ p }) => !freezeUsed.has(p));
+    if (unused.length) {
       console.warn(
-        `[generate-docs] ${mod.name}: not frozen (no RST page converted): ${[...freezePages].join(", ")}`,
+        `[generate-docs] ${mod.name}: froze no RST page for: ${unused.map(({ p }) => p).join(", ")}`,
       );
     }
   }

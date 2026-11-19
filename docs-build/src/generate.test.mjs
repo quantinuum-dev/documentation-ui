@@ -370,6 +370,45 @@ test("freezing writes exec blocks and include partials that staging re-inlines",
   assert.deepEqual(meta.pages, ["page", "other"]);
 });
 
+test("included-only RST pages fold into their includer, labels and all", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-included-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   host\n   other\n");
+  fs.writeFileSync(path.join(source, "host.rst"), "Host\n====\n\n.. include:: part.rst\n");
+  fs.writeFileSync(path.join(source, "part.rst"), ".. _part-label:\n\nPart\n----\n\nText.\n");
+  fs.writeFileSync(path.join(source, "other.rst"), "Other\n=====\n\nSee :ref:`part-label`.\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  assert.equal(fs.existsSync(path.join(output, "fixture/part.mdx")), false);
+  assert.match(fs.readFileSync(path.join(output, "fixture/host.mdx"), "utf8"), /^## Part\s*$/m);
+  assert.match(fs.readFileSync(path.join(output, "fixture/other.mdx"), "utf8"),
+    /\[Part\]\(\/fixture\/host\/?#part\)/);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(output, "fixture-route-redirects.json"), "utf8")),
+    { "/fixture/part": "/fixture/host" });
+});
+
+test("freeze globs honour exclude and can write the sidebar", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-freeze-glob-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const committed = path.join(root, "docs");
+  const output = path.join(root, "output");
+  fs.mkdirSync(path.join(source, "guide"), { recursive: true });
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   guide/a\n   guide/b\n");
+  fs.writeFileSync(path.join(source, "guide", "a.rst"), "A\n=\n\nText.\n");
+  fs.writeFileSync(path.join(source, "guide", "b.rst"), "B\n=\n\nText.\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst",
+    freeze: { pages: ["guide/*"], exclude: ["guide/b"], outDir: committed, nav: true } }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  assert.ok(fs.existsSync(path.join(committed, "guide/a.mdx")));
+  assert.equal(fs.existsSync(path.join(committed, "guide/b.mdx")), false);
+  assert.ok(fs.existsSync(path.join(committed, "meta.json")));
+  assert.ok(fs.existsSync(path.join(committed, "nav-titles.json")));
+});
+
 test("page titles drop pandoc's Markdown escapes", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-title-escape-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
