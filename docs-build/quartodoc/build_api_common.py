@@ -34,13 +34,26 @@ Patches applied on import (quartodoc 0.11.1):
 * No member summary tables. ``build`` strips the ``Classes``/``Methods``/
   ``Functions`` summary tables; each member is documented in full below them and
   the site's page contents already lists them.
+
+A section may also give ``autosummary:`` roots (module names relative to the
+quartodoc ``package``, or ``{name, package}`` mappings; omit ``name`` for the
+package itself). ``build`` expands each root into module entries the way the
+Sphinx docs' ``.. autosummary:: :recursive:`` does with
+``autosummary_ignore_module_all = False``:
+
+* a package with ``__all__`` documents just those names (re-exports included)
+  and recurses only into submodules named in it;
+* a package without ``__all__`` recurses into every public submodule.
 """
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
+import griffe
 import quartodoc.ast as qast
+import yaml
 from quartodoc import Builder
 from quartodoc import parsers as _qd_parsers
 from quartodoc.renderers.md_renderer import MdRenderer, ParamRow, dc, ds
@@ -236,9 +249,120 @@ _RE_SUMMARY_TABLE = re.compile(
 )
 
 
-def build(config: str = "_quarto.yml") -> None:
-    """Run the quartodoc build in the current directory (patches applied on import)."""
-    builder = Builder.from_quarto_config(config)
+def _is_namespace_only(mod: griffe.Module) -> bool:
+    """True for a package with nothing to document but its docstring."""
+    return mod.exports is None and not any(
+        not member.is_alias and not member.is_module and not name.startswith("_")
+        for name, member in mod.members.items()
+    )
+
+
+def _exports(mod: griffe.Module) -> set[str] | None:
+    """``__all__`` names; a spliced-in ``submodule.__all__`` counts as ``submodule``.
+
+    Neither griffe nor quartodoc expands ``__all__ = [...] + sub.__all__`` (or
+    the ``from .sub import *`` that usually goes with it), so those names are
+    documented on the submodule's own page instead of the package's.
+    """
+    if mod.exports is None:
+        return None
+    names: set[str] = set()
+    for item in mod.exports:
+        name = str(item)
+        target = "" if isinstance(item, str) else mod.imports.get(name, "")
+        if target.endswith(".__all__"):
+            name = target.removesuffix(".__all__").removeprefix(f"{mod.path}.")
+        names.add(name)
+    return names
+
+
+def _walk_modules(mod: griffe.Module, rel: str):
+    """Yield ``(name relative to the package, entry, namespace-only?)`` per module."""
+    exports = _exports(mod)
+    submodules = {
+        name: member
+        for name, member in mod.members.items()
+        if not member.is_alias and member.is_module
+    }
+
+    entry: dict = {"name": rel}
+    if exports is not None:
+        entry["include_imports"] = True
+        # Submodules named in __all__ get their own entry below.
+        if exclude := sorted(exports & submodules.keys()):
+            entry["exclude"] = exclude
+    yield rel, entry, _is_namespace_only(mod)
+
+    for name in sorted(submodules):
+        sub = submodules[name]
+        sub_rel = f"{rel}.{name}" if rel else name
+        if exports is None:
+            if not name.startswith("_"):
+                yield from _walk_modules(sub, sub_rel)
+        elif name in exports:
+            # `from .x import x`: at runtime __all__'s `x` is the object, which
+            # griffe hides behind the submodule, so document just that object.
+            if mod.imports.get(name) == f"{sub.path}.{name}":
+                yield sub_rel, {"name": sub_rel, "members": [name]}, False
+            else:
+                yield from _walk_modules(sub, sub_rel)
+
+
+def _load(package: str, cache: dict[str, griffe.Module]) -> griffe.Module:
+    if package not in cache:
+        cache[package] = griffe.load(package)
+    return cache[package]
+
+
+def _expand_autosummary(qd: dict, *, complete: bool) -> None:
+    """Replace each section's ``autosummary`` roots with the modules they reach.
+
+    With ``complete``, exit if a module reachable from the package root (and
+    with more than a docstring) is missing from every section.
+    """
+    default = qd["package"]
+    cache: dict[str, griffe.Module] = {}
+    covered = set()
+
+    for section in qd["sections"]:
+        roots = section.pop("autosummary", None)
+        if roots is None:
+            continue
+        contents = section.setdefault("contents", [])
+        for root in roots:
+            root = {"name": root} if isinstance(root, str) else root
+            package = root.get("package", default)
+            name = root.get("name", "")
+            pkg = _load(package, cache)
+            for rel, entry, _ in _walk_modules(pkg[name] if name else pkg, name):
+                if package == default:
+                    covered.add(rel)
+                if not rel:
+                    # The package itself: quartodoc names it with no package prefix.
+                    entry = {**entry, "name": package, "package": None}
+                elif package != default:
+                    entry = {**entry, "package": package}
+                contents.append(entry)
+
+    if complete:
+        missing = [
+            rel
+            for rel, _, namespace_only in _walk_modules(_load(default, cache), "")
+            if rel and not namespace_only and rel not in covered
+        ]
+        if missing:
+            sys.exit(f"Add these modules to a section's autosummary: {', '.join(missing)}")
+
+
+def build(config: str = "_quarto.yml", *, complete: bool = False) -> None:
+    """Run the quartodoc build in the current directory (patches applied on import).
+
+    ``complete`` checks the ``autosummary`` sections cover the whole package.
+    """
+    with open(config, encoding="utf-8") as f:
+        quarto = yaml.safe_load(f)
+    _expand_autosummary(quarto["quartodoc"], complete=complete)
+    builder = Builder.from_quarto_config(quarto)
     builder.build()
     for page in Path(builder.dir).glob("*.qmd"):
         # index.qmd is the module manifest docs-build reads; its tables stay.
