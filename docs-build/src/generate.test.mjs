@@ -203,7 +203,7 @@ test(":numref: resolves figures labelled with :name: as well as .. _label:", (co
   convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
     { outputRoot: output, publicRoot: path.join(root, "public") });
   const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
-  assert.match(generated, /See \[Fig\. 1\]\(\/fixture\/page\/?#first-fig\) and \[Fig\. 2\]\(\/fixture\/page\/?#second_fig\)\./);
+  assert.match(generated, /See \[Fig\. 1\]\(#first-fig\) and \[Fig\. 2\]\(#second_fig\)\./);
   assert.match(generated, /<img src="\/fixture-assets\/b\.png" id="second_fig"/);
   assert.doesNotMatch(generated, /label=/);
 });
@@ -323,8 +323,26 @@ test("labelled RST equations are numbered and :eq: links to them", (context) => 
   assert.match(generated, /^<a id="eq-second" \/>$/m);
   assert.match(generated, /\\end\{aligned\} \\tag\{2\}/);
   assert.match(generated,
-    /Using \[\(1\)\]\(\/fixture\/page\/?#eq-first\) and \[\(2\)\]\(\/fixture\/page\/?#eq-second\)\./);
+    /Using \[\(1\)\]\(#eq-first\) and \[\(2\)\]\(#eq-second\)\./);
   assert.doesNotMatch(generated, /u = v \\tag/);
+});
+
+test("refs to the current page become in-page hash links", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-self-refs-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source, { recursive: true });
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n   other\n");
+  fs.writeFileSync(path.join(source, "page.rst"),
+    "Page\n====\n\n.. _sec:\n\nSection\n-------\n\nSee :ref:`here <sec>`.\n");
+  fs.writeFileSync(path.join(source, "other.rst"), "Other\n=====\n\nSee :ref:`there <sec>`.\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const page = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
+  const other = fs.readFileSync(path.join(output, "fixture/other.mdx"), "utf8");
+  assert.match(page, /\[here\]\(#section\)/);
+  assert.match(other, /\[there\]\(\/fixture\/page\/#section\)/);
 });
 
 test("freezing writes exec blocks and include partials that staging re-inlines", (context) => {

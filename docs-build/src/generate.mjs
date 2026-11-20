@@ -1133,7 +1133,7 @@ function intersphinxRefUrl(target) {
  * @param {string} md @param {DocIndex} index @param {string} currentRelNoExt
  * @param {string} nbSrc @returns {string} */
 function resolveMystRoles(md, index, currentRelNoExt, nbSrc) {
-  return md.replace(/\{([\w:+-]+)\}`([^`]+)`/g, (_full, role, body) => {
+  const resolved = md.replace(/\{([\w:+-]+)\}`([^`]+)`/g, (_full, role, body) => {
     const m = body.match(/^([\s\S]*?)\s*<([^<>]+)>$/); // "text <target>"
     const text = (m ? m[1] : body).replace(/\s+/g, " ").trim();
     const target = (m ? m[2] : body).trim();
@@ -1153,7 +1153,7 @@ function resolveMystRoles(md, index, currentRelNoExt, nbSrc) {
       /^py:/.test(role) ||
       /^(class|func|meth|mod|attr|obj|data|exc)$/.test(role)
     ) {
-      const short = target.replace(/^~/, "").split(/[.#:]/).pop() || target;
+      const short = text && m ? text : target.replace(/^~/, "").split(/[.#:]/).pop() || target;
       const sym = resolvePySymbol(target);
       return sym ? `[\`${short}\`](${sym.url}#${sym.anchor})` : `\`${short}\``;
     }
@@ -1188,6 +1188,7 @@ function resolveMystRoles(md, index, currentRelNoExt, nbSrc) {
     }
     return text;
   });
+  return samePageAnchors(resolved, currentRelNoExt);
 }
 
 /** Lift a MyST `(label)=` anchor that Quarto glued onto its following heading
@@ -2932,6 +2933,15 @@ function urlForRel(rel) {
   return `/${M.routeBase}/${parts.join("/")}/`.replace(/\/{2,}/g, "/");
 }
 
+/** Turn links to the current page into bare `#anchor` links, as Sphinx does.
+ * Next.js does not scroll for a full-URL hash link when the URL is unchanged
+ * or differs only by the trailing slash; a hash-only link always scrolls.
+ * @param {string} md @param {string} currentRelNoExt @returns {string} */
+function samePageAnchors(md, currentRelNoExt) {
+  const self = escapeRegExp(urlForRel(currentRelNoExt).replace(/\/$/, ""));
+  return md.replace(new RegExp(`(\\]\\(|href=")${self}/?#`, "g"), "$1#");
+}
+
 /** Page URL without a trailing slash, to match fumadocs page-tree node URLs.
  * @param {string} rel @returns {string} */
 function navUrl(rel) {
@@ -3293,7 +3303,7 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
       /^py:/.test(role) ||
       /^(class|func|meth|mod|attr|obj|data|exc)$/.test(role)
     ) {
-      const short = target.replace(/^~/, "").split(/[.#]/).pop() || target;
+      const short = linkText || target.replace(/^~/, "").split(/[.#]/).pop() || target;
       const sym = resolvePySymbol(target);
       return sym ? `[\`${short}\`](${sym.url}#${sym.anchor})` : `\`${short}\``;
     }
@@ -3336,7 +3346,7 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
     }
     return `[${linkText || title}](${urlForRel(docRel)})`;
   };
-  return (
+  const resolved = (
     md
       .replace(
         /`([^`]+)`\{\.interpreted-text role="([\w:+-]+)"\}/g,
@@ -3363,6 +3373,7 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
         "",
       )
   );
+  return samePageAnchors(resolved, currentRelNoExt);
 }
 
 /** Placeholder for a toctree entry without a generated page; its list item is removed. */

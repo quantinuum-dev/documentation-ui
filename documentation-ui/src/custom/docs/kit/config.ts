@@ -4,6 +4,7 @@ import rehypeKatex from 'rehype-katex'
 import remarkMath from 'remark-math'
 import type { PluggableList } from 'unified'
 
+import { remarkCodeLangAlias } from './remark-code-lang-alias'
 import { remarkDarkImages } from './remark-dark-images'
 import { remarkMathParagraphs } from './remark-math-paragraphs'
 import { quantinuumDark, quantinuumLight } from './shiki-theme'
@@ -23,29 +24,31 @@ export const docsRehypeCodeOptions: RehypeCodeOptions = {
   // Unknown code-fence languages from converted RST (e.g. `dmesg`, `console`)
   // fall back to plaintext instead of crashing Shiki.
   fallbackLanguage: 'text',
-  // Tolerate leftover MyST/RST fence "languages" from conversion so Shiki
-  // doesn't crash on unknown/directive identifiers.
-  langAlias: {
-    ...rehypeCodeDefaultOptions.langAlias,
-    'eval-rst': 'plaintext',
-    '{eval-rst}': 'plaintext',
-    '{toctree}': 'plaintext',
-    '{note}': 'plaintext',
-    '{warning}': 'plaintext',
-    '{code-cell}': 'plaintext',
-    '{code}': 'plaintext',
-    // Shell grammars fail to lazy-load under the custom-theme highlighter and
-    // hard-crash the build (fallbackLanguage only covers *unknown* langs), so
-    // render them as plaintext for now.
-    bash: 'plaintext',
-    sh: 'plaintext',
-    shell: 'plaintext',
-    zsh: 'plaintext',
-    console: 'plaintext',
-    shellsession: 'plaintext',
-    'shell-session': 'plaintext',
-    dmesg: 'plaintext',
-  },
+  // No `langAlias` here: it makes rehypeCode create a highlighter per MDX file.
+  // Aliases are applied by remarkCodeLangAlias instead.
+}
+
+// Tolerate leftover MyST/RST fence "languages" from conversion so Shiki
+// doesn't crash on unknown/directive identifiers.
+const codeLangAlias: Record<string, string> = {
+  'eval-rst': 'plaintext',
+  '{eval-rst}': 'plaintext',
+  '{toctree}': 'plaintext',
+  '{note}': 'plaintext',
+  '{warning}': 'plaintext',
+  '{code-cell}': 'plaintext',
+  '{code}': 'plaintext',
+  // Shell grammars fail to lazy-load under the custom-theme highlighter and
+  // hard-crash the build (fallbackLanguage only covers *unknown* langs), so
+  // render them as plaintext for now.
+  bash: 'plaintext',
+  sh: 'plaintext',
+  shell: 'plaintext',
+  zsh: 'plaintext',
+  console: 'plaintext',
+  shellsession: 'plaintext',
+  'shell-session': 'plaintext',
+  dmesg: 'plaintext',
 }
 
 /**
@@ -64,7 +67,13 @@ export interface DocsMdxOptions {
 export const docsMdxOptions: DocsMdxOptions = {
   // remarkDarkImages must precede Fumadocs' remarkImage; remarkMath keeps its
   // previous place after the preset's syntax extensions.
-  remarkPlugins: (plugins) => [remarkDarkImages, ...plugins, remarkMath, remarkMathParagraphs],
+  remarkPlugins: (plugins) => [
+    remarkDarkImages,
+    remarkCodeLangAlias(codeLangAlias),
+    ...plugins,
+    remarkMath,
+    remarkMathParagraphs,
+  ],
   rehypePlugins: (plugins) => [rehypeKatex, ...plugins],
   rehypeCodeOptions: docsRehypeCodeOptions,
 }
