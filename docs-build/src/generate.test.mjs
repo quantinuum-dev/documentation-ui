@@ -95,7 +95,7 @@ test("visible toctrees render as link lists and hidden ones are dropped", (conte
   convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
     { outputRoot: output, publicRoot: path.join(root, "public") });
   const generated = fs.readFileSync(path.join(output, "fixture/guide.mdx"), "utf8");
-  assert.match(generated, /## Examples\n\n- \[Page first\]\(\/fixture\/first\/\)\n- \[Second one\]\(\/fixture\/second\/\)\n- \[Site\]\(https:\/\/example\.com\/\)\n/);
+  assert.match(generated, /## Examples\n\n- \[\]\(\.\/first\.mdx\)\n- \[Second one\]\(\.\/second\.mdx\)\n- \[Site\]\(https:\/\/example\.com\/\)\n/);
   assert.doesNotMatch(generated, /missing|third|toctree/);
 });
 
@@ -119,7 +119,7 @@ test("a page that is only a title and toctree just feeds the sidebar", (context)
   assert.equal(tree[0].index, undefined);
   assert.deepEqual(tree[0].children.map((/** @type {any} */ c) => c.url), ["/fixture/examples/a", "/fixture/examples/b"]);
   const links = fs.readFileSync(path.join(output, "fixture/links.mdx"), "utf8");
-  assert.match(links, /\[Examples Gallery\]\(\/fixture\/examples\/a\/\)/);
+  assert.match(links, /\[Examples Gallery\]\(\.\/examples\/a\.mdx\)/);
 });
 
 test("MyST shared children and external-only groups do not override canonical routes", (context) => {
@@ -250,7 +250,7 @@ test(":numref: resolves figures labelled with :name: as well as .. _label:", (co
   assert.doesNotMatch(generated, /label=/);
 });
 
-test("commented-out includes are not inlined; toctree titles shorten py roles", (context) => {
+test("commented-out includes are not inlined; toctree entries take the page title", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-comment-include-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const source = path.join(root, "source");
@@ -265,7 +265,10 @@ test("commented-out includes are not inlined; toctree titles shorten py roles", 
     { outputRoot: output, publicRoot: path.join(root, "public") });
   const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
   assert.doesNotMatch(generated, /Child body text/);
-  assert.match(generated, /\[Alpha and Beta\]\(\/fixture\/child\/?\)/);
+  assert.match(generated, /^- \[\]\(\.\/child\.mdx\)$/m);
+  // Sphinx's display for the roles: `~` shortens, a bare target stays in full.
+  assert.match(fs.readFileSync(path.join(output, "fixture/child.mdx"), "utf8"),
+    /^title: "Alpha and pkg\.Beta"$/m);
 });
 
 test("RST :sup: and :sub: become HTML tags", (context) => {
@@ -322,6 +325,50 @@ test("apiGroups splits an RST module's API sidebar into folders", (context) => {
     /\[`Viewer`\]\(#pkg\.extensions\.viz\.Viewer\)/);
 });
 
+test("apiPagePerSection renders each API section as one page of module sections", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-api-sections-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const apiSource = path.join(root, "api");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.mkdirSync(apiSource);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  fs.writeFileSync(path.join(source, "page.rst"), "Page\n====\n\nUses :class:`~pkg.multi.b.B` and :mod:`pkg.emb`.\n");
+  fs.writeFileSync(path.join(apiSource, "index.qmd"), [
+    "# API", "",
+    "## pkg.core", "", "[core](core.qmd)", "",
+    "## pkg.emb", "", "[emb.dmet](emb.dmet.qmd)", "",
+    "## pkg.multi", "", "[multi.a](multi.a.qmd)", "[multi.b](multi.b.qmd)", "",
+    "## Pkg-Viz", "", "[extensions.viz](extensions.viz.qmd)", "[extensions.viz.fmo](extensions.viz.fmo.qmd)", "",
+  ].join("\n"));
+  const mod = (/** @type {string} */ name, /** @type {string} */ cls) =>
+    `# ${name} { #pkg.${name} }\n\nAbout ${name}.\n\n## Classes\n\n### ${cls} { #pkg.${name}.${cls} }\n\nA class.\n`;
+  fs.writeFileSync(path.join(apiSource, "core.qmd"), mod("core", "Core"));
+  fs.writeFileSync(path.join(apiSource, "emb.dmet.qmd"), mod("emb.dmet", "Dmet"));
+  fs.writeFileSync(path.join(apiSource, "multi.a.qmd"), mod("multi.a", "A"));
+  fs.writeFileSync(path.join(apiSource, "multi.b.qmd"), mod("multi.b", "B"));
+  fs.writeFileSync(path.join(apiSource, "extensions.viz.qmd"), mod("extensions.viz", "Viewer"));
+  fs.writeFileSync(path.join(apiSource, "extensions.viz.fmo.qmd"), mod("extensions.viz.fmo", "FMO"));
+  convertModules([{
+    name: "pkg", sphinxRoot: source, indexFile: "index.rst", apiSource, apiPagePerSection: true,
+    apiGroups: { title: "Pkg", groups: [{ title: "Pkg-Extensions", dir: "extensions", prefix: "extensions." }] },
+  }], { outputRoot: output, publicRoot: path.join(root, "public") });
+  const read = (/** @type {string} */ rel) => fs.readFileSync(path.join(output, "pkg/api", rel), "utf8");
+  assert.deepEqual(JSON.parse(read("meta.json")).pages, ["pkg.core", "pkg.emb", "pkg.multi"]);
+  // A section that is its own module stays a plain module page.
+  assert.match(read("pkg.core.mdx"), /^\(pkg\.core\)=$/m);
+  const emb = read("pkg.emb.mdx");
+  assert.match(emb, /^title: "pkg\.emb"$/m);
+  assert.match(emb, /^\(pkg\.emb\)=$/m);
+  assert.match(emb, /^## emb\.dmet \[#pkg\.emb\.dmet\]$/m);
+  assert.doesNotMatch(emb, /## Classes/);
+  assert.match(read("pkg.multi.mdx"), /## multi\.a \[#pkg\.multi\.a\][\s\S]*## multi\.b \[#pkg\.multi\.b\]/);
+  assert.match(read("extensions/viz.mdx"), /### Viewer[\s\S]*## extensions\.viz\.fmo \[#pkg\.extensions\.viz\.fmo\]/);
+  assert.match(fs.readFileSync(path.join(output, "pkg/page.mdx"), "utf8"),
+    /\[`B`\]\(#pkg\.multi\.b\.B\) and \[\]\(#pkg\.emb\)/);
+});
+
 test("Python roles become MyST refs that keep Sphinx's display text", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-py-refs-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -351,6 +398,57 @@ test("Python roles become MyST refs that keep Sphinx's display text", (context) 
   assert.match(page, /method \[`run\(\)`\]\(#pkg\.core\.Thing\.run\)/);
   assert.match(page, /titled \[`a thing`\]\(#pkg\.core\.Thing\)/);
   assert.match(page, /missing `pkg\.core\.Gone`/);
+});
+
+test("labels atop nested Sphinx API pages point at their module's API page", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-api-labels-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const apiSource = path.join(root, "api");
+  const output = path.join(root, "output");
+  fs.mkdirSync(path.join(source, "api/pkg"), { recursive: true });
+  fs.mkdirSync(apiSource);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  fs.writeFileSync(path.join(source, "page.rst"), "Page\n====\n\nSee :ref:`the core <core-api>`.\n");
+  fs.writeFileSync(path.join(source, "api/pkg/core.rst"),
+    ".. _core-api:\n\npkg.core\n========\n\n.. automodule:: pkg.core.impl\n");
+  fs.writeFileSync(path.join(apiSource, "index.qmd"), "# API\n\n## pkg.core.impl\n\n[impl](core.impl.qmd)\n");
+  fs.writeFileSync(path.join(apiSource, "core.impl.qmd"), "# impl { #pkg.core.impl }\n\nText.\n");
+  convertModules([{ name: "pkg", sphinxRoot: source, indexFile: "index.rst", apiSource }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const page = fs.readFileSync(path.join(output, "pkg/page.mdx"), "utf8");
+  assert.match(page, /\[the core\]\(\/pkg\/api\/[^)#]*#pkg\.core\.impl\)/);
+});
+
+test("links to autosummary pages become API refs; paths re-entering the docs resolve", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-autosummary-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "sphinx");
+  const apiSource = path.join(root, "api");
+  const output = path.join(root, "output");
+  fs.mkdirSync(path.join(source, "guide"), { recursive: true });
+  fs.mkdirSync(apiSource);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nguide/page\nother\n```\n");
+  fs.writeFileSync(path.join(source, "other.md"), "# Other\n\nText.\n");
+  fs.writeFileSync(path.join(source, "guide/page.md"), [
+    "# Page", "",
+    "Use [Thing](../api/generated/pkg.core.Thing.rst),",
+    "[core](https://docs.quantinuum.com/pkg/api/generated/pkg.core.html),",
+    "[gone](../api/generated/pkg.core.Gone.rst) and [other](../../sphinx/other.md).", "",
+    "Bare [Thing too](../api/generated/pkg.core.Thing) and [the page](../api/pkg.core.md).", "",
+  ].join("\n"));
+  fs.writeFileSync(path.join(apiSource, "index.qmd"), "# API\n\n## pkg.core\n\n[core](core.qmd)\n");
+  fs.writeFileSync(path.join(apiSource, "core.qmd"),
+    "# core { #pkg.core }\n\n### Thing { #pkg.core.Thing }\n\nA thing.\n");
+  convertModules([{ name: "pkg", sphinxRoot: source, indexFile: "index.md", markdown: true, apiSource }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const page = fs.readFileSync(path.join(output, "pkg/guide/page.mdx"), "utf8");
+  assert.match(page, /Use \[Thing\]\(#pkg\.core\.Thing\),/);
+  assert.match(page, /\[core\]\(\/pkg\/api\/pkg\.core#pkg\.core\),/);
+  // An undocumented object links to its nearest documented parent.
+  assert.match(page, /\[gone\]\(\/pkg\/api\/pkg\.core#pkg\.core\)/);
+  assert.match(page, /\[other\]\(\.\.\/other\.mdx\)/);
+  assert.match(page, /Bare \[Thing too\]\(#pkg\.core\.Thing\) and \[the page\]\(\.\.\/api\/pkg\.core\.mdx\)\./);
 });
 
 test("a multi-equation RST math block becomes one aligned/gathered display", (context) => {
@@ -422,7 +520,7 @@ test("refs and relative .html links to a page resolve, in-page ones to hashes", 
   assert.match(other, /\[Docs\]\(\/fixture\/\)/);
   assert.match(other, /\[\]\(#two%20words\)/);
   assert.match(page, /^\(two words\)=$/m);
-  assert.match(other, /\[that\]\(\/fixture\/page\/#section\)/);
+  assert.match(other, /\[that\]\(\.\/page\.mdx#section\)/);
 });
 
 test("freezing writes exec blocks and include partials that staging re-inlines", (context) => {
@@ -438,9 +536,11 @@ test("freezing writes exec blocks and include partials that staging re-inlines",
   fs.writeFileSync(path.join(source, "page.rst"), [
     "Page", "====", "",
     "Intro.", "",
+    ".. image:: page/pic.png", "",
     ".. include:: page/part.rst.inc", "",
     ".. code-block:: python", "", "   y = 3", "",
   ].join("\n"));
+  fs.writeFileSync(path.join(source, "page", "pic.png"), "png");
   fs.writeFileSync(path.join(source, "other.rst"), "Other\n=====\n\nText.\n");
   const mod = { name: "fixture", sphinxRoot: source, indexFile: "index.rst" };
   const roots = { outputRoot: output, publicRoot: path.join(root, "public") };
@@ -454,6 +554,12 @@ test("freezing writes exec blocks and include partials that staging re-inlines",
   assert.doesNotMatch(part, /^#/m);
   assert.match(part, /^```python exec\nx = 2\n```$/m);
   assert.equal(fs.existsSync(path.join(committed, "xref-manifest.json")), false);
+  // What `docs-build cutover` renames into each frozen file.
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(committed, "freeze-sources.json"), "utf8")), {
+    "page.mdx": "../source/page.rst",
+    "page/_part.mdx": "../source/page/part.rst.inc",
+    "public/fixture-assets/page/pic.png": "../source/page/pic.png",
+  });
   assert.doesNotMatch(fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8"), /exec|<include>/);
 
   // Without executeBlocks a page with exec blocks is an error, so drop the block
@@ -471,7 +577,7 @@ test("freezing writes exec blocks and include partials that staging re-inlines",
   assert.doesNotMatch(staged, /<include>/);
   assert.equal(fs.existsSync(path.join(output, "fixture/page/_part.mdx")), false);
   const other = fs.readFileSync(path.join(output, "fixture/other.mdx"), "utf8");
-  assert.match(other, /See \[\]\(#part-label\), \[Page\]\(\/fixture\/page\/\) and \[big word\]\(\/fixture\/page\/#term-big-word\)\./);
+  assert.match(other, /See \[\]\(#part-label\), \[\]\(\.\/page\.mdx\) and \[big word\]\(\/fixture\/page\/#term-big-word\)\./);
   const xref = JSON.parse(fs.readFileSync(path.join(output, "fixture-xref-manifest.json"), "utf8"));
   assert.deepEqual(xref.labels["part-label"],
     { url: "/fixture/page/", anchor: "part-x", title: "Part x", defined: true });

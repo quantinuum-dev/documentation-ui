@@ -5,6 +5,9 @@
 //   docs-build                      use ./docs-build.config.json
 //   docs-build --config <file>      use another config
 //   docs-build --skip-api           reuse the existing quartodoc output
+//   docs-build cutover <freeze dir> [--dry-run]
+//                                   replace frozen MDX with its git-moved sources
+//                                   (see src/cutover.mjs)
 //
 // Config (paths are relative to the config file):
 //   {
@@ -33,6 +36,23 @@ import { convertModules } from "../src/generate.mjs";
 
 const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const quartodocCommon = path.join(packageDir, "quartodoc");
+
+if (process.argv[2] === "cutover") {
+  const args = process.argv.slice(3);
+  const dir = args.find((a) => !a.startsWith("--"));
+  if (!dir) {
+    console.error("usage: docs-build cutover <freeze dir> [--dry-run]");
+    process.exit(1);
+  }
+  const { cutover } = await import("../src/cutover.mjs");
+  try {
+    cutover(dir, { dryRun: args.includes("--dry-run") });
+  } catch (err) {
+    console.error(`docs-build: ${/** @type {Error} */ (err).message}`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
 
 const argv = process.argv.slice(2);
 const configIndex = argv.indexOf("--config");

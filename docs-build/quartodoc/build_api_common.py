@@ -31,9 +31,14 @@ Patches applied on import (quartodoc 0.11.1):
   and default under the description); unnamed Returns/Yields drop the name
   column, and Raises/Warns use ``Type | Description``. This replaces quartodoc's
   wide ``Name | Type | Description | Default``.
-* No member summary tables. ``build`` strips the ``Classes``/``Methods``/
-  ``Functions`` summary tables; each member is documented in full below them and
-  the site's page contents already lists them.
+* No member summary tables. ``build`` strips the ``Attributes``/``Classes``/
+  ``Methods``/``Functions`` summary tables; each member is documented in full
+  below them (attributes too, which quartodoc only summarises, leaving the
+  table's links without targets) and the site's page contents already lists them.
+
+A content entry may give ``extra_members``: names its module imports but leaves
+out of ``__all__`` (as a Sphinx page's ``.. autoclass::`` lines can document);
+``build`` turns them into an explicit ``members`` list with ``__all__``.
 
 A section may also give ``autosummary:`` roots (module names relative to the
 quartodoc ``package``, or ``{name, package}`` mappings; omit ``name`` for the
@@ -54,9 +59,9 @@ from pathlib import Path
 import griffe
 import quartodoc.ast as qast
 import yaml
-from quartodoc import Builder
+from quartodoc import Builder, layout
 from quartodoc import parsers as _qd_parsers
-from quartodoc.renderers.md_renderer import MdRenderer, ParamRow, dc, ds
+from quartodoc.renderers.md_renderer import MdRenderer, ParamRow, _has_attr_section, dc, ds
 
 # griffe's Google parser starts a NEW return item at every unindented line of a
 # `Returns:` block, so a description wrapped over several lines becomes several
@@ -242,9 +247,50 @@ def _render_table(self: MdRenderer, rows, headers, style) -> str:
 
 MdRenderer._render_table = _render_table
 
+
+def _render_doc_members(self: MdRenderer, el) -> str:
+    """quartodoc's class/module page, with attributes documented like methods."""
+    title = self.render_header(el)
+    parts = []
+    if el.members:
+        sub_header = "#" * (self.crnt_header_level + 1)
+        n_incr = 1 if el.flat else 2
+        groups = [
+            ("Attributes", [x for x in el.members if x.obj.is_attribute]),
+            ("Classes", [x for x in el.members if x.obj.is_class]),
+            (
+                "Methods" if isinstance(el, layout.DocClass) else "Functions",
+                [x for x in el.members if x.obj.is_function],
+            ),
+        ]
+        for name, members in groups:
+            # A docstring `Attributes:` section already documents them.
+            if not members or (name == "Attributes" and _has_attr_section(el.obj.docstring)):
+                continue
+            rows = "\n".join(map(self.summarize, members))
+            parts.append(f"{sub_header} {name}\n\n| Name | Description |\n| --- | --- |\n{rows}")
+            with self._increment_header(n_incr):
+                parts.extend(self.render(x) for x in members if isinstance(x, layout.Doc))
+
+    sig_part = [self.signature(el)] if self.show_signature else []
+    with self._increment_header():
+        body = self.render(el.obj)
+    return "\n\n".join([title, *sig_part, body, *parts])
+
+
+@MdRenderer.render.dispatch
+def render(self: MdRenderer, el: layout.DocClass):  # noqa: F811
+    return _render_doc_members(self, el)
+
+
+@MdRenderer.render.dispatch
+def render(self: MdRenderer, el: layout.DocModule):  # noqa: F811
+    return _render_doc_members(self, el)
+
+
 # quartodoc's member summary (`## Methods` then `| Name | Description |` rows).
 _RE_SUMMARY_TABLE = re.compile(
-    r"^(#+ (?:Classes|Methods|Functions))\n\n\| Name \| Description \|\n\| --- \| --- \|\n(?:\|[^\n]*(?:\n|$))+",
+    r"^(#+ (?:Attributes|Classes|Methods|Functions))\n\n\| Name \| Description \|\n\| --- \| --- \|\n(?:\|[^\n]*(?:\n|$))+",
     re.M,
 )
 
@@ -354,6 +400,18 @@ def _expand_autosummary(qd: dict, *, complete: bool) -> None:
             sys.exit(f"Add these modules to a section's autosummary: {', '.join(missing)}")
 
 
+def _expand_extra_members(qd: dict) -> None:
+    """Turn each content's ``extra_members`` into ``members``: ``__all__`` plus them."""
+    cache: dict[str, griffe.Module] = {}
+    for section in qd["sections"]:
+        for entry in section.get("contents", []):
+            if not isinstance(entry, dict) or "extra_members" not in entry:
+                continue
+            extra = entry.pop("extra_members")
+            mod = _load(entry.get("package") or qd["package"], cache)[entry["name"]]
+            entry["members"] = sorted((_exports(mod) or set()) | set(extra))
+
+
 def build(config: str = "_quarto.yml", *, complete: bool = False) -> None:
     """Run the quartodoc build in the current directory (patches applied on import).
 
@@ -362,6 +420,7 @@ def build(config: str = "_quarto.yml", *, complete: bool = False) -> None:
     with open(config, encoding="utf-8") as f:
         quarto = yaml.safe_load(f)
     _expand_autosummary(quarto["quartodoc"], complete=complete)
+    _expand_extra_members(quarto["quartodoc"])
     builder = Builder.from_quarto_config(quarto)
     builder.build()
     for page in Path(builder.dir).glob("*.qmd"):

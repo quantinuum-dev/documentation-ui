@@ -63,6 +63,8 @@ let logRoot = "";
  * @property {string[]} [apiProsePages] Prose pages served alongside an API-only module.
  * @property {string} [apiTitle] API sidebar folder label, or the API index page title for RST modules.
  * @property {ApiGroups} [apiGroups] Split an RST module's API sidebar into collapsible folders.
+ * @property {boolean} [apiPagePerSection] One API page per quartodoc section (as
+ *   Sphinx's hand-written API pages), instead of a folder for multi-module sections.
  * @property {boolean} [markdown] Prose is MyST markdown rather than RST.
  * @property {string[]} [skipDirs] Module-specific directories to skip.
  * @property {string} [outPrefix] Nest output + URLs under `<name>/<outPrefix>`.
@@ -730,14 +732,21 @@ function buildApiSymbolIndex(mod) {
   if (!fs.existsSync(indexPath)) return { map, shortMap, entries };
   for (const sec of parseApiIndex(indexPath)) {
     const short = sec.title.replace(new RegExp(`^${mod.name}\\.`), "");
+    const page = mod.markdown ? null : apiSectionPage(mod, sec);
+    if (page?.label) {
+      const entry = { url: page.url, anchor: page.label };
+      entries.push({ id: page.label, ...entry, depth: 1 });
+      map.set(page.label.toLowerCase(), entry);
+    }
     for (const base of sec.bases) {
       // Nexus ingests one page per index.qmd section (file); lambeq uses a flat
       // or foldered per-submodule layout.
       const url = mod.markdown
         ? `/${M.routeBase}/${M.apiSubdir}/${sec.title}`.replace(/\/{2,}/g, "/")
-        : sec.bases.length === 1
-          ? rstApiPage(mod, base).url
-          : `/${mod.name}/api/${mod.name}.${short}/${base.slice(short.length + 1)}`;
+        : (page?.url ??
+          (sec.bases.length === 1
+            ? rstApiPage(mod, base).url
+            : `/${mod.name}/api/${mod.name}.${short}/${base.slice(short.length + 1)}`));
       const qmd = path.join(mod.apiSource, `${base}.qmd`);
       if (!fs.existsSync(qmd)) continue;
       // Heading depth is quartodoc's only signal of what a symbol IS: `#` a
@@ -2418,7 +2427,7 @@ function renderToctree(body, toc) {
     for (const rel of rels) {
       const title = toc.index.titles.get(rel);
       if (title !== undefined) {
-        items.push(`- [${label ?? title}](${urlForRel(rel)})`);
+        items.push(`- ${docLink(label ?? "", rel, toc.relNoExt, "", title)}`);
       }
     }
   }
@@ -2968,28 +2977,76 @@ function navUrl(rel) {
   return urlForRel(rel).replace(/\/$/, "");
 }
 
+/** Output path (module-relative, no ext) of a source page: restructured MyST
+ * pages follow outputMap, RST section landings are their folder's `index`.
+ * @param {string} rel @returns {string} */
+function outputKey(rel) {
+  const page = sidebarOnly.get(rel) ?? rel;
+  if (M.markdown) return outputMap.get(page) ?? page;
+  return sectionLandings.has(page) ? `${page}/index` : page;
+}
+
+/** A link to another page of this module as a MyST relative `.mdx` path, which
+ * the site resolves to the page's URL (a bare `#anchor` on the page itself).
+ * Empty `text` lets the site fill in the target's title, as Sphinx does.
+ * @param {string} text @param {string} targetRel @param {string} currentRel
+ * @param {string} anchor @param {string} title @returns {string} */
+function docLink(text, targetRel, currentRel, anchor, title) {
+  const target = outputKey(targetRel);
+  let rel = path.posix.relative(path.posix.dirname(outputKey(currentRel)), target);
+  if (!rel.startsWith(".")) rel = `./${rel}`;
+  docRefs.set(path.join(outputRoot, M.routeBase, `${target}.mdx`), {
+    url: urlForRel(targetRel),
+    title,
+  });
+  // A sidebar-only page links to its first child, whose title isn't this one.
+  const shown = text || (sidebarOnly.has(targetRel) ? title : "");
+  return `[${shown}](${encodeURI(`${rel}.mdx`)}${anchor ? `#${anchor}` : ""})`;
+}
+
 /** Rewrite plain relative Markdown links to other doc pages (`[t](x/y.ipynb#a)`)
  * to their served URL via urlForRel, accounting for clean folder URLs. Skips external
  * links, in-page anchors, and asset files; leaves unknown targets untouched.
  * @param {string} md @param {string} currentRelNoExt @param {DocIndex} index
  * @returns {string} */
 function rewriteDocLinks(md, currentRelNoExt, index) {
+  const ownSite = new RegExp(`^https://docs\\.quantinuum\\.com/${escapeRegExp(M.routeBase)}/`);
   const out = md.replace(/(?<!!)\[([^\]]*)\]\(([^)\s]+)\)/g, (full, text, href) => {
+    // Sphinx autosummary's per-object page (`api/generated/pkg.mod.Name.rst`, or
+    // its published `.html`) is an anchor on our API pages: a MyST ref to it.
+    const gen = href.match(/^(?:\S*\/)?generated\/([\w.]+?)(?:\.(?:rst|md|html))?(?:#\S*)?$/);
+    if (gen && (!/^https?:/i.test(href) || ownSite.test(href))) {
+      // An undocumented object (e.g. a deprecated alias) falls back to the
+      // nearest documented parent, usually its module.
+      let sym = null;
+      for (let name = gen[1]; !sym && name.includes("."); name = name.replace(/\.[^.]*$/, "")) {
+        sym = resolvePySymbol(name);
+      }
+      if (sym) return mystRef(sym.anchor, text, `${sym.url}#${sym.anchor}`, `\`${sym.anchor}\``);
+    }
     if (/^(https?:|mailto:|tel:|#|\/)/i.test(href)) return full;
     const [p, anchor] = href.split("#");
     if (!p || /\.(png|jpe?g|gif|svg|webp|pdf|csv|json|zip)$/i.test(p)) {
       return full;
     }
     const noExt = p.replace(/\.(ipynb|md|rst|html)$/i, "");
-    const rel = path.posix.normalize(
-      path.posix.join(path.posix.dirname(currentRelNoExt), noExt),
-    );
-    if (!index.titles.has(rel)) return full;
+    // Resolve through the filesystem so a path that leaves the docs folder and
+    // comes back in (`../sphinx/api/x.md` from inside `sphinx/`) still matches.
+    const rel = path
+      .relative(M.sphinxRoot, path.resolve(M.sphinxRoot, path.dirname(currentRelNoExt), noExt))
+      .split(path.sep)
+      .join("/");
+    if (!index.titles.has(rel)) {
+      // A hand-written API page (`api/std.md`) replaced by its quartodoc page.
+      const api = `/${M.routeBase}/${rel}`;
+      if (!apiSymbolIndex.entries.some((e) => e.url === api)) return full;
+      return docLink(text, rel, currentRelNoExt, anchor ?? "", path.posix.basename(rel));
+    }
     const url = urlForRel(rel);
     // A Sphinx HTML anchor may be a label id rather than our heading slug.
     const label = anchor && index.labels.get(anchor.replace(/-/g, " ").toLowerCase());
     const hash = label && label.url === url ? label.anchor : anchor;
-    return `[${text}](${url}${hash ? `#${hash}` : ""})`;
+    return docLink(text, rel, currentRelNoExt, hash ?? "", index.titles.get(rel) ?? "");
   });
   return samePageAnchors(out, currentRelNoExt);
 }
@@ -3009,9 +3066,9 @@ function cleanRstInline(text) {
     .replace(/:([\w:+-]+):`([^`]+)`/g, (_m, role, body) => {
       const mm = body.match(/^(.*?)\s*<[^<>]+>$/); // :role:`text <target>`
       if (mm) return mm[1].trim();
-      // Python roles show the last name segment, as resolveRoles renders them.
+      // Python roles show what Sphinx renders for them (see pyRoleText).
       return /^py:|^(class|func|meth|mod|attr|obj|data|exc)$/.test(role)
-        ? body.replace(/^~/, "").split(/[.#]/).pop() || body
+        ? pyRoleText(role, body.trim())
         : body.trim();
     })
     .replace(/``([^`]+)``/g, "$1") // ``literal``
@@ -3228,9 +3285,18 @@ const unresolvedRefs = new Set();
 
 /** MyST `#target` cross-references written this module -> the URL and implicit
  * text to fall back to if the output turns out not to define the target
- * (see finalizeMystRefs). Reset per module.
+ * (see finalizeXrefs). Reset per module.
  * @type {Map<string, {url: string, text: string}>} */
 let mystRefs = new Map();
+
+/** Output `.mdx` path (absolute) of each page linked by a relative docLink ->
+ * its URL and title, to fall back to if that page isn't emitted. Reset per module.
+ * @type {Map<string, {url: string, title: string}>} */
+let docRefs = new Map();
+
+/** RST pages (source-relative, no ext) emitted as their folder's `index.mdx`.
+ * @type {Set<string>} */
+let sectionLandings = new Set();
 
 /** A MyST cross-reference `[text](#target)`, resolved by the site at render
  * time. Empty `text` lets the site fill in the target's title (for a Python
@@ -3252,13 +3318,21 @@ function mystRefFor(hash) {
   }
 }
 
-/** Replace MyST cross-references with their fallback URLs, for contexts the
- * site doesn't resolve (raw HTML, heading text).
- * @param {string} md @returns {string} */
-function mystRefsToUrls(md) {
-  return md.replace(/(?<!!)\[([^\]]*)\]\(#([^)\s]+)\)/g, (full, text, name) => {
-    const ref = mystRefFor(name);
-    return ref ? `[${text || ref.text}](${ref.url})` : full;
+/** Replace MyST cross-references and relative page links with their URLs, for
+ * contexts the site doesn't resolve (raw HTML, heading text).
+ * @param {string} md @param {string} [currentRel] the page, for relative links
+ * @returns {string} */
+function xrefsToUrls(md, currentRel) {
+  const dir = currentRel === undefined ? undefined : path.posix.dirname(outputKey(currentRel));
+  return md.replace(/(?<!!)\[([^\]]*)\]\(([^)\s]+)\)/g, (full, text, href) => {
+    if (href.startsWith("#")) {
+      const ref = mystRefFor(href.slice(1));
+      return ref ? `[${text || ref.text}](${ref.url})` : full;
+    }
+    const m = href.match(/^(\.\.?\/[^#]*\.mdx)(#.*)?$/);
+    if (!m || dir === undefined) return full;
+    const ref = docRefs.get(path.join(outputRoot, M.routeBase, dir, decodeURI(m[1])));
+    return ref ? `[${text || ref.title}](${ref.url}${m[2] ?? ""})` : full;
   });
 }
 
@@ -3298,12 +3372,12 @@ function labelRef(key, e, linkText) {
 
 /**
  * After a module's pages are written, point any MyST `#target` reference whose
- * target no page defines (a `(label)=` line or `[#id]` heading) back at its URL,
- * so a label on a page that isn't emitted doesn't leave a dead link.
+ * target no page defines (a `(label)=` line or `[#id]` heading), and any relative
+ * page link whose page wasn't emitted, back at its URL, so neither is a dead link.
  * @param {string} dir module output root @returns {number} references rewritten
  */
-function finalizeMystRefs(dir) {
-  if (mystRefs.size === 0 || !fs.existsSync(dir)) return 0;
+function finalizeXrefs(dir) {
+  if ((mystRefs.size === 0 && docRefs.size === 0) || !fs.existsSync(dir)) return 0;
   const files = fs
     .readdirSync(dir, { recursive: true, encoding: "utf8" })
     .filter((f) => f.endsWith(".mdx"))
@@ -3317,11 +3391,21 @@ function finalizeMystRefs(dir) {
   let rewritten = 0;
   for (const file of files) {
     const text = fs.readFileSync(file, "utf8");
-    const out = text.replace(/(?<!!)\[([^\]]*)\]\(#([^)\s]+)\)/g, (full, label, name) => {
-      const ref = mystRefFor(name);
-      if (!ref || defined.has(decodeURI(name).toLowerCase())) return full;
+    const out = text.replace(/(?<!!)\[([^\]]*)\]\(([^)\s]+)\)/g, (full, label, href) => {
+      if (href.startsWith("#")) {
+        const name = href.slice(1);
+        const ref = mystRefFor(name);
+        if (!ref || defined.has(decodeURI(name).toLowerCase())) return full;
+        rewritten += 1;
+        return `[${label || ref.text}](${ref.url})`;
+      }
+      const m = href.match(/^(\.\.?\/[^#]*\.mdx)(#.*)?$/);
+      if (!m) return full;
+      const target = path.resolve(path.dirname(file), decodeURI(m[1]));
+      const ref = docRefs.get(target);
+      if (!ref || fs.existsSync(target)) return full;
       rewritten += 1;
-      return `[${label || ref.text}](${ref.url})`;
+      return `[${label || ref.title}](${ref.url}${m[2] ?? ""})`;
     });
     if (out !== text) fs.writeFileSync(file, out, "utf8");
   }
@@ -3368,8 +3452,7 @@ function resolveDocPathRef(target, currentRelNoExt, index, linkText) {
     const cand = slugifyAnchor(rawAnchor);
     if (index.headingSlugs.get(docRel)?.has(cand)) anchor = cand;
   }
-  const url = anchor ? `${urlForRel(docRel)}#${anchor}` : urlForRel(docRel);
-  return `[${linkText || title}](${url})`;
+  return docLink(linkText, docRel, currentRelNoExt, anchor, title);
 }
 
 /** Undo the entity escaping pandoc applies inside its raw-HTML output, so role
@@ -3456,7 +3539,7 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
       const title = index.titles.get(rel);
       return title === undefined
         ? TOC_ENTRY_DROP
-        : `[${linkText || title}](${urlForRel(rel)})`;
+        : docLink(linkText, rel, currentRelNoExt, "", title);
     }
     if (role !== "doc") return linkText || target;
     const docRel = target.startsWith("/")
@@ -3469,7 +3552,7 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
       unresolvedRefs.add(`doc:${target}`);
       return linkText || target;
     }
-    return `[${linkText || title}](${urlForRel(docRel)})`;
+    return docLink(linkText, docRel, currentRelNoExt, "", title);
   };
   const resolved = (
     md
@@ -3485,7 +3568,7 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
       .replace(
         /<code class="interpreted-text" role="([\w:+-]+)">([\s\S]*?)<\/code>/g,
         (_full, /** @type {string} */ role, /** @type {string} */ inner) =>
-          mystRefsToUrls(rewrite(decodeHtmlEntities(inner), role))
+          xrefsToUrls(rewrite(decodeHtmlEntities(inner), role), currentRelNoExt)
             .replace(/`([^`]+)`/g, "<code>$1</code>")
             .replace(
               /^\[([^\]]*)\]\(([^()\s]+)\)$/,
@@ -4306,14 +4389,14 @@ function fixJsxTag(tag) {
  * a link inside a heading renders as a nested `<a>` — invalid HTML that fails
  * React hydration. Keep the link text, drop the link.
  * @param {string} md @returns {string} */
-function unlinkHeadings(md) {
+function unlinkHeadings(md, currentRel) {
   let fenced = false;
   return md
     .split("\n")
     .map((line) => {
       if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
       if (fenced || !/^#{1,6}\s/.test(line)) return line;
-      return mystRefsToUrls(line)
+      return xrefsToUrls(line, currentRel)
         .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
         .replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, "$1");
     })
@@ -5026,7 +5109,7 @@ function rstFieldLists(md) {
  * @param {Map<string,string>} [urlMap] base (`.qmd` stem) -> routed page URL
  * @returns {string}
  */
-function convertApiQmd(src, title, mod, urlMap) {
+function convertApiQmd(src, title, mod, urlMap, asSection = false) {
   const roled = stripRstRoles(
     rstInlineMath(
       rstDocstringDirectives(rstFieldLists(fs.readFileSync(src, "utf8"))),
@@ -5039,6 +5122,19 @@ function convertApiQmd(src, title, mod, urlMap) {
   );
   const lines = linked.split("\n");
   const h1 = lines.findIndex((l) => /^#\s+/.test(l));
+  if (asSection) {
+    // One module of a multi-module page: its heading (with id) becomes an H2,
+    // and quartodoc's id-less `## Classes`/`## Functions` groupings go.
+    if (h1 !== -1) lines[h1] = `#${lines[h1]}`;
+    /** @type {string | null} */
+    let fence = null;
+    const kept = lines.filter((l) => {
+      const f = l.match(/^(`{3,}|~{3,})/);
+      if (f) fence = fence ? (fence === f[1][0] ? null : fence) : f[1][0];
+      return fence !== null || !/^##\s+[^[\n]*$/.test(l);
+    });
+    return displayMath(mdxSafe(convertDoctestExamples(kept.join("\n")))).replace(/^\n+/, "");
+  }
   // The module heading becomes the page title, so the page itself carries its
   // id as a MyST label (a `:mod:` ref lands on this page, not the API index).
   const moduleId = h1 === -1 ? undefined : lines[h1].match(/\[#([^\]\s]+)\]\s*$/)?.[1];
@@ -5169,7 +5265,7 @@ function convertApi(mod) {
   // right (flat or foldered) URLs.
   /** @type {Map<string,string>} base -> routed page URL */
   const urlMap = new Map();
-  /** @type {{ base: string, outRel: string, title: string }[]} */
+  /** @type {{ bases: string[], outRel: string, title: string, section: boolean, label?: string }[]} */
   const pageWrites = [];
   /** @type {{ dir: string, title: string, pages: string[] }[]} */
   const folderMetas = [];
@@ -5187,10 +5283,15 @@ function convertApi(mod) {
   let count = 0;
   for (const sec of sections) {
     const short = sec.title.replace(new RegExp(`^${mod.name}\\.`), "");
-    if (sec.bases.length === 1) {
-      const base = sec.bases[0];
-      const { group, outRel, url } = rstApiPage(mod, base);
-      pageWrites.push({ base, outRel, title: `${mod.name}.${base}` });
+    const page =
+      apiSectionPage(mod, sec) ??
+      (sec.bases.length === 1
+        ? { ...rstApiPage(mod, sec.bases[0]), title: `${mod.name}.${sec.bases[0]}`, section: false }
+        : null);
+    if (page) {
+      const { group, outRel, url, title, section } = page;
+      const label = "label" in page ? page.label : undefined;
+      pageWrites.push({ bases: sec.bases, outRel, title, section, label });
       navPages.push(`api/${outRel.replace(/\.mdx$/, "")}`);
       if (group) {
         groupPages.get(group.dir)?.push(outRel.slice(group.dir.length + 1, -4));
@@ -5198,8 +5299,8 @@ function convertApi(mod) {
       } else {
         corePages.push(outRel.replace(/\.mdx$/, ""));
       }
-      urlMap.set(base, url);
-      count += 1;
+      for (const base of sec.bases) urlMap.set(base, url);
+      count += sec.bases.length;
     } else {
       const folder = `${mod.name}.${short}`; // e.g. lambeq.backend
       /** @type {string[]} */
@@ -5207,7 +5308,7 @@ function convertApi(mod) {
       for (const base of sec.bases) {
         const leaf = base.slice(short.length + 1); // grammar, converters.discopy
         const title = `${mod.name}.${base}`; // lambeq.backend.grammar
-        pageWrites.push({ base, outRel: `${folder}/${leaf}.mdx`, title });
+        pageWrites.push({ bases: [base], outRel: `${folder}/${leaf}.mdx`, title, section: false });
         leaves.push(leaf);
         urlMap.set(base, `/${mod.name}/api/${folder}/${leaf}`);
         navTitles.push([`/${mod.name}/api/${folder}/${leaf}`, leaf]);
@@ -5224,17 +5325,23 @@ function convertApi(mod) {
     convertApiQmd(indexPath, mod.apiTitle ?? "Function reference", mod, urlMap),
     "utf8",
   );
-  for (const { base, outRel, title } of pageWrites) {
-    const src = path.join(refDir, `${base}.qmd`);
-    if (!fs.existsSync(src)) {
+  for (const { bases, outRel, title, section, label } of pageWrites) {
+    const srcs = bases.map((base) => path.join(refDir, `${base}.qmd`));
+    const missing = srcs.filter((src) => !fs.existsSync(src));
+    for (const src of missing) {
       console.warn(
-        `[generate-docs] ${mod.name}: api page missing: ${base}.qmd`,
+        `[generate-docs] ${mod.name}: api page missing: ${path.basename(src)}`,
       );
-      continue;
     }
+    if (missing.length) continue;
     const dest = path.join(apiOut, outRel);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.writeFileSync(dest, convertApiQmd(src, title, mod, urlMap), "utf8");
+    const mdx = section
+      ? `---\ntitle: ${JSON.stringify(title)}\n---\n\n${label ? `(${label})=\n\n` : ""}${srcs
+          .map((src) => convertApiQmd(src, title, mod, urlMap, true))
+          .join("\n\n")}`
+      : convertApiQmd(srcs[0], title, mod, urlMap);
+    fs.writeFileSync(dest, mdx, "utf8");
   }
   for (const { dir, title, pages } of folderMetas) {
     fs.writeFileSync(
@@ -5291,28 +5398,58 @@ function rstApiPage(mod, base) {
   return { outRel: `${name}.mdx`, url: `/${mod.name}/api/${name}` };
 }
 
+/** With `apiPagePerSection`, the single page an API index section becomes:
+ * named after a dotted section title (`inquanto.embeddings`), else after its
+ * first module. Null for a section that is just its own module (a plain page).
+ * @param {DocsModule} mod @param {{ title: string, bases: string[] }} sec
+ * @returns {{ group?: { title: string, dir: string, prefix: string }, outRel: string, url: string, title: string, section: boolean, label?: string } | null} */
+function apiSectionPage(mod, sec) {
+  if (!mod.apiPagePerSection) return null;
+  const dotted = sec.title.startsWith(`${mod.name}.`);
+  if (sec.bases.length === 1 && (!dotted || sec.title === `${mod.name}.${sec.bases[0]}`)) {
+    return null;
+  }
+  if (!dotted) {
+    return { ...rstApiPage(mod, sec.bases[0]), title: `${mod.name}.${sec.bases[0]}`, section: true };
+  }
+  // The page is the package's (`:mod:` refs to it land here).
+  return { outRel: `${sec.title}.mdx`, url: `/${mod.name}/api/${sec.title}`, title: sec.title, section: true, label: sec.title };
+}
+
 /**
  * Register the `.. _label:` anchors defined atop the Sphinx `api/lambeq.<mod>.rst`
  * pages (e.g. `backend-api`) into the cross-ref index, pointing at the generated
  * API index page's per-module section (`/<mod>/api#<mod>.<name>`). The `api/` tree
  * itself is skipped by collectRst (it's regenerated from quartodoc), so these
- * labels are otherwise unknown to `resolveRoles`.
+ * labels are otherwise unknown to `resolveRoles`. A nested page (InQuanto's
+ * `api/inquanto/embeddings.rst`) points at the API page of the module it titles,
+ * else of the first one it documents; needs apiSymbolIndex built first.
  * @param {DocsModule} mod @param {DocIndex} index
  */
 function registerApiLabels(mod, index) {
   if (!mod.apiSource) return;
   const apiRstDir = path.join(M.sphinxRoot, "api");
   if (!fs.existsSync(apiRstDir)) return;
-  for (const entry of fs.readdirSync(apiRstDir)) {
-    const fileMod = entry.match(/^(\w+(?:\.\w+)+)\.rst$/)?.[1];
-    if (!fileMod) continue;
+  for (const entry of fs.readdirSync(apiRstDir, { recursive: true })) {
+    if (!String(entry).endsWith(".rst")) continue;
     const text = fs.readFileSync(path.join(apiRstDir, entry), "utf8");
-    for (const { label } of collectLabels(text.split(/\r?\n/), RST_LABEL)) {
-      index.labels.set(label.toLowerCase(), {
-        url: `/${mod.name}/api`,
-        anchor: fileMod,
-        title: fileMod,
-      });
+    const lines = text.split(/\r?\n/);
+    const fileMod = String(entry).match(/^(\w+(?:\.\w+)+)\.rst$/)?.[1];
+    let target;
+    if (fileMod) {
+      target = { url: `/${mod.name}/api`, anchor: fileMod, title: fileMod };
+    } else {
+      const title = collectHeadings(lines)[0]?.text;
+      const documented = [...text.matchAll(/^\.\.\s+(?:py:)?(?:auto)?module::\s*(\S+)/gm)];
+      const sym = [title ?? "", ...documented.map((m) => m[1])]
+        .filter((name) => /^\w+(\.\w+)+$/.test(name))
+        .map(resolvePySymbol)
+        .find(Boolean);
+      if (!sym) continue;
+      target = { url: sym.url, anchor: sym.anchor, title: title || sym.anchor };
+    }
+    for (const { label } of collectLabels(lines, RST_LABEL)) {
+      index.labels.set(label.toLowerCase(), target);
     }
   }
 }
@@ -6170,10 +6307,34 @@ function stageFrozenProse(src, outDir, assetRoot) {
 
 const INCLUDE_LINE = /^<include>\s*(.+?)\s*<\/include>[ \t]*$/gm;
 
+/** A freeze dir's map of frozen files to their sources (see writeFreezeSources). */
+export const FREEZE_SOURCES = "freeze-sources.json";
+
 /** Partials written this freeze run -> their text, the page that wrote them and
  * the include they came from. Reset per module.
  * @type {Map<string, { text: string, page: string, src: string }>} */
 let frozenPartials = new Map();
+
+/** Frozen file (relative to the freeze dir) -> the source file it was converted
+ * or copied from, for `docs-build cutover`. Reset per module.
+ * @type {Map<string, string>} */
+let frozenSources = new Map();
+
+/** Merge this run's frozen sources into `<outDir>/freeze-sources.json` (paths
+ * relative to it), dropping entries whose frozen file has gone.
+ * @param {string} outDir */
+function writeFreezeSources(outDir) {
+  const file = path.join(outDir, FREEZE_SOURCES);
+  /** @type {Record<string, string>} */
+  const merged = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
+  for (const [out, src] of frozenSources) {
+    merged[out] = path.relative(outDir, src).split(path.sep).join("/");
+  }
+  const entries = Object.entries(merged)
+    .filter(([out]) => fs.existsSync(path.join(outDir, out)))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  fs.writeFileSync(file, `${JSON.stringify(Object.fromEntries(entries), null, 2)}\n`, "utf8");
+}
 
 /** Stage the repo files a merged backport's committed pages offer as downloads
  * (`/<assets>/_downloads/<path in repo>`), warning about any that have gone.
@@ -6399,11 +6560,12 @@ function expandIncludes(text, dir, depth = 0) {
  * to `<outDir>/public/<module>-assets/`. Partials the page used to include are
  * removed first so a dropped include doesn't leave one behind.
  * @param {string} rel output path relative to the module root (`manual/x.mdx`)
- * @param {string} md @param {string[]} includes
+ * @param {string} md @param {string[]} includes @param {string} source page source file
  */
-function writeFrozenPage(rel, md, includes) {
+function writeFrozenPage(rel, md, includes, source) {
   if (!M.freeze) return;
   const outDir = M.freeze.outDir;
+  frozenSources.set(rel, source);
   const pageDir = path.posix.dirname(rel);
   const existing = path.join(outDir, rel);
   if (fs.existsSync(existing)) {
@@ -6446,6 +6608,7 @@ function writeFrozenPage(rel, md, includes) {
           );
         }
         frozenPartials.set(partial, { text, page: rel, src: includes[Number(n)] });
+        frozenSources.set(partial, includes[Number(n)]);
         files.set(partial, text);
         const target = path.posix.relative(pageDir, partial);
         return `${lead}<include>${target.startsWith(".") ? target : `./${target}`}</include>`;
@@ -6478,6 +6641,9 @@ function writeFrozenPage(rel, md, includes) {
         const to = path.join(outDir, "public", M.assetSubdir, a);
         fs.mkdirSync(path.dirname(to), { recursive: true });
         fs.copyFileSync(from, to);
+        // Staged images mirror their path in the source tree (see stageImage).
+        const src = path.join(M.sphinxRoot, a);
+        if (fs.existsSync(src)) frozenSources.set(`public/${M.assetSubdir}/${a}`, src);
       }
     }
   }
@@ -6669,7 +6835,10 @@ function convertModule(mod) {
   missingImages.clear();
   unresolvedRefs.clear();
   mystRefs = new Map();
+  docRefs = new Map();
+  sectionLandings = new Set();
   frozenPartials = new Map();
+  frozenSources = new Map();
   const committedDir = mod.freeze?.outDir ?? mod.mergedProse;
   downloadRoot = committedDir ? path.dirname(path.resolve(committedDir)) : null;
 
@@ -6780,12 +6949,12 @@ function convertModule(mod) {
   for (const [rel, title] of Object.entries(frozen.titles ?? {})) {
     index.titles.set(rel, title);
   }
+  // Cross-ref indexes for notebook MyST roles ({py:*} -> API, {term} -> glossary).
+  apiSymbolIndex = buildApiSymbolIndex(mod);
   // Add the `api/*.rst` cross-ref labels (api/ is skipped by collectRst).
   registerApiLabels(mod, index);
   // MyST modules register their API label(s) from the overview page instead.
   if (mod.markdown) registerNexusApiLabels(mod, index);
-  // Cross-ref indexes for notebook MyST roles ({py:*} -> API, {term} -> glossary).
-  apiSymbolIndex = buildApiSymbolIndex(mod);
   // C API (Breathe `.. doxygenfile::`) pages are rendered from Doxygen XML.
   doxygenFiles = prepareDoxygen(mod);
   const executedDir = executeNotebooks(mod);
@@ -6830,6 +6999,18 @@ function convertModule(mod) {
   buildEqIndex(files);
 
   let converted = 0;
+  // Section landings (see the loop below) are known up front so links to them
+  // can name their `index.mdx`.
+  for (const source of files) {
+    const landingDir = source.replace(/\.rst$/, "");
+    if (
+      source.endsWith(".rst") &&
+      path.basename(source) !== "index.rst" &&
+      files.some((f) => f !== source && f.startsWith(landingDir + path.sep))
+    ) {
+      sectionLandings.add(path.relative(M.sphinxRoot, landingDir).split(path.sep).join("/"));
+    }
+  }
   /** @type {Set<string>} page paths (module-relative, no ext) actually emitted */
   const convertedPages = new Set();
   for (const source of files) {
@@ -6865,11 +7046,7 @@ function convertModule(mod) {
     // real collected CHILD page under the dir — a dir of `.rst.inc` include
     // partials only (e.g. manual/spaces/) is not a section, just a page's asset
     // dir, so that page emits normally.
-    const landingDir = path.join(M.sphinxRoot, ...relNoExt.split("/"));
-    const isSectionLanding =
-      source.endsWith(".rst") &&
-      path.basename(source) !== "index.rst" &&
-      files.some((f) => f !== source && f.startsWith(landingDir + path.sep));
+    const isSectionLanding = sectionLandings.has(relNoExt);
     // A landing that is only a title and toctrees just feeds the sidebar; the
     // folder stays a plain expander.
     if (isSectionLanding && isRstToctreeOnly(fs.readFileSync(source, "utf8"))) {
@@ -6903,7 +7080,7 @@ function convertModule(mod) {
         markdown = withFrontmatter(convertMyst(source, index, relNoExt), out);
         if (isFreezePage(relNoExt)) {
           const frozenRel = path.relative(M.routeBase, out).split(path.sep).join("/");
-          writeFrozenPage(frozenRel, unlinkHeadings(markdown), []);
+          writeFrozenPage(frozenRel, unlinkHeadings(markdown, relNoExt), [], source);
           frozenWritten.push({ relNoExt, rel: frozenRel });
           for (const { p, re } of freezePatterns) if (re.test(relNoExt)) freezeUsed.add(p);
         }
@@ -6932,9 +7109,9 @@ function convertModule(mod) {
         if (isFreezePage(relNoExt)) {
           /** @type {string[]} */
           const includes = [];
-          const frozenMd = unlinkHeadings(rstPage({ includes }));
+          const frozenMd = unlinkHeadings(rstPage({ includes }), relNoExt);
           const frozenRel = path.relative(M.routeBase, out).split(path.sep).join("/");
-          writeFrozenPage(frozenRel, frozenMd, includes);
+          writeFrozenPage(frozenRel, frozenMd, includes, source);
           frozenWritten.push({ relNoExt, rel: frozenRel });
           for (const { p, re } of freezePatterns) if (re.test(relNoExt)) freezeUsed.add(p);
         }
@@ -6952,7 +7129,7 @@ function convertModule(mod) {
     }
     const dest = path.join(outputRoot, out);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.writeFileSync(dest, unlinkHeadings(markdown), "utf8");
+    fs.writeFileSync(dest, unlinkHeadings(markdown, relNoExt), "utf8");
     convertedPages.add(relNoExt);
     converted += 1;
   }
@@ -6983,6 +7160,7 @@ function convertModule(mod) {
       writeFrozenNav(mod.name, mod.freeze.outDir);
       writeRootMeta?.();
     }
+    writeFreezeSources(mod.freeze.outDir);
     warnPartialIncluders(files, frozenWritten);
     const unused = freezePatterns.filter(({ p }) => !freezeUsed.has(p));
     if (unused.length) {
@@ -7016,7 +7194,7 @@ function convertModule(mod) {
     }
   }
 
-  const fellBack = finalizeMystRefs(path.join(outputRoot, M.routeBase));
+  const fellBack = finalizeXrefs(path.join(outputRoot, M.routeBase));
   if (fellBack) {
     console.warn(
       `[generate-docs] ${mod.name}: ${fellBack} cross-reference(s) to undefined MyST targets fell back to URLs`,

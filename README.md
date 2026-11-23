@@ -12,7 +12,8 @@ It is a pnpm workspace containing these packages:
 
 The `docs-*` CLIs are run from a product documentation repo's root. Each
 script's usage is documented at the top of its file in the package's `bin/`
-directory.
+directory. [`docs-build/README.md`](docs-build/README.md) describes porting a
+product's RST prose to committed MDX while keeping its git history.
 
 ## Pre-commit hooks
 
