@@ -7,10 +7,13 @@ import type { PluggableList } from 'unified'
 import { remarkCodeLangAlias } from './remark-code-lang-alias'
 import { remarkDarkImages } from './remark-dark-images'
 import { remarkMathParagraphs } from './remark-math-paragraphs'
+import { remarkMystLabels, remarkMystTargets, XREF_EXPORT } from './remark-myst-targets'
 import { quantinuumDark, quantinuumLight } from './shiki-theme'
 
 export { quantinuumDark, quantinuumLight } from './shiki-theme'
 export type { ShikiTheme } from './shiki-theme'
+export { XREF_EXPORT } from './remark-myst-targets'
+export type { XrefTargets } from './remark-myst-targets'
 
 /**
  * Shiki/rehype options for converted documentation: the brand Shiki themes plus
@@ -57,23 +60,30 @@ const codeLangAlias: Record<string, string> = {
  * `$...$` / `$$...$$` math from converted RST and notebooks renders via KaTeX
  * (the host must also import `katex/dist/katex.min.css`). An image with a
  * `<name>.dark<ext>` sibling in the host's `public/` swaps to it in dark mode.
+ * MyST `(label)=` targets and `[#id]` headings are exported per page as
+ * `xref` for the cross-reference resolver (see `createXrefResolver`).
  */
 export interface DocsMdxOptions {
   remarkPlugins: (plugins: PluggableList) => PluggableList
   rehypePlugins: (plugins: PluggableList) => PluggableList
   rehypeCodeOptions: RehypeCodeOptions
+  valueToExport: string[]
 }
 
 export const docsMdxOptions: DocsMdxOptions = {
   // remarkDarkImages must precede Fumadocs' remarkImage; remarkMath keeps its
-  // previous place after the preset's syntax extensions.
+  // previous place after the preset's syntax extensions. remarkMystLabels must
+  // precede remarkHeading (which strips `[#id]`), remarkMystTargets follow it.
   remarkPlugins: (plugins) => [
     remarkDarkImages,
     remarkCodeLangAlias(codeLangAlias),
+    remarkMystLabels,
     ...plugins,
     remarkMath,
     remarkMathParagraphs,
+    remarkMystTargets,
   ],
   rehypePlugins: (plugins) => [rehypeKatex, ...plugins],
   rehypeCodeOptions: docsRehypeCodeOptions,
+  valueToExport: [XREF_EXPORT],
 }

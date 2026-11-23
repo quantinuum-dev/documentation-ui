@@ -1,7 +1,14 @@
-import { QuantinuumDocsPage } from "@quantinuum/documentation-ui/docs-kit";
+import {
+  createXrefLink,
+  createXrefResolver,
+  QuantinuumDocsPage,
+  xrefProject,
+} from "@quantinuum/documentation-ui/docs-kit";
 import { notFound, redirect } from "next/navigation";
 
 import { basePathSegments, source } from "@/lib/source";
+
+const xrefResolver = createXrefResolver(() => [xrefProject("docs", source)]);
 
 // Incoming slugs carry the published URL prefix (e.g. ["origin", "user_guides",
 // ...]) because the harness serves the docs at their real paths, so root-absolute
@@ -48,6 +55,7 @@ export default async function Page(props: {
       title={page.data.title}
       description={page.data.description}
       toc={page.data.toc}
+      components={{ a: createXrefLink(xrefResolver, { page: page.url }) }}
     />
   );
 }

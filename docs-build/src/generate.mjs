@@ -296,6 +296,25 @@ function separateLabelDirectives(text) {
   return out.join("\n");
 }
 
+/** Precede each top-level `.. _label:` with a MyST `(label)=` paragraph, which
+ * pandoc passes through, so the page keeps the label as a cross-reference
+ * target. The RST target stays for pandoc (figure/table ids hang off it).
+ * @param {string} text @returns {string} */
+function mystLabelTargets(text) {
+  const lines = text.split(/\r?\n/);
+  /** @type {string[]} */
+  const out = [];
+  for (const line of lines) {
+    const m = line.match(RST_LABEL);
+    if (m) {
+      if (out.length && out[out.length - 1].trim() !== "") out.push("");
+      out.push(`(${m[1].trim()})=`, "");
+    }
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
 /** Rewrite sphinxcontrib-bibtex `:cite:*:` roles to placeholder roles that pandoc
  * preserves. Pandoc's RST reader recognises `cite`/`citep`/`citet` and silently
  * reduces them to their bare key text, so resolveRoles never sees them; renaming
@@ -524,7 +543,7 @@ function fixShortUnderlines(text) {
  * @returns {string} */
 function convertRst(src, freeze = undefined) {
   const dir = path.dirname(src);
-  const cleaned = rewriteCiteRoles(
+  const cleaned = mystLabelTargets(rewriteCiteRoles(
     renderRstToctrees(
       resolveOnlyBlocks(
         resolveJupyterDirectives(
@@ -546,7 +565,7 @@ function convertRst(src, freeze = undefined) {
         ),
       ),
     ),
-  );
+  ));
   // Run pandoc on a temp file IN the source dir so `.. include::`, csv-table
   // `:file:` and images still resolve relative to it (stdin loses that).
   const tmp = path.join(
@@ -713,7 +732,7 @@ function buildApiSymbolIndex(mod) {
       // Nexus ingests one page per index.qmd section (file); lambeq uses a flat
       // or foldered per-submodule layout.
       const url = mod.markdown
-        ? `/${mod.name}/api/${sec.title}`
+        ? `/${M.routeBase}/${M.apiSubdir}/${sec.title}`.replace(/\/{2,}/g, "/")
         : sec.bases.length === 1
           ? rstApiPage(mod, base).url
           : `/${mod.name}/api/${mod.name}.${short}/${base.slice(short.length + 1)}`;
@@ -1153,9 +1172,7 @@ function resolveMystRoles(md, index, currentRelNoExt, nbSrc) {
       /^py:/.test(role) ||
       /^(class|func|meth|mod|attr|obj|data|exc)$/.test(role)
     ) {
-      const short = text && m ? text : target.replace(/^~/, "").split(/[.#:]/).pop() || target;
-      const sym = resolvePySymbol(target);
-      return sym ? `[\`${short}\`](${sym.url}#${sym.anchor})` : `\`${short}\``;
+      return pyRoleRef(role, target, m ? text : "");
     }
     if (/^cite/.test(role)) {
       const sub = role.slice(role.indexOf(":") + 1);
@@ -1171,11 +1188,9 @@ function resolveMystRoles(md, index, currentRelNoExt, nbSrc) {
       return text;
     }
     if (role === "ref") {
-      const e = index.labels.get(target.replace(/\s+/g, " ").toLowerCase());
-      if (e) {
-        const url = e.anchor ? `${e.url}#${e.anchor}` : e.url;
-        return `[${text || e.title || target}](${url})`;
-      }
+      const key = target.replace(/\s+/g, " ").toLowerCase();
+      const e = index.labels.get(key);
+      if (e) return labelRef(key, e, text && m ? text : "");
       const inter = intersphinxRefUrl(target);
       if (inter) return `[${text || target}](${inter})`;
       const viaPath = resolveDocPathRef(target, currentRelNoExt, index, text);
@@ -1191,18 +1206,15 @@ function resolveMystRoles(md, index, currentRelNoExt, nbSrc) {
   return samePageAnchors(resolved, currentRelNoExt);
 }
 
-/** Lift a MyST `(label)=` anchor that Quarto glued onto its following heading
- * (`(sec-x)= \# Title` -> `# Title`) back into a real heading, and drop any
- * remaining standalone label lines. Runs before withFrontmatter so the H1 is
- * recognised as the page title.
+/** Split a MyST `(label)=` target that Quarto glued onto its following heading
+ * (`(sec-x)= \# Title`) back into a label line and a real heading. Runs before
+ * withFrontmatter so the H1 is recognised as the page title.
  * @param {string} md @returns {string} */
 function fixNbTitleLabels(md) {
-  return md
-    .replace(
-      /^\([^)\n]+\)=[ \t]*\\?(#{1,6})[ \t]*(.+)$/gm,
-      (_m, hashes, title) => `${hashes} ${title}`,
-    )
-    .replace(/^\([^)\n]+\)=[ \t]*$/gm, "");
+  return md.replace(
+    /^(\([^)\n]+\)=)[ \t]*\\?(#{1,6})[ \t]*(.+)$/gm,
+    (_m, label, hashes, title) => `${label}\n\n${hashes} ${title}`,
+  );
 }
 
 /** Wrap Quarto's indented notebook-output blocks in a `text` code fence. MDX does
@@ -2698,8 +2710,8 @@ function separateListsFromParagraphs(md) {
  * Convert a MyST-markdown prose page (`.md`) to MDX. The file is already
  * Markdown, so it is transformed in place: MyST directives -> MDX components
  * (convertMystDirectives), embedded RST roles from `{eval-rst}` -> links
- * (resolveRoles), MyST roles -> links (resolveMystRoles), `(label)=` anchors
- * dropped, images staged, then MDX-sanitised.
+ * (resolveRoles), MyST roles -> links (resolveMystRoles), `(label)=` targets
+ * kept, images staged, then MDX-sanitised.
  * @param {string} src @param {DocIndex} index @param {string} relNoExt
  * @returns {string} */
 function convertMyst(src, index, relNoExt) {
@@ -2713,9 +2725,9 @@ function convertMyst(src, index, relNoExt) {
     srcDir,
     { toc: { index, relNoExt } },
   );
-  // Drop standalone MyST `(label)=` target lines (indexed for cross-refs; the
-  // following heading carries the rehype-slug id the ref links to).
-  md = md.replace(/^\([^)\n]+\)=[ \t]*$/gm, "");
+  // Keep MyST `(label)=` target lines (the site resolves `[](#label)` refs
+  // against them), each as its own paragraph.
+  md = md.replace(/^(\([^)\n]+\)=)[ \t]*$/gm, "$1\n");
   md = resolveRoles(md, index, relNoExt, src); // RST spans emitted by eval-rst pandoc
   md = resolveMystRoles(md, index, relNoExt, src); // MyST roles in the prose
   md = rewriteDocLinks(md, relNoExt, index); // plain relative doc links -> URLs
@@ -2788,6 +2800,8 @@ function convertNotebookViaQuarto(
             toc: { index, relNoExt },
           },
         );
+        // A `(label)=` target must stay its own paragraph through Quarto.
+        s = s.replace(/^(\([^)\n]+\)=)[ \t]*$/gm, "$1\n");
         // Quarto re-renders pandoc's fenced divs (sphinx-tabs from `{eval-rst}`)
         // as plain HTML, so build the <Tabs> now and keep it away from Quarto.
         if (/^:::/m.test(s)) {
@@ -2954,7 +2968,7 @@ function navUrl(rel) {
  * @param {string} md @param {string} currentRelNoExt @param {DocIndex} index
  * @returns {string} */
 function rewriteDocLinks(md, currentRelNoExt, index) {
-  return md.replace(/(?<!!)\[([^\]]*)\]\(([^)\s]+)\)/g, (full, text, href) => {
+  const out = md.replace(/(?<!!)\[([^\]]*)\]\(([^)\s]+)\)/g, (full, text, href) => {
     if (/^(https?:|mailto:|tel:|#|\/)/i.test(href)) return full;
     const [p, anchor] = href.split("#");
     if (!p || /\.(png|jpe?g|gif|svg|webp|pdf|csv|json|zip)$/i.test(p)) {
@@ -2965,8 +2979,13 @@ function rewriteDocLinks(md, currentRelNoExt, index) {
       path.posix.join(path.posix.dirname(currentRelNoExt), noExt),
     );
     if (!index.titles.has(rel)) return full;
-    return `[${text}](${urlForRel(rel)}${anchor ? `#${anchor}` : ""})`;
+    const url = urlForRel(rel);
+    // A Sphinx HTML anchor may be a label id rather than our heading slug.
+    const label = anchor && index.labels.get(anchor.replace(/-/g, " ").toLowerCase());
+    const hash = label && label.url === url ? label.anchor : anchor;
+    return `[${text}](${url}${hash ? `#${hash}` : ""})`;
   });
+  return samePageAnchors(out, currentRelNoExt);
 }
 
 const RST_UNDERLINE = /^([=\-~^"*#+`'.:_])\1{2,}\s*$/;
@@ -3102,7 +3121,7 @@ function collectRstSubstitutions(file) {
  * @param {string[]} files
  */
 function buildIndex(files) {
-  /** @type {Map<string, {url:string, anchor:string, title:string}>} */
+  /** @type {Map<string, {url:string, anchor:string, title:string, defined?:boolean}>} */
   const labels = new Map();
   /** @type {Map<string,string>} */
   const titles = new Map();
@@ -3180,6 +3199,8 @@ function buildIndex(files) {
         url,
         anchor: target && !isPageTitle ? target.slug : "",
         title: target ? target.text : pageTitle,
+        // Written to the page as a MyST `(label)=` target, so refs can name it.
+        defined: true,
       });
     }
     // sphinx.ext.autosectionlabel: every section title is also a label.
@@ -3198,6 +3219,108 @@ function buildIndex(files) {
 
 /** @type {Set<string>} */
 const unresolvedRefs = new Set();
+
+/** MyST `#target` cross-references written this module -> the URL and implicit
+ * text to fall back to if the output turns out not to define the target
+ * (see finalizeMystRefs). Reset per module.
+ * @type {Map<string, {url: string, text: string}>} */
+let mystRefs = new Map();
+
+/** A MyST cross-reference `[text](#target)`, resolved by the site at render
+ * time. Empty `text` lets the site fill in the target's title (for a Python
+ * object, its full name), as MyST does.
+ * @param {string} target @param {string} text @param {string} fallbackUrl
+ * @param {string} implicitText @returns {string} */
+function mystRef(target, text, fallbackUrl, implicitText) {
+  if (!mystRefs.has(target)) mystRefs.set(target, { url: fallbackUrl, text: implicitText });
+  // Sphinx labels may contain spaces, which a Markdown link target can't.
+  return `[${text}](#${encodeURI(target)})`;
+}
+
+/** The MyST ref recorded for a link's `#target`, if any. @param {string} hash */
+function mystRefFor(hash) {
+  try {
+    return mystRefs.get(decodeURI(hash));
+  } catch {
+    return undefined;
+  }
+}
+
+/** Replace MyST cross-references with their fallback URLs, for contexts the
+ * site doesn't resolve (raw HTML, heading text).
+ * @param {string} md @returns {string} */
+function mystRefsToUrls(md) {
+  return md.replace(/(?<!!)\[([^\]]*)\]\(#([^)\s]+)\)/g, (full, text, name) => {
+    const ref = mystRefFor(name);
+    return ref ? `[${text || ref.text}](${ref.url})` : full;
+  });
+}
+
+/** Sphinx's text for a Python-role reference without an explicit title: the
+ * last name segment with `~`, else the name as written (minus a leading `.`),
+ * plus `()` for functions and methods (`add_function_parentheses`).
+ * @param {string} role @param {string} target @returns {string} */
+function pyRoleText(role, target) {
+  const name = target.replace(/^~/, "").replace(/^\./, "").replace(/\(\)$/, "");
+  const shown = target.startsWith("~") ? (name.split(/[.#]/).pop() ?? name) : name;
+  return /(^|:)(func|meth)$/.test(role) ? `${shown}()` : shown;
+}
+
+/** A Python-role reference as a MyST cross-reference to its API entry, keeping
+ * Sphinx's display text (empty when MyST's implicit text, the full name, matches).
+ * Unresolved symbols render as inline code.
+ * @param {string} role @param {string} target @param {string} explicitText
+ * @returns {string} */
+function pyRoleRef(role, target, explicitText) {
+  const shown = explicitText || pyRoleText(role, target);
+  const sym = resolvePySymbol(target);
+  if (!sym) return `\`${shown}\``;
+  const text = !explicitText && shown === sym.anchor ? "" : `\`${shown}\``;
+  return mystRef(sym.anchor, text, `${sym.url}#${sym.anchor}`, `\`${sym.anchor}\``);
+}
+
+/** A `:ref:` to an indexed label: a MyST `#label` cross-reference when the label
+ * is written to its page as a `(label)=` target, else a link to its URL.
+ * @param {string} key lowercased label
+ * @param {{url:string, anchor:string, title:string, defined?:boolean}} e
+ * @param {string} linkText @returns {string} */
+function labelRef(key, e, linkText) {
+  const url = e.anchor ? `${e.url}#${e.anchor}` : e.url;
+  if (e.defined) return mystRef(key, linkText, url, e.title || key);
+  return `[${linkText || e.title || key}](${url})`;
+}
+
+/**
+ * After a module's pages are written, point any MyST `#target` reference whose
+ * target no page defines (a `(label)=` line or `[#id]` heading) back at its URL,
+ * so a label on a page that isn't emitted doesn't leave a dead link.
+ * @param {string} dir module output root @returns {number} references rewritten
+ */
+function finalizeMystRefs(dir) {
+  if (mystRefs.size === 0 || !fs.existsSync(dir)) return 0;
+  const files = fs
+    .readdirSync(dir, { recursive: true, encoding: "utf8" })
+    .filter((f) => f.endsWith(".mdx"))
+    .map((f) => path.join(dir, f));
+  const defined = new Set();
+  for (const file of files) {
+    const text = fs.readFileSync(file, "utf8");
+    for (const m of text.matchAll(/^[ \t]*\(([^)\n]+)\)=[ \t]*$/gm)) defined.add(m[1].toLowerCase());
+    for (const m of text.matchAll(/^#{1,6}[ \t].*\[#([^\]\s]+)\][ \t]*$/gm)) defined.add(m[1].toLowerCase());
+  }
+  let rewritten = 0;
+  for (const file of files) {
+    const text = fs.readFileSync(file, "utf8");
+    const out = text.replace(/(?<!!)\[([^\]]*)\]\(#([^)\s]+)\)/g, (full, label, name) => {
+      const ref = mystRefFor(name);
+      if (!ref || defined.has(decodeURI(name).toLowerCase())) return full;
+      rewritten += 1;
+      return `[${label || ref.text}](${ref.url})`;
+    });
+    if (out !== text) fs.writeFileSync(file, out, "utf8");
+  }
+  return rewritten;
+}
 
 /**
  * Approximate rehype-slug for an nbsphinx-style `#Heading-Anchor` (heading text
@@ -3303,17 +3426,13 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
       /^py:/.test(role) ||
       /^(class|func|meth|mod|attr|obj|data|exc)$/.test(role)
     ) {
-      const short = linkText || target.replace(/^~/, "").split(/[.#]/).pop() || target;
-      const sym = resolvePySymbol(target);
-      return sym ? `[\`${short}\`](${sym.url}#${sym.anchor})` : `\`${short}\``;
+      return pyRoleRef(role, target, linkText);
     }
     if (role === "ref") {
       // Sphinx label ref: look up the indexed `.. _label:` / MyST `(label)=`.
-      const e = index.labels.get(target.replace(/\s+/g, " ").toLowerCase());
-      if (e) {
-        const url = e.anchor ? `${e.url}#${e.anchor}` : e.url;
-        return `[${linkText || e.title || target}](${url})`;
-      }
+      const key = target.replace(/\s+/g, " ").toLowerCase();
+      const e = index.labels.get(key);
+      if (e) return labelRef(key, e, linkText);
       // nbsphinx path ref (`text </tutorials/x.ipynb#Anchor>`): resolve the
       // doc path + heading anchor instead of a label.
       const viaPath = resolveDocPathRef(
@@ -3360,7 +3479,7 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
       .replace(
         /<code class="interpreted-text" role="([\w:+-]+)">([\s\S]*?)<\/code>/g,
         (_full, /** @type {string} */ role, /** @type {string} */ inner) =>
-          rewrite(decodeHtmlEntities(inner), role)
+          mystRefsToUrls(rewrite(decodeHtmlEntities(inner), role))
             .replace(/`([^`]+)`/g, "<code>$1</code>")
             .replace(
               /^\[([^\]]*)\]\(([^()\s]+)\)$/,
@@ -4188,7 +4307,7 @@ function unlinkHeadings(md) {
     .map((line) => {
       if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
       if (fenced || !/^#{1,6}\s/.test(line)) return line;
-      return line
+      return mystRefsToUrls(line)
         .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
         .replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, "$1");
     })
@@ -4914,11 +5033,15 @@ function convertApiQmd(src, title, mod, urlMap) {
   );
   const lines = linked.split("\n");
   const h1 = lines.findIndex((l) => /^#\s+/.test(l));
+  // The module heading becomes the page title, so the page itself carries its
+  // id as a MyST label (a `:mod:` ref lands on this page, not the API index).
+  const moduleId = h1 === -1 ? undefined : lines[h1].match(/\[#([^\]\s]+)\]\s*$/)?.[1];
   if (h1 !== -1) lines.splice(h1, 1);
   const body = displayMath(
     mdxSafe(convertDoctestExamples(lines.join("\n"))),
   ).replace(/^\n+/, "");
-  return `---\ntitle: ${JSON.stringify(title)}\n---\n\n${body}`;
+  const label = moduleId ? `(${moduleId})=\n\n` : "";
+  return `---\ntitle: ${JSON.stringify(title)}\n---\n\n${label}${body}`;
 }
 
 /**
@@ -6254,6 +6377,7 @@ function convertModule(mod) {
   stagedImages.clear();
   missingImages.clear();
   unresolvedRefs.clear();
+  mystRefs = new Map();
 
   // API-only module (e.g. the tket API reference): no Sphinx prose to walk — the
   // whole sidebar comes from the quartodoc project. Clean the route output, ingest
@@ -6482,7 +6606,11 @@ function convertModule(mod) {
         /** @param {{ includes: string[] }} [freeze] */
         const rstPage = (freeze) => {
           const resolved = resolveMathLabels(
-            resolveRoles(convertRst(source, freeze), index, relNoExt, source),
+            rewriteDocLinks(
+              resolveRoles(convertRst(source, freeze), index, relNoExt, source),
+              relNoExt,
+              index,
+            ),
           );
           const withImages = imageTransform(resolved, path.dirname(source));
           const withAnchors = numberFigures(figureDivAnchors(withImages));
@@ -6540,6 +6668,13 @@ function convertModule(mod) {
       const fm = existing.match(/^---\n[\s\S]*?\n---\n/)?.[0] ?? "";
       fs.writeFileSync(genIndexDest, `${fm}\n${body}\n`, "utf8");
     }
+  }
+
+  const fellBack = finalizeMystRefs(path.join(outputRoot, M.routeBase));
+  if (fellBack) {
+    console.warn(
+      `[generate-docs] ${mod.name}: ${fellBack} cross-reference(s) to undefined MyST targets fell back to URLs`,
+    );
   }
 
   // Emit MyST navigation after the generated API pages are available.

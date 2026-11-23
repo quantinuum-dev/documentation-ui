@@ -277,7 +277,38 @@ test("apiGroups splits an RST module's API sidebar into folders", (context) => {
   assert.equal(read("pkg-nav-titles.json")["/pkg/api/extensions/viz"], "Pkg-Viz");
   assert.ok(fs.existsSync(path.join(output, "pkg/api/extensions/viz.mdx")));
   assert.match(fs.readFileSync(path.join(output, "pkg/page.mdx"), "utf8"),
-    /\]\(\/pkg\/api\/extensions\/viz#pkg\.extensions\.viz\.Viewer\)/);
+    /\[`Viewer`\]\(#pkg\.extensions\.viz\.Viewer\)/);
+});
+
+test("Python roles become MyST refs that keep Sphinx's display text", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-py-refs-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const apiSource = path.join(root, "api");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.mkdirSync(apiSource);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n");
+  fs.writeFileSync(path.join(source, "page.rst"), [
+    "Page", "====", "",
+    "Full :class:`pkg.core.Thing`, short :class:`~pkg.core.Thing`,",
+    "method :meth:`~pkg.core.Thing.run`, titled :class:`a thing <pkg.core.Thing>`",
+    "and missing :class:`pkg.core.Gone`.", "",
+  ].join("\n"));
+  fs.writeFileSync(path.join(apiSource, "index.qmd"), "# API\n\n## pkg.core\n\n[core](core.qmd)\n");
+  fs.writeFileSync(path.join(apiSource, "core.qmd"), [
+    "# core { #pkg.core }", "",
+    "### Thing { #pkg.core.Thing }", "", "A thing.", "",
+    "##### run { #pkg.core.Thing.run }", "", "Runs.", "",
+  ].join("\n"));
+  convertModules([{ name: "pkg", sphinxRoot: source, indexFile: "index.rst", apiSource }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const page = fs.readFileSync(path.join(output, "pkg/page.mdx"), "utf8");
+  assert.match(page, /Full \[\]\(#pkg\.core\.Thing\)/);
+  assert.match(page, /short \[`Thing`\]\(#pkg\.core\.Thing\)/);
+  assert.match(page, /method \[`run\(\)`\]\(#pkg\.core\.Thing\.run\)/);
+  assert.match(page, /titled \[`a thing`\]\(#pkg\.core\.Thing\)/);
+  assert.match(page, /missing `pkg\.core\.Gone`/);
 });
 
 test("a multi-equation RST math block becomes one aligned/gathered display", (context) => {
@@ -327,22 +358,29 @@ test("labelled RST equations are numbered and :eq: links to them", (context) => 
   assert.doesNotMatch(generated, /u = v \\tag/);
 });
 
-test("refs to the current page become in-page hash links", (context) => {
+test("refs and relative .html links to a page resolve, in-page ones to hashes", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-self-refs-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const source = path.join(root, "source");
   const output = path.join(root, "output");
   fs.mkdirSync(source, { recursive: true });
-  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n   other\n");
+  fs.writeFileSync(path.join(source, "index.rst"), ".. _top:\n\nDocs\n====\n\n.. toctree::\n\n   page\n   other\n");
   fs.writeFileSync(path.join(source, "page.rst"),
-    "Page\n====\n\n.. _sec:\n\nSection\n-------\n\nSee :ref:`here <sec>`.\n");
-  fs.writeFileSync(path.join(source, "other.rst"), "Other\n=====\n\nSee :ref:`there <sec>`.\n");
+    "Page\n====\n\n.. _sec:\n\nSection\n-------\n\nSee :ref:`here <sec>`.\n\n.. _two words:\n\nMore\n----\n\nText.\n");
+  fs.writeFileSync(path.join(source, "other.rst"),
+    "Other\n=====\n\nSee :ref:`there <sec>`, :ref:`top`, :ref:`two words` and `that <page.html#sec>`_.\n");
   convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
     { outputRoot: output, publicRoot: path.join(root, "public") });
   const page = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
   const other = fs.readFileSync(path.join(output, "fixture/other.mdx"), "utf8");
-  assert.match(page, /\[here\]\(#section\)/);
-  assert.match(other, /\[there\]\(\/fixture\/page\/#section\)/);
+  assert.match(page, /^\(sec\)=\n\n## Section\s*$/m);
+  assert.match(page, /\[here\]\(#sec\)/);
+  assert.match(other, /\[there\]\(#sec\)/);
+  // The module root index isn't emitted, so its label falls back to the URL.
+  assert.match(other, /\[Docs\]\(\/fixture\/\)/);
+  assert.match(other, /\[\]\(#two%20words\)/);
+  assert.match(page, /^\(two words\)=$/m);
+  assert.match(other, /\[that\]\(\/fixture\/page\/#section\)/);
 });
 
 test("freezing writes exec blocks and include partials that staging re-inlines", (context) => {
@@ -401,9 +439,9 @@ test("included-only RST pages fold into their includer, labels and all", (contex
   convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
     { outputRoot: output, publicRoot: path.join(root, "public") });
   assert.equal(fs.existsSync(path.join(output, "fixture/part.mdx")), false);
-  assert.match(fs.readFileSync(path.join(output, "fixture/host.mdx"), "utf8"), /^## Part\s*$/m);
+  assert.match(fs.readFileSync(path.join(output, "fixture/host.mdx"), "utf8"), /^\(part-label\)=\n\n## Part\s*$/m);
   assert.match(fs.readFileSync(path.join(output, "fixture/other.mdx"), "utf8"),
-    /\[Part\]\(\/fixture\/host\/?#part\)/);
+    /\[\]\(#part-label\)/);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(output, "fixture-route-redirects.json"), "utf8")),
     { "/fixture/part": "/fixture/host" });
 });
