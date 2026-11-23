@@ -271,6 +271,44 @@ test("commented-out includes are not inlined; toctree entries take the page titl
     /^title: "Alpha and pkg\.Beta"$/m);
 });
 
+test("bibliography entries decode LaTeX accents and citations link to them", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-bib-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   page\n   bibliography\n");
+  fs.writeFileSync(path.join(source, "page.rst"), "Page\n====\n\nSee :cite:`diaz2021`.\n");
+  fs.writeFileSync(path.join(source, "bibliography.rst"), "Bibliography\n============\n\n.. bibliography::\n");
+  fs.writeFileSync(path.join(source, "references.bib"),
+    "@article{diaz2021,\n  author = {D\\'iaz-Tinoco, Manuel and Al\\'{a}n, B and M{\\\"u}ller, C and Pe\\~na, D and Musia{\\l}, E},\n" +
+    "  title = {Local ans\\\"atze},\n  year = {2021},\n}\n");
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const bib = fs.readFileSync(path.join(output, "fixture/bibliography.mdx"), "utf8");
+  assert.match(bib, /Díaz-Tinoco, Manuel; Alán, B; Müller, C; Peña, D; Musiał, E \(2021\)\. \*Local ansätze\*\./);
+  const cited = /See \(\[Díaz-Tinoco et al\., 2021\]\(\/fixture\/bibliography\/?#bib-diaz2021\)\)\./;
+  assert.match(fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8"), cited);
+
+  // Frozen, citations stay `cite:` links and the bibliography a placeholder,
+  // filled from the `.bib` copied beside them.
+  const committed = path.join(root, "docs");
+  const mod = { name: "fixture", sphinxRoot: source, indexFile: "index.rst" };
+  const roots = { outputRoot: output, publicRoot: path.join(root, "public") };
+  convertModules([{ ...mod, freeze: { pages: ["**"], outDir: committed } }], roots);
+  assert.match(fs.readFileSync(path.join(committed, "page.mdx"), "utf8"), /^See \[\]\(cite:p#diaz2021\)\.$/m);
+  assert.match(fs.readFileSync(path.join(committed, "bibliography.mdx"), "utf8"), /^<Bibliography \/>$/m);
+  const sources = JSON.parse(fs.readFileSync(path.join(committed, "freeze-sources.json"), "utf8"));
+  assert.equal(sources["references.bib"], "../source/references.bib");
+  assert.equal(sources["bibliography.mdx"], "../source/bibliography.rst");
+
+  // With the RST and `.bib` gone, both come from the committed copies.
+  for (const f of ["page.rst", "bibliography.rst", "references.bib"]) fs.rmSync(path.join(source, f));
+  convertModules([{ ...mod, mergedProse: committed }], roots);
+  assert.match(fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8"), cited);
+  assert.match(fs.readFileSync(path.join(output, "fixture/bibliography.mdx"), "utf8"), /Díaz-Tinoco, Manuel/);
+});
+
 test("RST :sup: and :sub: become HTML tags", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-supsub-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));

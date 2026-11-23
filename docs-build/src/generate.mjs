@@ -841,10 +841,30 @@ function stageDownload(body, nbSrc) {
   return `<a href="${url}" download>${text}</a>`;
 }
 
-/** Strip bibtex value wrapping: surrounding quotes, case-protection braces, and
- * backslash-escaped punctuation (`COLI\_a` -> `COLI_a`). @param {string} raw */
+/** LaTeX accent macro -> Unicode combining mark. @type {Record<string, string>} */
+const BIB_ACCENTS = {
+  "'": "\u0301", "`": "\u0300", "^": "\u0302", '"': "\u0308", "~": "\u0303",
+  "=": "\u0304", ".": "\u0307", c: "\u0327", v: "\u030c", u: "\u0306",
+  H: "\u030b", k: "\u0328", r: "\u030a",
+};
+
+/** LaTeX special-letter macro -> letter. @type {Record<string, string>} */
+const BIB_LETTERS = {
+  l: "ł", L: "Ł", o: "ø", O: "Ø", ss: "ß", ae: "æ", AE: "Æ", aa: "å", AA: "Å",
+  oe: "œ", OE: "Œ", i: "ı",
+};
+
+/** Strip bibtex value wrapping: accent macros (`D\'iaz` -> `Díaz`), surrounding
+ * quotes, case-protection braces, and backslash-escaped punctuation
+ * (`COLI\_a` -> `COLI_a`). @param {string} raw */
 function bibValue(raw) {
   return (raw ?? "")
+    .replace(
+      /\\(['`^"~=.]|[cvuHkr](?=[\s{]))\s*\{?\s*(\\i|[A-Za-z])\s*\}?/g,
+      (_m, mark, ch) => `${ch === "\\i" ? "i" : ch}${BIB_ACCENTS[mark]}`,
+    )
+    .replace(/\\(ss|ae|AE|aa|AA|oe|OE|[lLoOi])(?![A-Za-z])\s*/g, (_m, name) => BIB_LETTERS[name])
+    .normalize("NFC")
     .replace(/[{}]/g, "")
     .replace(/\\([_&%#$~^])/g, "$1")
     .replace(/\s+/g, " ")
@@ -996,30 +1016,53 @@ function buildBibIndex(bibPath, bibRelNoExt) {
   }
 }
 
-/** Format a `:cite:`/`{cite}` role (comma-separated keys) as linked author-year
- * citation(s): parenthetical `(A et al., 2020; B, 2021)` or textual `A (2020)`.
- * Unknown keys degrade to their raw text.
- * @param {string} keys @param {boolean} textual @returns {string} */
+/** A `:cite:`/`{cite}` role (comma-separated keys) as a `cite:` link,
+ * `[](cite:p#a,b)` (parenthetical) or `[](cite:t#a)` (textual), which committed
+ * MDX can use too; finalizeCitations links it to the bibliography once the
+ * module's `.bib` is read. @param {string} keys @param {boolean} textual */
 function formatCitation(keys, textual) {
-  const parts = keys
-    .split(",")
-    .map((k) => k.trim())
-    .filter(Boolean)
-    .map((k) => {
-      const e = bibIndex.get(k.toLowerCase());
-      if (!e) return k;
-      const label = textual ? e.textual : e.paren;
-      return `[${label}](${e.url}#${e.anchor})`;
-    });
-  if (parts.length === 0) return "";
-  return textual ? parts.join("; ") : `(${parts.join("; ")})`;
+  const list = keys.split(",").map((k) => k.trim()).filter(Boolean);
+  return list.length ? `[](cite:${textual ? "t" : "p"}#${list.join(",")})` : "";
 }
 
-/** Render the bibliography page body (author-year list with `bib-<key>` scroll
- * anchors) from the parsed entries. @returns {string} */
-function renderBibliography() {
+/** Linked author-year citation(s): parenthetical `(A et al., 2020; B, 2021)` or
+ * textual `A (2020)`. Unknown keys degrade to their raw text.
+ * @param {string[]} keys @param {boolean} textual @param {string} text link text
+ * replacing the author-year label (of a single key) @returns {string} */
+function expandCitation(keys, textual, text) {
+  const parts = keys.map((k) => {
+    const e = bibIndex.get(k.toLowerCase());
+    if (!e) return k;
+    const label = text || (textual ? e.textual : e.paren);
+    return `[${label}](${e.url}#${e.anchor})`;
+  });
+  return textual || text ? parts.join("; ") : `(${parts.join("; ")})`;
+}
+
+const CITE_LINK = /(?<!!)\[([^\]]*)\]\(cite:([pt])#([^)\s]+)\)/g;
+const BIBLIOGRAPHY_TAG = /^<Bibliography\s*\/>[ \t]*$/m;
+
+/** Expand `cite:` links and the `<Bibliography />` placeholder in a module's
+ * written pages (converted and staged alike). @param {string} dir */
+function finalizeCitations(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const f of fs.readdirSync(dir, { recursive: true, encoding: "utf8" })) {
+    if (!f.endsWith(".mdx")) continue;
+    const file = path.join(dir, f);
+    const text = fs.readFileSync(file, "utf8");
+    const out = text
+      .replace(CITE_LINK, (_m, label, mode, keys) =>
+        expandCitation(decodeURI(keys).split(","), mode === "t", label))
+      .replace(BIBLIOGRAPHY_TAG, () => mdxSafe(renderBibEntries()));
+    if (out !== text) fs.writeFileSync(file, out, "utf8");
+  }
+}
+
+/** The bibliography entries (author-year list with `bib-<key>` scroll anchors)
+ * from the parsed `.bib`. @returns {string} */
+function renderBibEntries() {
   /** @type {string[]} */
-  const out = ["# Bibliography", ""];
+  const out = [];
   for (const e of bibEntries) {
     const authors = (e.fields.author || e.fields.editor || "")
       .split(/\s+and\s+/i)
@@ -5430,8 +5473,8 @@ function registerApiLabels(mod, index) {
   if (!mod.apiSource) return;
   const apiRstDir = path.join(M.sphinxRoot, "api");
   if (!fs.existsSync(apiRstDir)) return;
-  for (const entry of fs.readdirSync(apiRstDir, { recursive: true })) {
-    if (!String(entry).endsWith(".rst")) continue;
+  for (const entry of fs.readdirSync(apiRstDir, { recursive: true, encoding: "utf8" })) {
+    if (!entry.endsWith(".rst")) continue;
     const text = fs.readFileSync(path.join(apiRstDir, entry), "utf8");
     const lines = text.split(/\r?\n/);
     const fileMod = String(entry).match(/^(\w+(?:\.\w+)+)\.rst$/)?.[1];
@@ -6981,19 +7024,23 @@ function convertModule(mod) {
     glossaryIndex.set(term, entry);
   }
   // Bibliography: parse the bibtex file so `:cite:` roles link to author-year
-  // entries and the (directive-only) bibliography page can be populated.
+  // entries and the (directive-only) bibliography page can be populated. Once
+  // the RST has moved, the page and `.bib` are the committed ones.
   const bibSrc = files.find((f) => path.basename(f) === "bibliography.rst");
-  const bibRelNoExt = bibSrc
-    ? path
-        .relative(M.sphinxRoot, bibSrc)
-        .replace(/\.rst$/, "")
-        .split(path.sep)
-        .join("/")
-    : null;
-  buildBibIndex(
-    path.join(M.sphinxRoot, "references.bib"),
-    bibRelNoExt ?? "bibliography",
-  );
+  const bibPath = [M.sphinxRoot, mergedRepoDir]
+    .filter((d) => d !== undefined)
+    .map((d) => path.join(d, "references.bib"))
+    .find((p) => fs.existsSync(p));
+  const bibPage = bibSrc
+    ? path.relative(M.sphinxRoot, bibSrc).replace(/\.rst$/, "")
+    : mergedRepoDir &&
+      fs
+        .readdirSync(mergedRepoDir, { recursive: true, encoding: "utf8" })
+        .filter((f) => f.endsWith(".mdx") && !f.startsWith("public"))
+        .find((f) => BIBLIOGRAPHY_TAG.test(fs.readFileSync(path.join(mergedRepoDir, f), "utf8")))
+        ?.replace(/\.mdx$/, "");
+  const bibRelNoExt = bibPage ? bibPage.split(path.sep).join("/") : null;
+  buildBibIndex(bibPath ?? "", bibRelNoExt ?? "bibliography");
   // Figure/table numbers for `:numref:` (numfig = True).
   buildNumfigIndex(files);
   buildEqIndex(files);
@@ -7085,9 +7132,17 @@ function convertModule(mod) {
           for (const { p, re } of freezePatterns) if (re.test(relNoExt)) freezeUsed.add(p);
         }
       } else if (relNoExt === bibRelNoExt) {
-        // The `.. bibliography::` directive yields no content via pandoc — render
-        // the author-year reference list from the parsed bibtex instead.
-        markdown = withFrontmatter(mdxSafe(renderBibliography()), out);
+        // The `.. bibliography::` directive yields no content via pandoc; the
+        // entries are rendered from the parsed bibtex by finalizeCitations.
+        markdown = withFrontmatter("# Bibliography\n\n<Bibliography />\n", out);
+        if (isFreezePage(relNoExt) && bibPath && M.freeze) {
+          const frozenRel = path.relative(M.routeBase, out).split(path.sep).join("/");
+          writeFrozenPage(frozenRel, markdown, [], source);
+          frozenWritten.push({ relNoExt, rel: frozenRel });
+          for (const { p, re } of freezePatterns) if (re.test(relNoExt)) freezeUsed.add(p);
+          fs.copyFileSync(bibPath, path.join(M.freeze.outDir, "references.bib"));
+          frozenSources.set("references.bib", bibPath);
+        }
       } else {
         /** @param {{ includes: string[] }} [freeze] */
         const rstPage = (freeze) => {
@@ -7194,6 +7249,7 @@ function convertModule(mod) {
     }
   }
 
+  finalizeCitations(path.join(outputRoot, M.routeBase));
   const fellBack = finalizeXrefs(path.join(outputRoot, M.routeBase));
   if (fellBack) {
     console.warn(

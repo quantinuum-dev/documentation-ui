@@ -22,6 +22,10 @@ history (`git log --follow`, `git blame`) continuing back through its RST.
   `DOCS_FREEZE_NAV=1` also writes the sidebar. Each freeze writes the pages,
   `_name.mdx` partials for `.. include::`d files, the images they use under
   `public/<module>-assets/`, and `freeze-sources.json` (frozen file -> source).
+  Citations become `[](cite:p#key1,key2)` (parenthetical) or `[](cite:t#key)`
+  (textual) links and the bibliography page a `<Bibliography />` placeholder;
+  both are filled in at build time from `references.bib`, which the freeze
+  copies beside the pages.
 - Commit the frozen MDX **next to** the RST on the port branch.
 - **Never hand-edit the frozen files.** Fix the RST (or the converter) and
   re-freeze. After merging develop into the branch, re-freeze and commit; the
