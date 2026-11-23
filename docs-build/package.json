@@ -14,7 +14,8 @@
     "docs-build": "./bin/docs-build.mjs"
   },
   "exports": {
-    ".": "./src/generate.mjs"
+    ".": "./src/generate.mjs",
+    "./frozen-nav": "./src/frozen-nav.mjs"
   },
   "dependencies": {
     "github-slugger": "^2.0.0"

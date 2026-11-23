@@ -71,7 +71,8 @@ if (!fs.existsSync(paths.contentDir)) {
 
 // The MDX references assets by root-absolute URL (e.g. /origin-assets/…), which
 // Next only serves from this package's own public/. Link the repo's assets in
-// for dev; copy them for an export, which must be self-contained.
+// for dev; copy them for an export, which must be self-contained. Asset folders
+// are recreated rather than linked so downloads can be added inside them.
 function stageAssets() {
   const publicDir = path.join(harnessDir, "public");
   fs.mkdirSync(publicDir, { recursive: true });
@@ -79,13 +80,65 @@ function stageAssets() {
     if (entry === ".gitkeep") continue;
     fs.rmSync(path.join(publicDir, entry), { recursive: true, force: true });
   }
-  if (!fs.existsSync(paths.publicDir)) return;
-  for (const entry of fs.readdirSync(paths.publicDir)) {
-    const from = path.join(paths.publicDir, entry);
-    const to = path.join(publicDir, entry);
+  /** @param {string} from @param {string} to */
+  const place = (from, to) => {
+    fs.mkdirSync(path.dirname(to), { recursive: true });
     if (exporting) fs.cpSync(from, to, { recursive: true });
     else fs.symlinkSync(from, to);
+  };
+  if (fs.existsSync(paths.publicDir)) {
+    /** @param {string} from @param {string} to @param {boolean} [inDownloads] */
+    const placeTree = (from, to, inDownloads = false) => {
+      for (const child of fs.readdirSync(from, { withFileTypes: true })) {
+        const src = path.join(from, child.name);
+        const dest = path.join(to, child.name);
+        // `_downloads` gets repo files added below, so no part of it can be a link into the repo.
+        if (child.isDirectory() && (inDownloads || child.name === "_downloads")) {
+          placeTree(src, dest, true);
+        } else {
+          place(src, dest);
+        }
+      }
+    };
+    for (const entry of fs.readdirSync(paths.publicDir, { withFileTypes: true })) {
+      const from = path.join(paths.publicDir, entry.name);
+      if (entry.isDirectory()) placeTree(from, path.join(publicDir, entry.name));
+      else place(from, path.join(publicDir, entry.name));
+    }
   }
+  stageDownloads(publicDir, place);
+}
+
+// Downloads link files elsewhere in the repo (`/<x>-assets/_downloads/<path>`,
+// relative to the docs dir's parent), which the build stages rather than the
+// repo committing a copy; stage them the same way.
+/** @param {string} publicDir @param {(from: string, to: string) => void} place */
+function stageDownloads(publicDir, place) {
+  const root = path.dirname(paths.contentDir);
+  const url = /\/([\w.-]+-assets)\/_downloads\/([^\s)"'<>{}]+)/g;
+  /** @type {Set<string>} */
+  const seen = new Set();
+  /** @param {string} dir */
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== "public" && !entry.name.startsWith(".")) walk(full);
+        continue;
+      }
+      if (!/\.mdx?$/.test(entry.name)) continue;
+      for (const [, assets, rel] of fs.readFileSync(full, "utf8").matchAll(url)) {
+        const file = decodeURI(rel);
+        const to = path.join(publicDir, assets, "_downloads", file);
+        if (seen.has(to) || fs.existsSync(to)) continue;
+        seen.add(to);
+        const from = path.join(root, file);
+        if (fs.existsSync(from)) place(from, to);
+        else console.warn(`docs-preview: download not found in the repo: ${file}`);
+      }
+    }
+  };
+  if (fs.existsSync(paths.contentDir)) walk(paths.contentDir);
 }
 stageAssets();
 

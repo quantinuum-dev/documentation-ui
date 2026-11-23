@@ -6,8 +6,10 @@ import { resolveHarnessPaths } from "./src/lib/paths.mjs";
 // Content lives in the module repo being previewed, not in this package, so the
 // collection directory is resolved at config-load time from DOCS_CONTENT_DIR
 // (set by the `docs-preview` CLI) and falls back to a `docs/` dir beside the cwd.
+// `_`-prefixed files are partials pulled into pages by `<include>`, not pages.
 export const docs = defineDocs({
   dir: resolveHarnessPaths().contentDir,
+  docs: { files: ["**/*.{md,mdx}", "!**/_*.{md,mdx}"] },
 });
 
 // The MDX pipeline is the shared one the central site uses, so a page previewed

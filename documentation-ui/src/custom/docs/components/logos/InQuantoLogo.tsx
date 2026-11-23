@@ -3,7 +3,7 @@ import { ComponentProps } from 'react'
 export const InquantoLogo = (props: ComponentProps<'svg'>) => {
   return (
     <svg viewBox="0 0 169 17" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <g clip-path="url(#clip0_3_23)">
+      <g clipPath="url(#clip0_3_23)">
         <path
           d="M116.362 12.775L104.081 0.6875H100.712V16.325H103.637V4.31875L115.481 16.325H119.287V0.6875H116.362V12.775Z"
           fill="black"

@@ -35,6 +35,48 @@ test("MyST navigation nests pages without changing their source-based URLs", (co
   assert.equal(redirects["/fixture/start"], undefined);
 });
 
+test("a frozen MyST module's sidebar comes from its committed pages", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-myst-freeze-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const committed = path.join(root, "docs");
+  const output = path.join(root, "output");
+  fs.mkdirSync(path.join(source, "examples"), { recursive: true });
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\n:caption: Guides\n\nstart\n```\n\n```{toctree}\n:caption: Resources\n\nWebsite <https://example.com/>\n```\n");
+  fs.writeFileSync(path.join(source, "start.md"), "# Start\n\nIntro.\n\n```{toctree}\nFirst steps <examples/first>\nWebsite <https://example.com/>\n```\n");
+  fs.writeFileSync(path.join(source, "examples/first.md"), "# First\n\nIntro.\n\n```{toctree}\nsecond\n```\n");
+  fs.writeFileSync(path.join(source, "examples/second.md"), "# Second\n\nText.\n");
+  const mod = { name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true };
+  const roots = { outputRoot: output, publicRoot: path.join(root, "public") };
+  convertModules([{ ...mod, freeze: { pages: ["**"], outDir: committed, nav: true } }], roots);
+  const before = JSON.parse(fs.readFileSync(path.join(output, "fixture-nav-tree.json"), "utf8"));
+
+  const meta = JSON.parse(fs.readFileSync(path.join(committed, "meta.json"), "utf8"));
+  assert.equal(meta.navTree, true);
+  assert.deepEqual(meta.pages,
+    ["---Guides---", "start", "---Resources---", "[Website](https://example.com/)", "..."]);
+  assert.match(fs.readFileSync(path.join(committed, "start.mdx"), "utf8"),
+    /^navChildren:\n {2}- "First steps <examples\/first>"\n {2}- "Website <https:\/\/example\.com\/>"$/m);
+  assert.match(fs.readFileSync(path.join(committed, "examples/first.mdx"), "utf8"),
+    /^navChildren:\n {2}- "second"$/m);
+  assert.equal(fs.existsSync(path.join(committed, "nav-tree.json")), false);
+
+  // With every source deleted, the committed pages rebuild the same sidebar.
+  fs.rmSync(source, { recursive: true });
+  fs.mkdirSync(source);
+  convertModules([{ ...mod, mergedProse: committed }], roots);
+  const after = JSON.parse(fs.readFileSync(path.join(output, "fixture-nav-tree.json"), "utf8"));
+  /** @param {any[]} nodes @returns {any[]} */
+  const shape = (nodes) => nodes.map((n) => ({
+    type: n.type,
+    url: n.url ?? n.index?.url,
+    ...(n.type === "folder" || n.type === "separator" || n.external ? { name: n.name } : {}),
+    ...(n.children ? { children: shape(n.children) } : {}),
+  }));
+  assert.deepEqual(shape(after), shape(before));
+  assert.equal(after[1].children[0].name, "First steps");
+});
+
 test("visible toctrees render as link lists and hidden ones are dropped", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-toctree-list-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -406,24 +448,76 @@ test("freezing writes exec blocks and include partials that staging re-inlines",
   convertModules([{ ...mod, freeze: { pages: ["page"], outDir: committed } }], roots);
   const page = fs.readFileSync(path.join(committed, "page.mdx"), "utf8");
   const part = fs.readFileSync(path.join(committed, "page", "_part.mdx"), "utf8");
-  assert.match(page, /^<include>\.\/page\/_part\.mdx<\/include>$/m);
+  // The include's opening heading stays in the page: its level is the page's.
+  assert.match(page, /^## Part\n\n<include>\.\/page\/_part\.mdx<\/include>$/m);
   assert.match(page, /^``` ?python\ny = 3\n```$/m);
-  assert.match(part, /^## Part$/m);
+  assert.doesNotMatch(part, /^#/m);
   assert.match(part, /^```python exec\nx = 2\n```$/m);
-  assert.ok(fs.existsSync(path.join(committed, "xref-manifest.json")));
+  assert.equal(fs.existsSync(path.join(committed, "xref-manifest.json")), false);
   assert.doesNotMatch(fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8"), /exec|<include>/);
 
   // Without executeBlocks a page with exec blocks is an error, so drop the block
   // to check staging: the partial is inlined and the committed page wins.
-  fs.writeFileSync(path.join(committed, "page", "_part.mdx"), "## Part\n\nCommitted.\n");
+  fs.writeFileSync(path.join(committed, "page", "_part.mdx"),
+    "(part-label)=\n\n## Part `x`\n\nCommitted.\n\n<a id=\"term-big-word\" />\n\n**Big Word**\n\nMeaning.\n");
+  // Once the RST is gone, other pages' refs resolve against the committed MDX.
+  fs.rmSync(path.join(source, "page.rst"));
+  fs.rmSync(path.join(source, "page"), { recursive: true });
+  fs.writeFileSync(path.join(source, "other.rst"),
+    "Other\n=====\n\nSee :ref:`part-label`, :doc:`page` and :term:`big word`.\n");
   convertModules([{ ...mod, mergedProse: committed }], roots);
   const staged = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
-  assert.match(staged, /^## Part\n\nCommitted\.$/m);
+  assert.match(staged, /^## Part `x`\n\nCommitted\.$/m);
   assert.doesNotMatch(staged, /<include>/);
   assert.equal(fs.existsSync(path.join(output, "fixture/page/_part.mdx")), false);
+  const other = fs.readFileSync(path.join(output, "fixture/other.mdx"), "utf8");
+  assert.match(other, /See \[\]\(#part-label\), \[Page\]\(\/fixture\/page\/\) and \[big word\]\(\/fixture\/page\/#term-big-word\)\./);
+  const xref = JSON.parse(fs.readFileSync(path.join(output, "fixture-xref-manifest.json"), "utf8"));
+  assert.deepEqual(xref.labels["part-label"],
+    { url: "/fixture/page/", anchor: "part-x", title: "Part x", defined: true });
   assert.ok(fs.existsSync(path.join(output, "fixture/other.mdx")));
   const meta = JSON.parse(fs.readFileSync(path.join(output, "fixture/meta.json"), "utf8"));
   assert.deepEqual(meta.pages, ["page", "other"]);
+});
+
+test("an include shared by two pages freezes to one partial both can use", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-shared-include-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const committed = path.join(root, "docs");
+  const output = path.join(root, "output");
+  fs.mkdirSync(path.join(source, "t"), { recursive: true });
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   t/overview\n   t/sub\n");
+  fs.writeFileSync(path.join(source, "t", "data.txt"), "data\n");
+  fs.writeFileSync(path.join(source, "t", "shared.rst.inc"),
+    "Shared\n######\n\nBody with :download:`a file <data.txt>`.\n");
+  fs.writeFileSync(path.join(source, "t", "overview.rst"), "Overview\n========\n\nIntro.\n\n.. include:: shared.rst.inc\n");
+  fs.writeFileSync(path.join(source, "t", "sub.rst"), ".. include:: shared.rst.inc\n");
+  const mod = { name: "fixture", sphinxRoot: source, indexFile: "index.rst" };
+  const roots = { outputRoot: output, publicRoot: path.join(root, "public") };
+
+  convertModules([{ ...mod, freeze: { pages: ["t/*"], outDir: committed } }], roots);
+  const overview = fs.readFileSync(path.join(committed, "t/overview.mdx"), "utf8");
+  const sub = fs.readFileSync(path.join(committed, "t/sub.mdx"), "utf8");
+  const shared = fs.readFileSync(path.join(committed, "t/_shared.mdx"), "utf8");
+  assert.match(overview, /^## Shared\n\n<include>\.\/_shared\.mdx<\/include>$/m);
+  assert.match(sub, /^title: "Shared"$/m);
+  assert.match(sub, /^<include>\.\/_shared\.mdx<\/include>$/m);
+  // Keyed by the downloaded file's path in the repo, so the link is the same
+  // from either page, and staged from there rather than committed twice.
+  assert.match(shared, /<a href="\/fixture-assets\/_downloads\/source\/t\/data\.txt" download>a file<\/a>/);
+  assert.equal(fs.existsSync(path.join(committed, "public/fixture-assets/_downloads")), false);
+  convertModules([{ ...mod, mergedProse: committed }], roots);
+  assert.ok(fs.existsSync(path.join(root, "public/fixture-assets/_downloads/source/t/data.txt")));
+
+  // A heading inside the include whose level depends on the page can't share.
+  fs.writeFileSync(path.join(source, "t", "shared.rst.inc"), "Body.\n\nInner\n-----\n\nMore.\n");
+  fs.writeFileSync(path.join(source, "t", "sub.rst"),
+    "Sub\n===\n\nSection\n~~~~~~~\n\n.. include:: shared.rst.inc\n");
+  assert.throws(
+    () => convertModules([{ ...mod, freeze: { pages: ["t/*"], outDir: committed } }], roots),
+    (err) => /_shared\.mdx converts differently/.test(String(err?.cause?.message ?? err)),
+  );
 });
 
 test("included-only RST pages fold into their includer, labels and all", (context) => {
@@ -453,16 +547,30 @@ test("freeze globs honour exclude and can write the sidebar", (context) => {
   const committed = path.join(root, "docs");
   const output = path.join(root, "output");
   fs.mkdirSync(path.join(source, "guide"), { recursive: true });
-  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   guide/a\n   guide/b\n");
-  fs.writeFileSync(path.join(source, "guide", "a.rst"), "A\n=\n\nText.\n");
+  fs.writeFileSync(path.join(source, "index.rst"), "Docs\n====\n\n.. toctree::\n\n   Alpha <guide/a>\n");
+  fs.writeFileSync(path.join(source, "guide", "a.rst"), "A\n=\n\nText.\n\n.. toctree::\n\n   b\n");
   fs.writeFileSync(path.join(source, "guide", "b.rst"), "B\n=\n\nText.\n");
-  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst",
-    freeze: { pages: ["guide/*"], exclude: ["guide/b"], outDir: committed, nav: true } }],
-    { outputRoot: output, publicRoot: path.join(root, "public") });
-  assert.ok(fs.existsSync(path.join(committed, "guide/a.mdx")));
+  const mod = { name: "fixture", sphinxRoot: source, indexFile: "index.rst" };
+  const roots = { outputRoot: output, publicRoot: path.join(root, "public") };
+  convertModules([{ ...mod,
+    freeze: { pages: ["guide/*"], exclude: ["guide/b"], outDir: committed, nav: true } }], roots);
+  const a = fs.readFileSync(path.join(committed, "guide/a.mdx"), "utf8");
   assert.equal(fs.existsSync(path.join(committed, "guide/b.mdx")), false);
   assert.ok(fs.existsSync(path.join(committed, "meta.json")));
-  assert.ok(fs.existsSync(path.join(committed, "nav-titles.json")));
+  // Sidebar label and nesting travel in the page, not URL-keyed JSON files.
+  assert.match(a, /^---\ntitle: "A"\nnavTitle: "Alpha"\nnavChildren:\n {2}- "b"\n---\n/);
+  assert.equal(fs.existsSync(path.join(committed, "nav-titles.json")), false);
+  assert.equal(fs.existsSync(path.join(committed, "nav-nesting.json")), false);
+
+  // Once its RST is gone, the committed page's frontmatter still drives the nav.
+  fs.rmSync(path.join(source, "guide", "a.rst"));
+  fs.writeFileSync(path.join(committed, "guide/a.mdx"),
+    a.replace('navTitle: "Alpha"', "navTitle: Edited"));
+  convertModules([{ ...mod, mergedProse: committed }], roots);
+  const titles = JSON.parse(fs.readFileSync(path.join(output, "fixture-nav-titles.json"), "utf8"));
+  const nesting = JSON.parse(fs.readFileSync(path.join(output, "fixture-nav-nesting.json"), "utf8"));
+  assert.equal(titles["/fixture/guide/a"], "Edited");
+  assert.deepEqual(nesting["/fixture/guide/a"], ["/fixture/guide/b"]);
 });
 
 test("page titles drop pandoc's Markdown escapes", (context) => {

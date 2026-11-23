@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 
 import GithubSlugger from "github-slugger";
 
+import { frontmatterFields, frozenNav, readNavContent } from "./frozen-nav.mjs";
+
 /**
  * Sphinx/RST/MyST/notebook -> MDX converter for the Quantinuum documentation.
  *
@@ -776,6 +778,12 @@ function resolvePySymbol(target) {
   return null;
 }
 
+/** Root of the repo holding a merged/freezing module's committed MDX (the parent
+ * of its docs dir): its downloads are served at `/<assets>/_downloads/<path in
+ * repo>` and staged from the repo on every build. Null otherwise. Set per module.
+ * @type {string | null} */
+let downloadRoot = null;
+
 /** Stage a `{download}`/`{nb-download}` target as a static asset and return an
  * anchored download link. Sphinx generates `_code/<nb>.ipynb` (a code-cells-only
  * copy) at build time, so when the referenced file is that missing copy we
@@ -791,19 +799,17 @@ function stageDownload(body, nbSrc) {
   // A bare target (`{nb-download}`file.ipynb``) is labelled with the file name,
   // as Sphinx does; only the `text <target>` form carries its own label.
   const text = (m ? m[1].trim() : baseName) || "Download";
-  const relNb = path
-    .relative(M.sphinxRoot, nbSrc)
-    .replace(/\.[^./]+$/, "")
-    .split(path.sep)
-    .join("/");
-  // Keep the target's subdirectories so same-named files from different
-  // folders (e.g. example scripts outside the docs tree) don't overwrite each other.
+  // Keyed by the file itself, not the page offering it, so a shared include
+  // links the same URL from every page. A module with committed MDX keys it by
+  // its path in the repo, so the build can stage the file from there rather
+  // than the repo carrying a second copy that drifts.
+  const inRepo = downloadRoot !== null && !path.relative(downloadRoot, abs).startsWith("..");
   const targetRel = path
-    .relative(path.dirname(nbSrc), abs)
+    .relative(inRepo ? /** @type {string} */ (downloadRoot) : M.sphinxRoot, abs)
     .split(path.sep)
     .filter((seg) => seg !== "..")
     .join("/");
-  const outRel = `${relNb}/_downloads/${targetRel}`;
+  const outRel = `_downloads/${targetRel}`;
   const dest = path.join(M.assetRoot, outRel);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   if (fs.existsSync(abs)) {
@@ -5886,9 +5892,13 @@ function planMystNav(files) {
  * Write a MyST sidebar tree and legacy redirects, independently of page files.
  * Keep filesystem metadata only for page discovery and generated API groups.
  * @param {ReturnType<typeof planMystNav>} sections @param {DocIndex} index
- * @param {string[]} apiNavPages @returns {number}
+ * @param {string[]} apiNavPages
+ * @param {import("./frozen-nav.mjs").NavTreeNode[]} [frozenTree] the sidebar a
+ *   frozen module's committed nav declares; its root meta.json and redirects
+ *   are staged from the repo, so only the tree and API meta are written
+ * @returns {number}
  */
-function emitMystNavMetas(sections, index, apiNavPages) {
+function emitMystNavMetas(sections, index, apiNavPages, frozenTree) {
   let metas = 0;
   /** @param {MystNavNode} node */
   const titleFor = (node) =>
@@ -5934,6 +5944,16 @@ function emitMystNavMetas(sections, index, apiNavPages) {
     );
     metas += 1;
   };
+  if (apiNavPages.length) writeApiMeta();
+  if (frozenTree) {
+    const kept = frozenTree.filter((n) => n.type !== "reference" || apiNavPages.length);
+    fs.writeFileSync(
+      path.join(outputRoot, `${M.name}-nav-tree.json`),
+      `${JSON.stringify(kept, null, 2)}\n`,
+      "utf8",
+    );
+    return metas;
+  }
   const tree = [];
   for (const section of sections) {
     const items = section.nodes.map(navNode).filter(Boolean);
@@ -5942,7 +5962,6 @@ function emitMystNavMetas(sections, index, apiNavPages) {
       tree.push({ type: "separator", name: section.caption });
     tree.push(...items);
   }
-  if (apiNavPages.length) writeApiMeta();
   fs.writeFileSync(
     path.join(outputRoot, `${M.name}-nav-tree.json`),
     `${JSON.stringify(tree, null, 2)}\n`,
@@ -5961,10 +5980,139 @@ function emitMystNavMetas(sections, index, apiNavPages) {
   return metas + 1;
 }
 
+/** Plain text of a Markdown heading, as Fumadocs flattens it for its slug.
+ * @param {string} text @returns {string} */
+function markdownHeadingText(text) {
+  return text
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/(\*\*|__|\*|`|\$)/g, "")
+    .replace(/\\(.)/g, "$1")
+    .trim();
+}
+
+/** Set (or, with `undefined`, remove) top-level frontmatter fields of an MDX file.
+ * @param {string} file @param {Record<string, string | string[] | undefined>} fields */
+function setFrontmatterFields(file, fields) {
+  const text = fs.readFileSync(file, "utf8");
+  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---[ \t]*\r?\n?/);
+  const kept = [];
+  const lines = m ? m[1].split(/\r?\n/) : [];
+  for (let i = 0; i < lines.length; i++) {
+    const key = lines[i].match(/^([\w-]+):/)?.[1];
+    if (key && Object.hasOwn(fields, key)) {
+      while (/^\s*-\s/.test(lines[i + 1] ?? "")) i++;
+      continue;
+    }
+    kept.push(lines[i]);
+  }
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) {
+      kept.push(`${key}:`, ...value.map((v) => `  - ${JSON.stringify(v)}`));
+    } else {
+      kept.push(`${key}: ${JSON.stringify(value)}`);
+    }
+  }
+  const body = m ? text.slice(m[0].length) : text;
+  fs.writeFileSync(file, `---\n${kept.join("\n")}\n---\n${body}`, "utf8");
+}
+
+/**
+ * Index the cross-reference targets of a merged backport's committed prose from
+ * the staged MDX itself (includes already inlined), so nothing has to be kept in
+ * sync by hand once the RST is gone: page titles from frontmatter, `(label)=`
+ * targets, autosectionlabel section names, and glossary terms (the term text
+ * beside each `<a id="term-…" />`; the slug alone can't be inverted).
+ * @param {{ rel: string, dest: string }[]} pages
+ * @returns {{labels: Record<string, {url:string, anchor:string, title:string, defined?:boolean}>, terms: Record<string, {url:string, anchor:string}>, titles: Record<string, string>, urls: string[]}}
+ */
+function indexCommittedProse(pages) {
+  /** @type {ReturnType<typeof indexCommittedProse>} */
+  const out = { labels: {}, terms: {}, titles: {}, urls: [] };
+  for (const { rel, dest } of pages) {
+    const relNoExt = rel.replace(/\.mdx$/, "");
+    // A section landing (`x.rst` beside `x/`) is staged as `x/index.mdx`.
+    const names = relNoExt.endsWith("/index")
+      ? [relNoExt, relNoExt.slice(0, -"/index".length)]
+      : [relNoExt];
+    const parts = relNoExt.split("/");
+    if (parts[parts.length - 1] === "index") parts.pop();
+    const url = `/${M.routeBase}/${parts.join("/")}/`.replace(/\/{2,}/g, "/");
+    out.urls.push(url);
+    const text = fs.readFileSync(dest, "utf8");
+    const { body } = stripYamlFrontmatter(text);
+    const fields = frontmatterFields(text);
+    const pageTitle =
+      typeof fields.title === "string" && fields.title
+        ? fields.title
+        : path.posix.basename(relNoExt);
+    for (const name of names) out.titles[name] = pageTitle;
+    /** @type {{text: string, slug: string}[]} */
+    const headings = [{ text: pageTitle, slug: "" }];
+    const slugger = new GithubSlugger();
+    /** @type {string[]} */
+    let pending = [];
+    let seenContent = false;
+    let fence = "";
+    const lines = body.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1];
+      if (marker && (!fence || marker.startsWith(fence))) {
+        fence = fence ? "" : marker;
+      } else if (fence) {
+        continue;
+      }
+      if (!line.trim()) continue;
+      const label = line.trim().match(/^\(([^()\s][^()]*)\)=$/)?.[1];
+      if (label) {
+        pending.push(label);
+        continue;
+      }
+      const term = line.trim().match(/^<a id="(term-[^"]+)" \/>$/)?.[1];
+      if (term) {
+        const next = lines.slice(i + 1).find((l) => l.trim());
+        const word = next?.trim().match(/^\*\*(.+)\*\*$/)?.[1];
+        if (word) out.terms[word.toLowerCase()] = { url, anchor: term };
+      }
+      const h = marker ? null : line.match(/^#{1,6}[ \t]+(.*?)(?:[ \t]*\[#([^\]\s]+)\])?[ \t]*$/);
+      let target = null;
+      if (h) {
+        const text = markdownHeadingText(h[1]);
+        const slug = h[2] ?? slugger.slug(text);
+        headings.push({ text, slug });
+        target = { anchor: slug, title: text };
+      } else if (!seenContent) {
+        target = { anchor: "", title: pageTitle };
+      } else {
+        const id = line.match(/^\s*<\w[^>]*\bid="([^"]+)"/)?.[1];
+        target = { anchor: id ?? pending[0], title: headings[headings.length - 1].text };
+      }
+      for (const name of pending) {
+        out.labels[name.toLowerCase()] = { url, ...target, defined: true };
+      }
+      pending = [];
+      seenContent = true;
+    }
+    if (M.autosectionlabel) {
+      for (const { text, slug } of headings) {
+        const section = text.replace(/\s+/g, " ").toLowerCase();
+        for (const name of names) {
+          const key = M.autosectionlabel.prefixDocument
+            ? `${name.toLowerCase()}:${section}`
+            : section;
+          out.labels[key] ??= { url, anchor: slug, title: text };
+        }
+      }
+    }
+  }
+  return out;
+}
+
 /** Copy a `merged` backport's committed prose (MDX plus the hand-maintained
  * meta.json and nav titles that travel with it, and its images) into the
  * generated tree the notebook/API passes are about to fill in.
- * `xref-manifest.json` is read separately rather than published as content.
  * `_`-prefixed MDX files are partials: they are inlined where a page includes
  * them (so the staged page is self-contained) rather than published.
  * @param {string} src repo docs dir @param {string} outDir @param {string} assetRoot
@@ -6021,6 +6169,126 @@ function stageFrozenProse(src, outDir, assetRoot) {
 }
 
 const INCLUDE_LINE = /^<include>\s*(.+?)\s*<\/include>[ \t]*$/gm;
+
+/** Partials written this freeze run -> their text, the page that wrote them and
+ * the include they came from. Reset per module.
+ * @type {Map<string, { text: string, page: string, src: string }>} */
+let frozenPartials = new Map();
+
+/** Stage the repo files a merged backport's committed pages offer as downloads
+ * (`/<assets>/_downloads/<path in repo>`), warning about any that have gone.
+ * @param {{ dest: string }[]} pages */
+function stageRepoDownloads(pages) {
+  if (!downloadRoot) return;
+  const root = downloadRoot;
+  const url = new RegExp(`/${escapeRegExp(M.assetSubdir)}/_downloads/([^\\s)"'<>{}]+)`, "g");
+  /** @type {Set<string>} */
+  const missing = new Set();
+  for (const { dest } of pages) {
+    for (const [, rel] of fs.readFileSync(dest, "utf8").matchAll(url)) {
+      const file = decodeURI(rel);
+      const from = path.join(root, file);
+      if (!fs.existsSync(from)) {
+        missing.add(file);
+        continue;
+      }
+      const to = path.join(M.assetRoot, "_downloads", file);
+      fs.mkdirSync(path.dirname(to), { recursive: true });
+      fs.copyFileSync(from, to);
+    }
+  }
+  if (missing.size) {
+    console.warn(
+      `[generate-docs] ${M.name}: download(s) not found in the repo: ${[...missing].join(", ")}`,
+    );
+  }
+}
+
+/** Split an include's leading heading (with any labels/anchors naming it) off its
+ * body: its level depends on the including page, so it stays in that page.
+ * @param {string} body @returns {{ lead: string, rest: string }} */
+function splitLeadingHeading(body) {
+  const m = body.match(
+    /^\s*((?:(?:\([^()\n]+\)=|<a id="[^"]*" \/>)[ \t]*\n\s*)*#{1,6}[ \t][^\n]*)(?:\n|$)/,
+  );
+  return m ? { lead: `${m[1]}\n\n`, rest: body.slice(m[0].length) } : { lead: "", rest: body };
+}
+
+/** Warn about shared includes frozen from only some of the pages that include
+ * them: a later freeze of the others overwrites the partial with their version.
+ * @param {string[]} files @param {{ relNoExt: string }[]} frozen */
+function warnPartialIncluders(files, frozen) {
+  const done = new Set(frozen.map((f) => f.relNoExt));
+  for (const [partial, { src }] of frozenPartials) {
+    const others = files
+      .filter((f) => f.endsWith(".rst"))
+      .filter((f) =>
+        [...fs.readFileSync(f, "utf8").matchAll(/^\s*\.\.\s+include::\s*(\S+)\s*$/gm)].some(
+          ([, target]) => path.resolve(path.dirname(f), target) === src,
+        ),
+      )
+      .map((f) => path.relative(M.sphinxRoot, f).replace(/\.rst$/, "").split(path.sep).join("/"))
+      .filter((rel) => !done.has(rel));
+    if (others.length) {
+      console.warn(
+        `[generate-docs] ${M.name}: ${partial} is also included by ${others.join(", ")}; freeze them in the same run.`,
+      );
+    }
+  }
+}
+
+/**
+ * The sidebar a MyST module's toctrees declare, as frozen-page `navChildren`
+ * (toctree entry syntax) plus a root meta.json whose `pages` lay out the top
+ * level and whose `navTree` flag has the build derive the whole sidebar from
+ * them (see frozen-nav.mjs).
+ * @param {ReturnType<typeof planMystNav>} sections
+ * @param {(rel: string, kid: string) => string} navTarget
+ * @returns {[(relNoExt: string, rel: string) => { navChildren?: string[] }, () => void]}
+ */
+function mystFreezeNav(sections, navTarget) {
+  /** @type {Map<string, MystNavNode>} */
+  const nodes = new Map();
+  /** @param {MystNavNode} node */
+  const walk = (node) => {
+    if (node.srcRel && !nodes.has(node.srcRel)) nodes.set(node.srcRel, node);
+    node.children.forEach(walk);
+  };
+  for (const section of sections) section.nodes.forEach(walk);
+  /** @param {string | null} label @param {string} target */
+  const entry = (label, target) => (label ? `${label} <${target}>` : target);
+  /** @param {string} relNoExt @param {string} rel */
+  const navOf = (relNoExt, rel) => ({
+    navChildren: (nodes.get(relNoExt)?.children ?? []).flatMap((c) => {
+      if (c.external) return [entry(c.label || c.external, c.external)];
+      return c.srcRel ? [entry(c.label, navTarget(rel, c.srcRel))] : [];
+    }),
+  });
+  const writeRootMeta = () => {
+    if (!M.freeze) return;
+    const sectioned = sections.filter((s) => s.caption).length >= 2;
+    /** @type {string[]} */
+    const pages = [];
+    for (const section of sections) {
+      const items = section.nodes.flatMap((n) => {
+        if (n.external) return [`[${n.label || n.external}](${n.external})`];
+        if (n.srcRel) return [entry(n.label, navUrl(n.srcRel).slice(M.routeBase.length + 2))];
+        return n.base ? [entry(n.label, n.base)] : [];
+      });
+      if (items.length === 0) continue;
+      if (sectioned && section.caption) pages.push(`---${section.caption}---`);
+      pages.push(...items);
+    }
+    // `...` keeps every page in Fumadocs' own tree, which the derived sidebar resolves against.
+    pages.push("...");
+    fs.writeFileSync(
+      path.join(M.freeze.outDir, "meta.json"),
+      `${JSON.stringify({ title: prettify(M.name), navTree: true, pages }, null, 2)}\n`,
+      "utf8",
+    );
+  };
+  return [navOf, writeRootMeta];
+}
 
 /** A page glob (module-relative, no extension): `*` stays within a path
  * segment, `**` spans segments. @param {string} glob @returns {RegExp} */
@@ -6081,8 +6349,9 @@ function includedOnlyPages(files) {
 }
 
 /** Copy the module's generated sidebar (every meta.json outside the rebuilt
- * `api/` folder, plus the nav-titles and nav-nesting sidecars) into a merged
- * backport's docs dir, so the nav survives once its RST toctrees are deleted.
+ * `api/` folder, plus the route redirects) into a merged backport's docs dir,
+ * so the nav survives once its RST toctrees are deleted. Sidebar labels and
+ * nesting travel in each frozen page's frontmatter instead.
  * @param {string} name @param {string} outDir */
 function writeFrozenNav(name, outDir) {
   const root = path.join(outputRoot, M.routeBase);
@@ -6100,9 +6369,9 @@ function writeFrozenNav(name, outDir) {
     }
   };
   walk(root);
-  for (const sidecar of ["nav-titles", "nav-nesting", "route-redirects"]) {
-    const file = path.join(outputRoot, `${name}-${sidecar}.json`);
-    if (fs.existsSync(file)) fs.copyFileSync(file, path.join(outDir, `${sidecar}.json`));
+  const redirects = path.join(outputRoot, `${name}-route-redirects.json`);
+  if (fs.existsSync(redirects)) {
+    fs.copyFileSync(redirects, path.join(outDir, "route-redirects.json"));
   }
 }
 
@@ -6163,9 +6432,23 @@ function writeFrozenPage(rel, md, includes) {
           .join("/");
         const name = path.posix.basename(src).replace(/\.rst(\.inc)?$/, "");
         const partial = path.posix.join(path.posix.dirname(src), `_${name}.mdx`);
-        files.set(partial, `${body.trim()}\n`);
+        const { lead, rest } = splitLeadingHeading(body);
+        const text = `${rest.trim()}\n`;
+        const prior = frozenPartials.get(partial);
+        if (prior && prior.text !== text) {
+          const a = prior.text.split("\n");
+          const b = text.split("\n");
+          let at = 0;
+          while (a[at] === b[at]) at++;
+          throw new Error(
+            `${partial} converts differently in ${rel} than in ${prior.page} ` +
+              `(line ${at + 1}: ${JSON.stringify(a[at])} vs ${JSON.stringify(b[at])})`,
+          );
+        }
+        frozenPartials.set(partial, { text, page: rel, src: includes[Number(n)] });
+        files.set(partial, text);
         const target = path.posix.relative(pageDir, partial);
-        return `<include>${target.startsWith(".") ? target : `./${target}`}</include>`;
+        return `${lead}<include>${target.startsWith(".") ? target : `./${target}`}</include>`;
       },
     );
   if (page.includes(INCLUDE_MARK)) {
@@ -6179,6 +6462,14 @@ function writeFrozenPage(rel, md, includes) {
     fs.writeFileSync(dest, text, "utf8");
     for (const [url] of text.matchAll(assetUrl)) {
       const assetRel = decodeURI(url.slice(M.assetSubdir.length + 2));
+      // A download of a repo file is staged from the repo by every build.
+      if (
+        downloadRoot &&
+        assetRel.startsWith("_downloads/") &&
+        fs.existsSync(path.join(downloadRoot, assetRel.slice("_downloads/".length)))
+      ) {
+        continue;
+      }
       const ext = path.extname(assetRel);
       const dark = ext ? `${assetRel.slice(0, -ext.length)}.dark${ext}` : "";
       for (const a of [assetRel, dark]) {
@@ -6378,6 +6669,9 @@ function convertModule(mod) {
   missingImages.clear();
   unresolvedRefs.clear();
   mystRefs = new Map();
+  frozenPartials = new Map();
+  const committedDir = mod.freeze?.outDir ?? mod.mergedProse;
+  downloadRoot = committedDir ? path.dirname(path.resolve(committedDir)) : null;
 
   // API-only module (e.g. the tket API reference): no Sphinx prose to walk — the
   // whole sidebar comes from the quartodoc project. Clean the route output, ingest
@@ -6409,15 +6703,24 @@ function convertModule(mod) {
   fs.rmSync(path.join(outputRoot, `${mod.name}-route-redirects.json`), { force: true });
   // A `merged` backport authors its prose in the module repo but still builds
   // notebook/API pages from code. Stage the committed prose into the freshly
-  // cleaned tree so both halves end up in one collection, and take the frozen
-  // cross-reference indexes from the manifest that travelled with it.
+  // cleaned tree so both halves end up in one collection, and index the
+  // cross-reference targets the committed pages define.
   const mergedRepoDir = mod.mergedProse;
-  /** @type {{labels?: Record<string, {url:string,anchor:string,title:string}>, terms?: Record<string, {url:string,anchor:string}>, titles?: Record<string,string>}} */
+  /** @type {Partial<ReturnType<typeof indexCommittedProse>>} */
   let frozen = {};
+  /** @type {ReturnType<typeof frozenNav>} sidebar declared by the committed pages */
+  let frozenNavInfo = { titles: {}, nesting: {} };
   /** @type {string[]} */
   let stagedMetaDirs = [];
   /** @type {Set<string>} pages (module-relative, no ext) staged as committed MDX */
   const frozenPages = new Set();
+  // Pages being (re)frozen are converted from their RST even when committed.
+  const freezePatterns = (mod.freeze?.pages ?? []).map((p) => ({ p, re: pageGlob(p) }));
+  const freezeExclude = (mod.freeze?.exclude ?? []).map(pageGlob);
+  /** @param {string} rel */
+  const isFreezePage = (rel) =>
+    freezePatterns.some(({ re }) => re.test(rel)) &&
+    !freezeExclude.some((re) => re.test(rel));
   if (mergedRepoDir) {
     const src = mergedRepoDir;
     const staged = stageFrozenProse(
@@ -6426,29 +6729,28 @@ function convertModule(mod) {
       M.assetRoot,
     );
     stagedMetaDirs = staged.metaDirs;
+    stageRepoDownloads(staged.pages);
     for (const { rel } of staged.pages) {
       const page = rel.replace(/\.mdx$/, "");
       frozenPages.add(page);
       if (page.endsWith("/index")) frozenPages.add(page.slice(0, -"/index".length));
     }
+    frozen = indexCommittedProse(
+      staged.pages.filter(({ rel }) => !isFreezePage(rel.replace(/\.mdx$/, ""))),
+    );
+    const content = readNavContent(path.join(outputRoot, M.routeBase));
+    frozenNavInfo = frozenNav({
+      pages: content.pages.filter((p) => !isFreezePage(p.rel)),
+      metas: content.metas,
+      baseUrl: `/${M.routeBase}`,
+      references: { api: `/${M.routeBase}/api` },
+    });
     executeStagedBlocks(mod, src, staged.pages);
-    try {
-      frozen = JSON.parse(
-        fs.readFileSync(path.join(src, "xref-manifest.json"), "utf8"),
-      );
-    } catch {
-      console.warn(`[generate-docs] ${mod.name}: no xref-manifest.json found`);
-    }
   }
-  // Pages being (re)frozen are converted from their RST even when committed.
-  const freezePatterns = (mod.freeze?.pages ?? []).map((p) => ({ p, re: pageGlob(p) }));
-  const freezeExclude = (mod.freeze?.exclude ?? []).map(pageGlob);
-  /** @param {string} rel */
-  const isFreezePage = (rel) =>
-    freezePatterns.some(({ re }) => re.test(rel)) &&
-    !freezeExclude.some((re) => re.test(rel));
   /** @type {Set<string>} freeze patterns that matched a converted RST page */
   const freezeUsed = new Set();
+  /** @type {{ relNoExt: string, rel: string }[]} pages frozen this run */
+  const frozenWritten = [];
   /** @type {string[]} */
   const files = [];
   // A merged backport's committed pages are skipped in the conversion loop, but
@@ -6466,14 +6768,17 @@ function convertModule(mod) {
 
   // First pass: index labels/titles so `:ref:`/`:doc:` resolve across pages.
   const index = buildIndex(files);
-  // The frozen prose is no longer in `files`, so its labels/titles come from the
-  // manifest instead. Live entries win: a notebook's own `(label)=` is always
-  // fresher than the snapshot.
+  // The committed MDX, not any RST still lying around, defines its pages'
+  // targets. Notebook labels of the same name still win.
+  const frozenUrls = new Set(frozen.urls ?? []);
+  for (const [label, entry] of index.labels) {
+    if (frozenUrls.has(entry.url)) index.labels.delete(label);
+  }
   for (const [label, entry] of Object.entries(frozen.labels ?? {})) {
     if (!index.labels.has(label)) index.labels.set(label, entry);
   }
   for (const [rel, title] of Object.entries(frozen.titles ?? {})) {
-    if (!index.titles.has(rel)) index.titles.set(rel, title);
+    index.titles.set(rel, title);
   }
   // Add the `api/*.rst` cross-ref labels (api/ is skipped by collectRst).
   registerApiLabels(mod, index);
@@ -6502,11 +6807,9 @@ function convertModule(mod) {
       },
     ]),
   );
-  // A frozen glossary cannot be rebuilt by rescanning its committed MDX:
-  // glossarySlug() is lossy ("ansatz (plural: ansätze)" -> term-ansatz-plural-
-  // ans-tze), so the term -> anchor map travels in the manifest.
+  // A frozen glossary's terms come from its committed MDX (indexCommittedProse).
   for (const [term, entry] of Object.entries(frozen.terms ?? {})) {
-    if (!glossaryIndex.has(term)) glossaryIndex.set(term, entry);
+    glossaryIndex.set(term, entry);
   }
   // Bibliography: parse the bibtex file so `:cite:` roles link to author-year
   // entries and the (directive-only) bibliography page can be populated.
@@ -6598,6 +6901,12 @@ function convertModule(mod) {
         );
       } else if (source.endsWith(".md")) {
         markdown = withFrontmatter(convertMyst(source, index, relNoExt), out);
+        if (isFreezePage(relNoExt)) {
+          const frozenRel = path.relative(M.routeBase, out).split(path.sep).join("/");
+          writeFrozenPage(frozenRel, unlinkHeadings(markdown), []);
+          frozenWritten.push({ relNoExt, rel: frozenRel });
+          for (const { p, re } of freezePatterns) if (re.test(relNoExt)) freezeUsed.add(p);
+        }
       } else if (relNoExt === bibRelNoExt) {
         // The `.. bibliography::` directive yields no content via pandoc — render
         // the author-year reference list from the parsed bibtex instead.
@@ -6624,7 +6933,9 @@ function convertModule(mod) {
           /** @type {string[]} */
           const includes = [];
           const frozenMd = unlinkHeadings(rstPage({ includes }));
-          writeFrozenPage(path.relative(M.routeBase, out).split(path.sep).join("/"), frozenMd, includes);
+          const frozenRel = path.relative(M.routeBase, out).split(path.sep).join("/");
+          writeFrozenPage(frozenRel, frozenMd, includes);
+          frozenWritten.push({ relNoExt, rel: frozenRel });
           for (const { p, re } of freezePatterns) if (re.test(relNoExt)) freezeUsed.add(p);
         }
       }
@@ -6645,6 +6956,41 @@ function convertModule(mod) {
     convertedPages.add(relNoExt);
     converted += 1;
   }
+
+  /** A `navChildren` target for page `kid`, relative to frozen page file `rel`.
+   * @param {string} rel @param {string} kid */
+  const navTarget = (rel, kid) =>
+    path.posix.relative(
+      path.posix.dirname(rel.replace(/\.mdx$/, "")),
+      navUrl(kid).slice(M.routeBase.length + 2),
+    );
+  /**
+   * Finish a freeze run once every toctree has been read: write each frozen
+   * page's sidebar frontmatter, then (with `nav`) the module's committed nav.
+   * @param {(relNoExt: string, rel: string) => { navTitle?: string, navChildren?: string[] }} navOf
+   * @param {() => void} [writeRootMeta]
+   */
+  const finishFreeze = (navOf, writeRootMeta) => {
+    if (!mod.freeze) return;
+    for (const { relNoExt, rel } of frozenWritten) {
+      const { navTitle, navChildren } = navOf(relNoExt, rel);
+      setFrontmatterFields(path.join(mod.freeze.outDir, rel), {
+        navTitle: navTitle && navTitle !== index.titles.get(relNoExt) ? navTitle : undefined,
+        navChildren: navChildren?.length ? navChildren : undefined,
+      });
+    }
+    if (mod.freeze.nav) {
+      writeFrozenNav(mod.name, mod.freeze.outDir);
+      writeRootMeta?.();
+    }
+    warnPartialIncluders(files, frozenWritten);
+    const unused = freezePatterns.filter(({ p }) => !freezeUsed.has(p));
+    if (unused.length) {
+      console.warn(
+        `[generate-docs] ${mod.name}: froze no page for: ${unused.map(({ p }) => p).join(", ")}`,
+      );
+    }
+  };
 
   // Ingest quartodoc-generated API markdown into generated/<mod>/api/ (must run
   // before the meta pass so the API sidebar section resolves to real pages). The
@@ -6679,7 +7025,16 @@ function convertModule(mod) {
 
   // Emit MyST navigation after the generated API pages are available.
   if (M.markdown) {
-    const metas = emitMystNavMetas(navSections, index, apiNavPages);
+    // Re-derived over the whole output, so glob folders of notebooks find their pages.
+    const frozenTree =
+      frozenNavInfo.tree &&
+      frozenNav({
+        ...readNavContent(path.join(outputRoot, M.routeBase)),
+        baseUrl: `/${M.routeBase}`,
+        references: { api: `/${M.routeBase}/api` },
+      }).tree;
+    const metas = emitMystNavMetas(navSections, index, apiNavPages, frozenTree);
+    finishFreeze(...mystFreezeNav(navSections, navTarget));
     // Sidebar-label overrides (e.g. API leaf names) consumed by fumadocs-source.ts.
     fs.writeFileSync(
       path.join(outputRoot, `${mod.name}-nav-titles.json`),
@@ -7029,6 +7384,7 @@ function convertModule(mod) {
   const navTitles = stagedJson(navTitlesFile);
   for (const [url, label] of pageCaptions) navTitles[url] = label;
   for (const [url, label] of apiNavTitles) navTitles[url] = label;
+  Object.assign(navTitles, frozenNavInfo.titles);
   fs.writeFileSync(
     navTitlesFile,
     `${JSON.stringify(navTitles, null, 2)}\n`,
@@ -7045,6 +7401,7 @@ function convertModule(mod) {
   for (const [parent, kids] of toctreeChildren) {
     navNesting[navUrl(parent)] = kids.map(navUrl);
   }
+  Object.assign(navNesting, frozenNavInfo.nesting);
   fs.writeFileSync(
     navNestingFile,
     `${JSON.stringify(navNesting, null, 2)}\n`,
@@ -7065,14 +7422,9 @@ function convertModule(mod) {
     fs.writeFileSync(redirectsFile, `${JSON.stringify(redirects, null, 2)}\n`, "utf8");
   }
 
-  // Cross-reference bridge for backporting a module to committed MDX. Once the
-  // prose is frozen and its RST deleted, the ONGOING notebook/API build steps
-  // lose the in-memory indexes they resolve against, so persist them here.
-  // Heading slugs stay re-derivable (github-slugger over the committed MDX) and
-  // API symbols are rebuilt from the regenerated quartodoc output, but an
-  // arbitrary `.. _label:` target is not, and a glossary term cannot be
-  // recovered from its slug ("ansatz (plural: ansätze)" -> term-ansatz-plural-
-  // ans-tze is lossy). See docs/plans/origin-mdx-backport.md.
+  // The module's cross-reference indexes, for inspection. A merged backport
+  // doesn't need a committed copy: indexCommittedProse rebuilds the frozen
+  // pages' part from their MDX on every run.
   /** @param {Map<string, unknown>} m */
   const sortedEntries = (m) =>
     Object.fromEntries([...m].sort(([a], [b]) => a.localeCompare(b)));
@@ -7091,14 +7443,11 @@ function convertModule(mod) {
     "utf8",
   );
   if (mod.freeze) {
-    fs.writeFileSync(path.join(mod.freeze.outDir, "xref-manifest.json"), manifest, "utf8");
-    if (mod.freeze.nav) writeFrozenNav(mod.name, mod.freeze.outDir);
-    const unused = freezePatterns.filter(({ p }) => !freezeUsed.has(p));
-    if (unused.length) {
-      console.warn(
-        `[generate-docs] ${mod.name}: froze no RST page for: ${unused.map(({ p }) => p).join(", ")}`,
-      );
-    }
+    finishFreeze((relNoExt, rel) => ({
+      // The label a parent toctree gives the page, and the page's own toctree.
+      navTitle: pageCaptions.get(navUrl(relNoExt)),
+      navChildren: (toctreeChildren.get(relNoExt) ?? []).map((kid) => navTarget(rel, kid)),
+    }));
   }
 
   console.log(

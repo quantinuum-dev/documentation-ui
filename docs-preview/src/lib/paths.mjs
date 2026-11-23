@@ -8,9 +8,12 @@ const CONFIG_FILE = "docs-preview.config.json";
  * @typedef {object} DocsPreviewConfig
  * @property {string} [contentDir] MDX + meta.json root, relative to the repo.
  * @property {string} [publicDir] Static assets root, relative to the repo.
- * @property {string} [navTitles] Sidebar-label map, relative to the repo.
- * @property {string} [navNesting] Sidebar parent -> children map, relative to the repo.
- * @property {string} [navTree] Explicit sidebar tree, relative to the repo.
+ * @property {string} [navTitles] Generated sidebar-label map, relative to the repo
+ *   (committed pages declare theirs as `navTitle` frontmatter instead).
+ * @property {string} [navNesting] Generated sidebar parent -> children map, relative
+ *   to the repo (committed pages declare theirs as `navChildren` frontmatter).
+ * @property {string} [navTree] Generated sidebar tree, relative to the repo (a
+ *   committed root meta.json with `navTree: true` declares it instead).
  * @property {string} [basePath] URL prefix the published docs are served under.
  * @property {string} [generate] Command regenerating notebook/API MDX (full tier).
  * @property {import("@quantinuum/documentation-ui").DocsNavBarOptions} [navBar]
