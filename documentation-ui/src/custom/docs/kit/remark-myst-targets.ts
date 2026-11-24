@@ -15,6 +15,7 @@ interface MdNode {
     hProperties?: Record<string, unknown>
     mystLabels?: string[]
     mystExplicitId?: boolean
+    numfig?: string
   }
 }
 
@@ -25,7 +26,7 @@ export const XREF_EXPORT = 'xref'
 export interface XrefTargets {
   /** `(label)=` labels -> the id of the element they name (`''` for the page itself). */
   labels: Record<string, { id: string; title: string }>
-  /** Explicit `[#id]` heading ids -> heading text. */
+  /** Explicit `[#id]` heading ids -> heading text; numbered figure ids -> `Fig. N`. */
   ids: Record<string, string>
 }
 
@@ -124,7 +125,7 @@ export function remarkMystTargets() {
           id = labels[0]
           setElementId(node, id)
         }
-        const title = isHeading ? flatten(node) : ''
+        const title = isHeading ? flatten(node) : (node.data?.numfig ?? '')
         for (const name of labels) targets.labels[name] = { id, title }
       }
       node.children?.forEach(visit)

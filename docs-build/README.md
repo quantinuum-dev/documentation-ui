@@ -25,7 +25,10 @@ history (`git log --follow`, `git blame`) continuing back through its RST.
   Citations become `[](cite:p#key1,key2)` (parenthetical) or `[](cite:t#key)`
   (textual) links and the bibliography page a `<Bibliography />` placeholder;
   both are filled in at build time from `references.bib`, which the freeze
-  copies beside the pages.
+  copies beside the pages. Figures aren't numbered in the MDX: with the module's
+  `numfig` option the root `meta.json` gets `"numfig": true`, the site numbers
+  captioned `<figure>`s, and `:numref:` becomes `[](#label)`, which the site
+  fills in with `Fig. N`.
 - Commit the frozen MDX **next to** the RST on the port branch.
 - **Never hand-edit the frozen files.** Fix the RST (or the converter) and
   re-freeze. After merging develop into the branch, re-freeze and commit; the

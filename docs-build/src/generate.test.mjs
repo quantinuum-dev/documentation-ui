@@ -185,7 +185,7 @@ test("RST figure caption math is emitted as KaTeX-ready TeX", (context) => {
   convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
     { outputRoot: output, publicRoot: path.join(root, "public") });
   const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
-  assert.match(generated, /<figcaption><strong>Fig\. 1<\/strong> Overlap \$\\text\{Re\}\\Braket\{a \| b\}\$ for \$k\\lt l\$\.<\/figcaption>/);
+  assert.match(generated, /<figcaption>Overlap \$\\text\{Re\}\\Braket\{a \| b\}\$ for \$k\\lt l\$\.<\/figcaption>/);
   assert.doesNotMatch(generated, /class(Name)?="math/);
   assert.match(generated, /<figure><img /);
 });
@@ -243,12 +243,17 @@ test(":numref: resolves figures labelled with :name: as well as .. _label:", (co
     ".. figure:: b.png", "   :align: center", "   :name: second_fig", "", "   Second.", "",
     ".. math::", "   :label: eq-one", "", "   x = 1", "",
   ].join("\n"));
-  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst", numfig: true }],
     { outputRoot: output, publicRoot: path.join(root, "public") });
   const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
-  assert.match(generated, /See \[Fig\. 1\]\(#first-fig\) and \[Fig\. 2\]\(#second_fig\)\./);
+  // The site numbers figures and fills in the reference text.
+  assert.match(generated, /See \[\]\(#first-fig\) and \[\]\(#second_fig\)\./);
+  assert.match(generated, /^\(first-fig\)=\n\n<figure>/m);
+  assert.doesNotMatch(generated, /<a id="first-fig"|Fig\. \d/);
   assert.match(generated, /<img src="\/fixture-assets\/b\.png" id="second_fig"/);
   assert.doesNotMatch(generated, /label=/);
+  const meta = JSON.parse(fs.readFileSync(path.join(output, "fixture/meta.json"), "utf8"));
+  assert.equal(meta.numfig, true);
 });
 
 test("commented-out includes are not inlined; toctree entries take the page title", (context) => {
@@ -1035,6 +1040,33 @@ test("notebook cell outputs are wrapped in a code-output panel", (context) => {
   assert.match(generated, /print\(1\)\n```\n\n<div className="code-output">\n\n```text\n1\n```\n\n<\/div>/);
   assert.equal(generated.match(/code-output/g)?.length, 1);
   assert.doesNotMatch(generated, /QDOCOUTPUT/);
+});
+
+test("over-long notebook text outputs are truncated with a warning", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "docs-notebook-long-output-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, "index.md"), "# Docs\n\n```{toctree}\nexample\n```\n");
+  fs.writeFileSync(path.join(source, "example.ipynb"), JSON.stringify({
+    nbformat: 4,
+    nbformat_minor: 5,
+    metadata: { kernelspec: { name: "python3", display_name: "Python 3", language: "python" } },
+    cells: [
+      { id: "title", cell_type: "markdown", metadata: {}, source: ["# Example\n"] },
+      { id: "big", cell_type: "code", metadata: {}, execution_count: 1, source: ["big()"],
+        outputs: [{ output_type: "execute_result", execution_count: 1, metadata: {},
+          data: { "text/plain": ["x".repeat(50000)] } }] },
+    ],
+  }));
+  const warn = context.mock.method(console, "warn", () => {});
+  convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.md", markdown: true }],
+    { outputRoot: output, publicRoot: path.join(root, "public") });
+  const generated = fs.readFileSync(path.join(output, "fixture/example.mdx"), "utf8");
+  assert.match(generated, /output truncated: 50000 characters/);
+  assert.ok(generated.length < 30000);
+  assert.ok(warn.mock.calls.some((c) => /example\.ipynb cell 2: 50000-character output truncated/.test(String(c.arguments[0]))));
 });
 
 test("conversion errors fail the process instead of skipping a page", (context) => {

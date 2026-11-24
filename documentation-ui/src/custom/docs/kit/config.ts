@@ -8,6 +8,7 @@ import { remarkCodeLangAlias } from './remark-code-lang-alias'
 import { remarkDarkImages } from './remark-dark-images'
 import { remarkMathParagraphs } from './remark-math-paragraphs'
 import { remarkMystLabels, remarkMystTargets, XREF_EXPORT } from './remark-myst-targets'
+import { remarkNumfig } from './remark-numfig'
 import { quantinuumDark, quantinuumLight } from './shiki-theme'
 
 export { quantinuumDark, quantinuumLight } from './shiki-theme'
@@ -62,6 +63,7 @@ const codeLangAlias: Record<string, string> = {
  * `<name>.dark<ext>` sibling in the host's `public/` swaps to it in dark mode.
  * MyST `(label)=` targets and `[#id]` headings are exported per page as
  * `xref` for the cross-reference resolver (see `createXrefResolver`).
+ * Captioned figures are numbered when a `meta.json` sets `numfig: true`.
  */
 export interface DocsMdxOptions {
   remarkPlugins: (plugins: PluggableList) => PluggableList
@@ -81,6 +83,7 @@ export const docsMdxOptions: DocsMdxOptions = {
     ...plugins,
     remarkMath,
     remarkMathParagraphs,
+    remarkNumfig,
     remarkMystTargets,
   ],
   rehypePlugins: (plugins) => [rehypeKatex, ...plugins],

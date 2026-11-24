@@ -77,6 +77,8 @@ let logRoot = "";
  *   (Sphinx's `tikz_tikzlibraries`), comma-separated.
  * @property {string} [mergedProse] Absolute path to committed MDX prose (a `merged`
  *   backport): it is staged into the output and only notebooks/API are rebuilt.
+ * @property {boolean} [numfig] Number captioned figures (Sphinx's `numfig`): the
+ *   root meta.json declares `numfig: true` for the site to number them.
  * @property {NotebookExecution} [execute] Execute notebooks (and MyST-NB `.md`
  *   pages) at build time instead of rendering only their stored outputs.
  * @property {NotebookExecution} [executeBlocks] Run the ```` ```python exec ````
@@ -1260,11 +1262,7 @@ function resolveMystRoles(md, index, currentRelNoExt, nbSrc) {
     }
     if (role === "numref") {
       const e = numfigIndex.get(target.toLowerCase());
-      if (e) {
-        const label =
-          text || `${e.kind === "figure" ? "Fig." : "Table"} ${e.number}`;
-        return `[${label}](${e.url}#${e.anchor})`;
-      }
+      if (e) return numrefLink(e, m ? text : "");
       return text;
     }
     if (role === "ref") {
@@ -2866,7 +2864,7 @@ function convertNotebookViaQuarto(
     // Components lifted out of the cells before Quarto, restored after it.
     /** @type {string[]} */
     const shielded = [];
-    for (const cell of nbJson.cells ?? []) {
+    for (const [cellIndex, cell] of (nbJson.cells ?? []).entries()) {
       if (cell.cell_type === "markdown") {
         let s = convertMystDirectives(
           separateListsFromParagraphs(
@@ -2906,10 +2904,16 @@ function convertNotebookViaQuarto(
           i < lines.length - 1 ? `${l}\n` : l,
         );
       } else if (cell.cell_type === "code") {
+        const where = `${M.name}: ${path.relative(logRoot, src)} cell ${cellIndex + 1}`;
         for (const output of cell.outputs ?? []) {
           // Tracebacks and some streams carry terminal colour codes.
           if (output.traceback) output.traceback = output.traceback.map(stripAnsi);
-          if (output.text) output.text = stripAnsi(nbText(output.text));
+          if (output.text) output.text = capOutputText(stripAnsi(nbText(output.text)), where);
+          const plain = output.data?.["text/plain"];
+          // Only a text/plain-only output is displayed as text; leave the fallback of a richer one.
+          if (plain && Object.keys(output.data).length === 1) {
+            output.data["text/plain"] = capOutputText(nbText(plain), where);
+          }
           const html = output.data?.["text/html"];
           const iframe = html && stageSrcdocIframe(nbText(html), relNb);
           if (iframe) output.data["text/html"] = iframe;
@@ -2985,6 +2989,20 @@ function convertNotebookViaQuarto(
 /** @param {string} s @returns {string} */
 function stripAnsi(s) {
   return s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+}
+
+/** Longest text output published. Bigger ones (e.g. an accidental object repr)
+ * bloat the page and take Quarto minutes to render. */
+const MAX_OUTPUT_CHARS = 20000;
+
+/** Truncate an over-long text output, warning so it can be removed at source.
+ * @param {string} text @param {string} where @returns {string} */
+function capOutputText(text, where) {
+  if (text.length <= MAX_OUTPUT_CHARS) return text;
+  console.warn(
+    `[generate-docs] WARNING ${where}: ${text.length}-character output truncated to ${MAX_OUTPUT_CHARS}; remove it from the source`,
+  );
+  return `${text.slice(0, MAX_OUTPUT_CHARS)}\n… (output truncated: ${text.length} characters)`;
 }
 
 /** pandas wraps DataFrame HTML in `<div><style scoped>…</style>…</div>`; Quarto
@@ -3452,6 +3470,10 @@ function finalizeXrefs(dir) {
     const text = fs.readFileSync(file, "utf8");
     for (const m of text.matchAll(/^[ \t]*\(([^)\n]+)\)=[ \t]*$/gm)) defined.add(m[1].toLowerCase());
     for (const m of text.matchAll(/^#{1,6}[ \t].*\[#([^\]\s]+)\][ \t]*$/gm)) defined.add(m[1].toLowerCase());
+    // Numbered figures are targets by their ids (`:name:` lands on the image).
+    for (const m of text.matchAll(/^<figure\b.*$/gm)) {
+      for (const id of m[0].matchAll(/\bid="([^"]+)"/g)) defined.add(id[1].toLowerCase());
+    }
   }
   let rewritten = 0;
   for (const file of files) {
@@ -3562,11 +3584,7 @@ function resolveRoles(md, index, currentRelNoExt, srcPath) {
     }
     if (role === "numref") {
       const e = numfigIndex.get(target.toLowerCase());
-      if (e) {
-        const label =
-          linkText || `${e.kind === "figure" ? "Fig." : "Table"} ${e.number}`;
-        return `[${label}](${e.url}#${e.anchor})`;
-      }
+      if (e) return numrefLink(e, linkText);
       unresolvedRefs.add(`numref:${target}`);
       return linkText || target;
     }
@@ -4345,31 +4363,36 @@ function buildEqIndex(files) {
 
 /** Turn pandoc's labelled fenced-div wrappers (`::: {#id}` … `:::`, emitted for a
  * `.. _label:` before a figure/table) into an `<a id>` scroll anchor so `:numref:`
- * links land on the figure/table. The closing `:::` is left for mdxSafe to strip.
+ * links land on the figure/table. Dropped for a figure the `(label)=` target
+ * before it already names. The closing `:::` is left for mdxSafe to strip.
  * @param {string} md @returns {string} */
 function figureDivAnchors(md) {
-  return md.replace(
-    /^::: \{#([\w-]+)\}[ \t]*$/gm,
-    (_m, id) => `<a id="${id}" />`,
-  );
+  return md
+    .replace(
+      /^\(([^()\n]+)\)=\n[ \t]*\n::: \{#([\w-]+)\}[ \t]*\n(?=<figure\b)/gm,
+      (full, label, id) => (label.toLowerCase() === id.toLowerCase() ? `(${label})=\n\n` : full),
+    )
+    .replace(/^::: \{#([\w-]+)\}[ \t]*$/gm, (_m, id) => `<a id="${id}" />`);
 }
 
-/** Prefix each figure caption with its number (`numfig = True` shows `Fig. N` on
- * every captioned figure). Figures are counted per page in document order,
- * matching buildNumfigIndex, so `:numref:` numbers line up.
- * @param {string} md @returns {string} */
-function numberFigures(md) {
-  let n = 0;
-  return md.replace(/(<figure\b[^>]*>)([\s\S]*?)<\/figure>/g, (full, open, inner) => {
-    if (!/<figcaption>/.test(inner)) return full;
-    n += 1;
-    const numbered = inner.replace(
-      /<figcaption>([\s\S]*?)<\/figcaption>/,
-      (_m, cap) =>
-        `<figcaption><strong>Fig. ${n}</strong> ${cap.trim()}</figcaption>`,
-    );
-    return `${open}${numbered}</figure>`;
-  });
+/** A `:numref:` link. Figures are numbered by the site (`numfig` in the root
+ * meta.json), so a figure reference is a MyST `#label` cross-reference whose
+ * text the site fills in; tables keep the number counted here.
+ * @param {{ kind: "figure" | "table", number: number, url: string, anchor: string }} e
+ * @param {string} linkText @returns {string} */
+function numrefLink(e, linkText) {
+  const url = `${e.url}#${e.anchor}`;
+  if (e.kind === "figure") return mystRef(e.anchor, linkText, url, `Fig. ${e.number}`);
+  return `[${linkText || `Table ${e.number}`}](${url})`;
+}
+
+/** Declare `numfig: true` in the module's root meta.json (when the module sets
+ * `numfig`), so the site numbers its figures. */
+function markNumfig() {
+  const rootMeta = path.join(outputRoot, M.routeBase, "meta.json");
+  if (!M.numfig || !fs.existsSync(rootMeta)) return;
+  const meta = JSON.parse(fs.readFileSync(rootMeta, "utf8"));
+  fs.writeFileSync(rootMeta, `${JSON.stringify({ ...meta, numfig: true }, null, 2)}\n`, "utf8");
 }
 
 /** JSX components we emit that carry `{…}` expressions (e.g. `<Tabs items={[…]}>`)
@@ -6594,7 +6617,7 @@ function mystFreezeNav(sections, navTarget) {
     pages.push("...");
     fs.writeFileSync(
       path.join(M.freeze.outDir, "meta.json"),
-      `${JSON.stringify({ title: prettify(M.name), navTree: true, pages }, null, 2)}\n`,
+      `${JSON.stringify({ title: prettify(M.name), navTree: true, ...(M.numfig && { numfig: true }), pages }, null, 2)}\n`,
       "utf8",
     );
   };
@@ -6860,15 +6883,20 @@ function executeStagedBlocks(mod, src, pages) {
       throw new Error(`executed copy is out of date: ${file}`);
     }
     const key = `${p.rel.replace(/\.mdx$/, "")}/_exec`;
-    fs.writeFileSync(p.dest, spliceExecOutputs(p.text, executed.cells, key), "utf8");
+    fs.writeFileSync(
+      p.dest,
+      spliceExecOutputs(p.text, executed.cells, key, `${mod.name}: ${p.rel}`),
+      "utf8",
+    );
   }
 }
 
 /** Replace each ```` ```python exec ```` fence with a plain python one followed
  * by the matching executed cell's outputs.
  * @param {string} text @param {any[]} cells @param {string} key asset path prefix
+ * @param {string} where the page, for warnings
  * @returns {string} */
-function spliceExecOutputs(text, cells, key) {
+function spliceExecOutputs(text, cells, key, where) {
   const lines = text.split("\n");
   /** @type {string[]} */
   const out = [];
@@ -6885,7 +6913,11 @@ function spliceExecOutputs(text, cells, key) {
       out.push(lines[i]);
       if (close.test(lines[i])) break;
     }
-    const rendered = renderExecOutputs(cells[cell]?.outputs ?? [], `${key}/cell${cell}`);
+    const rendered = renderExecOutputs(
+      cells[cell]?.outputs ?? [],
+      `${key}/cell${cell}`,
+      `${where} exec block ${cell + 1}`,
+    );
     cell += 1;
     if (rendered) {
       // The docs theme styles `.code-output` as a panel attached to the code above.
@@ -6914,8 +6946,9 @@ function textBlock(t) {
  * myst-nb's `nb_merge_streams`), tracebacks and text reprs as text blocks,
  * images staged under `<key>-out<n>`, HTML tables as Markdown tables, and
  * srcdoc iframes (pytket circuit renderer) as staged pages.
- * @param {any[]} outputs @param {string} key @returns {string} */
-function renderExecOutputs(outputs, key) {
+ * @param {any[]} outputs @param {string} key @param {string} where for warnings
+ * @returns {string} */
+function renderExecOutputs(outputs, key, where) {
   /** @type {any[]} */
   const merged = [];
   for (const o of outputs) {
@@ -6930,7 +6963,7 @@ function renderExecOutputs(outputs, key) {
   const blocks = [];
   merged.forEach((o, n) => {
     if (o.output_type === "stream") {
-      blocks.push(textBlock(stripAnsi(nbText(o.text))));
+      blocks.push(textBlock(capOutputText(stripAnsi(nbText(o.text)), where)));
       return;
     }
     if (o.output_type === "error") {
@@ -6959,7 +6992,7 @@ function renderExecOutputs(outputs, key) {
       });
       blocks.push(mdxSafe(table));
     } else if (d["text/plain"]) {
-      blocks.push(textBlock(stripAnsi(nbText(d["text/plain"]))));
+      blocks.push(textBlock(capOutputText(stripAnsi(nbText(d["text/plain"])), where)));
     }
   });
   return blocks.filter(Boolean).join("\n\n");
@@ -7018,8 +7051,11 @@ function convertModule(mod) {
     force: true,
   });
   fs.rmSync(M.assetRoot, { recursive: true, force: true });
-  // Redirects are rebuilt (or restaged) every run: a stale one would shadow a page.
-  fs.rmSync(path.join(outputRoot, `${mod.name}-route-redirects.json`), { force: true });
+  // Sidecars are rebuilt (or restaged) every run: a stale one would shadow a page
+  // or keep nav derived from since-ignored RST.
+  for (const sidecar of ["route-redirects", "nav-titles", "nav-nesting"]) {
+    fs.rmSync(path.join(outputRoot, `${mod.name}-${sidecar}.json`), { force: true });
+  }
   // A `merged` backport authors its prose in the module repo but still builds
   // notebook/API pages from code. Stage the committed prose into the freshly
   // cleaned tree so both halves end up in one collection, and index the
@@ -7261,7 +7297,7 @@ function convertModule(mod) {
             ),
           );
           const withImages = imageTransform(resolved, path.dirname(source));
-          const withAnchors = numberFigures(figureDivAnchors(withImages));
+          const withAnchors = figureDivAnchors(withImages);
           let withComponents = tabsTransform(calloutTransform(withAnchors));
           if (relNoExt === glossaryRelNoExt)
             withComponents = glossaryAnchors(withComponents, glossaryTerms);
@@ -7375,6 +7411,7 @@ function convertModule(mod) {
         references: { api: `/${M.routeBase}/api` },
       }).tree;
     const metas = emitMystNavMetas(navSections, index, apiNavPages, frozenTree);
+    markNumfig();
     finishFreeze(...mystFreezeNav(navSections, navTarget));
     // Sidebar-label overrides (e.g. API leaf names) consumed by fumadocs-source.ts.
     fs.writeFileSync(
@@ -7420,6 +7457,12 @@ function convertModule(mod) {
   // read "Introduction" while the page keeps its H1 title (e.g. with a version).
   /** @type {Map<string,string>} */
   const pageCaptions = new Map();
+  // A merged backport's committed nav (meta.json + navTitle/navChildren
+  // frontmatter) is authoritative; leftover RST for those pages is ignored.
+  /** @param {string} relNoExt */
+  const committedNav = (relNoExt) => frozenPages.has(relNoExt) && !isFreezePage(relNoExt);
+  /** @param {string} relDir */
+  const committedMeta = (relDir) => !mod.freeze && stagedMetaDirs.includes(relDir);
   const indexSources = [
     path.join(M.sphinxRoot, M.indexFile),
     ...files.filter((f) => path.basename(f) === "index.rst"),
@@ -7430,6 +7473,7 @@ function convertModule(mod) {
       .dirname(path.relative(M.sphinxRoot, src))
       .split(path.sep)
       .join("/");
+    if (committedMeta(srcDir)) continue;
     for (const block of parseToctreeBlocks(fs.readFileSync(src, "utf8"))) {
       const targets = block.entries
         .filter((e) => !/^[a-z][\w+.-]*:\/\//i.test(e.ref)) // drop external URLs
@@ -7480,6 +7524,7 @@ function convertModule(mod) {
       .replace(/\.(rst|ipynb|md)$/, "")
       .split(path.sep)
       .join("/");
+    if (committedNav(relNoExt)) continue;
     /** @type {string[]} */
     const kids = [];
     for (const ref of parseToctree(fs.readFileSync(source, "utf8"))) {
@@ -7531,6 +7576,7 @@ function convertModule(mod) {
       .dirname(path.relative(M.sphinxRoot, source))
       .split(path.sep)
       .join("/");
+    if (committedMeta(relDir)) continue;
     const blocks = parseToctreeBlocks(text);
     /** @type {string[]} */
     let pages;
@@ -7635,7 +7681,7 @@ function convertModule(mod) {
       .replace(/\.rst$/, "")
       .split(path.sep)
       .join("/");
-    if (emitted.has(relNoExt)) continue;
+    if (emitted.has(relNoExt) || committedNav(relNoExt)) continue;
     const folderDir = path.join(outputRoot, mod.name, relNoExt);
     if (!fs.existsSync(folderDir) || !fs.statSync(folderDir).isDirectory()) {
       continue;
@@ -7675,7 +7721,7 @@ function convertModule(mod) {
   // per-folder meta emission above. Carry it into the sidebar root as a Fumadocs
   // separator plus link items.
   const rootIndex = path.join(M.sphinxRoot, M.indexFile);
-  if (fs.existsSync(rootIndex)) {
+  if (fs.existsSync(rootIndex) && !committedMeta(".")) {
     const rootMeta = path.join(outputRoot, M.routeBase, "meta.json");
     const existing = fs.existsSync(rootMeta)
       ? JSON.parse(fs.readFileSync(rootMeta, "utf8"))
@@ -7708,6 +7754,7 @@ function convertModule(mod) {
       metas += 1;
     }
   }
+  markNumfig();
 
   // Sidebar overrides consumed by lib/fumadocs-source.ts (page-tree transformer).
   // Kept outside generated/<module>/ so fumadocs doesn't treat it as content.
