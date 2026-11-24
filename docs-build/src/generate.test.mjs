@@ -425,8 +425,12 @@ test("Python roles become MyST refs that keep Sphinx's display text", (context) 
   fs.writeFileSync(path.join(apiSource, "index.qmd"), "# API\n\n## pkg.core\n\n[core](core.qmd)\n");
   fs.writeFileSync(path.join(apiSource, "core.qmd"), [
     "# core { #pkg.core }", "",
-    "### Thing { #pkg.core.Thing }", "", "A thing.", "",
+    "### Thing { #pkg.core.Thing }", "", "A thing.", "", "# WARNING not a heading", "",
     "##### run { #pkg.core.Thing.run }", "", "Runs.", "",
+    "###### Warning {.doc-section .doc-section-warning}", "", "Careful.", "",
+    "###### Returns {.doc-section .doc-section-returns}", "", "Nothing.", "",
+    "### Sub { #pkg.core.Sub }", "",
+    "Bases: [`Thing`](#pkg.core._impl.Thing), [`Hidden`](#pkg.core._impl.Hidden)`[int]`", "",
   ].join("\n"));
   convertModules([{ name: "pkg", sphinxRoot: source, indexFile: "index.rst", apiSource }],
     { outputRoot: output, publicRoot: path.join(root, "public") });
@@ -436,6 +440,13 @@ test("Python roles become MyST refs that keep Sphinx's display text", (context) 
   assert.match(page, /method \[`run\(\)`\]\(#pkg\.core\.Thing\.run\)/);
   assert.match(page, /titled \[`a thing`\]\(#pkg\.core\.Thing\)/);
   assert.match(page, /missing `pkg\.core\.Gone`/);
+  assert.match(fs.readFileSync(path.join(output, "pkg/api/pkg.core.mdx"), "utf8"), /^\\# WARNING not a heading$/m);
+  // A napoleon admonition section becomes a callout, as on prose pages.
+  assert.match(fs.readFileSync(path.join(output, "pkg/api/pkg.core.mdx"), "utf8"),
+    /<Callout type="warn">\n\nCareful\.\n\n<\/Callout>\n\n###### Returns\n/);
+  // Bases linked by canonical (private) path land where the class is documented.
+  assert.match(fs.readFileSync(path.join(output, "pkg/api/pkg.core.mdx"), "utf8"),
+    /^Bases: \[`Thing`\]\(#pkg\.core\.Thing\), `Hidden\[int\]`$/m);
 });
 
 test("labels atop nested Sphinx API pages point at their module's API page", (context) => {

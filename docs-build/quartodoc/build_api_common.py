@@ -40,6 +40,11 @@ A content entry may give ``extra_members``: names its module imports but leaves
 out of ``__all__`` (as a Sphinx page's ``.. autoclass::`` lines can document);
 ``build`` turns them into an explicit ``members`` list with ``__all__``.
 
+A module entry may also give ``groups``: ``{title, members}`` sub-headings, in
+order, that its page's members are sorted under (as a Sphinx page's sections).
+``"..."`` in a group's ``members`` stands for every member not listed in any
+group; without one, an unlisted member fails the build.
+
 A section may also give ``autosummary:`` roots (module names relative to the
 quartodoc ``package``, or ``{name, package}`` mappings; omit ``name`` for the
 package itself). ``build`` expands each root into module entries the way the
@@ -71,6 +76,26 @@ from quartodoc.renderers.md_renderer import MdRenderer, ParamRow, _has_attr_sect
 _qd_parsers.DEFAULT_OPTIONS.setdefault("google", {})["returns_multiple_items"] = False
 
 
+def _bases_line(target) -> str:
+    """Sphinx's ``:show-inheritance:`` line: a class's bases, those in its own
+    package linked by canonical path (docs-build maps a private module path to
+    where the class is documented)."""
+    root = target.path.split(".")[0]
+    bases = []
+    for base in getattr(target, "bases", []):
+        text, path = str(base), getattr(base, "canonical_path", "")
+        if path == "object":
+            continue
+        if path.split(".")[0] == root:
+            # A generic base (`Base[T]`) links its name; its arguments stay code.
+            name = str(getattr(base, "left", base))
+            args = f"`{text[len(name):]}`" if text != name else ""
+            bases.append(f"[`{name}`](#{path}){args}")
+        else:
+            bases.append(f"`{text}`")
+    return f"Bases: {', '.join(bases)}" if bases else ""
+
+
 def _render_class_with_init(self: MdRenderer, el, target) -> str:
     """Render a class docstring, merging its ``__init__`` docstring sections.
 
@@ -78,7 +103,7 @@ def _render_class_with_init(self: MdRenderer, el, target) -> str:
     doesn't already provide. ``target`` is the concrete class (``el`` itself, or
     an Alias's resolved target).
     """
-    parts = []
+    parts = [_bases_line(target)]
     if el.docstring is not None:
         parts.append(self.render(el.docstring))
 
@@ -412,6 +437,52 @@ def _expand_extra_members(qd: dict) -> None:
             entry["members"] = sorted((_exports(mod) or set()) | set(extra))
 
 
+def _pop_groups(qd: dict) -> dict[str, list[dict]]:
+    """Remove each content's ``groups`` (quartodoc rejects the key), by page name."""
+    return {
+        entry["name"]: entry.pop("groups")
+        for section in qd["sections"]
+        for entry in section.get("contents", [])
+        if isinstance(entry, dict) and "groups" in entry
+    }
+
+
+_RE_FENCE = re.compile(r"^(`{3,}|~{3,})")
+_RE_KIND_HEADING = re.compile(r"^## (?:Attributes|Classes|Functions|Exceptions)\s*$")
+_RE_MEMBER_HEADING = re.compile(r"^### .*\{ #(?:\w+\.)*(\w+) \}\s*$")
+
+
+def _group_members(text: str, groups: list[dict], page: str) -> str:
+    """Re-order a module page's members (``###`` blocks) under ``groups`` headings."""
+    preamble: list[str] = []
+    blocks: dict[str, list[str]] = {}
+    current: list[str] = preamble
+    fence = None
+    for line in text.split("\n"):
+        if m := _RE_FENCE.match(line):
+            fence = None if fence == m[1][0] else fence or m[1][0]
+        elif fence is None:
+            if _RE_KIND_HEADING.match(line):
+                continue
+            if m := _RE_MEMBER_HEADING.match(line):
+                current = blocks.setdefault(m[1], [])
+        current.append(line)
+
+    listed = [name for g in groups for name in g["members"] if name != "..."]
+    if unknown := [name for name in listed if name not in blocks]:
+        sys.exit(f"{page}: groups list members it does not document: {', '.join(unknown)}")
+    rest = [name for name in blocks if name not in listed]
+    if rest and not any("..." in g["members"] for g in groups):
+        sys.exit(f"{page}: members in no group (add them, or '...'): {', '.join(rest)}")
+
+    out = "\n".join(preamble).rstrip() + "\n\n"
+    for group in groups:
+        names = [n for name in group["members"] for n in (rest if name == "..." else [name])]
+        out += f"## {group['title']}\n\n"
+        out += "".join("\n".join(blocks[name]).rstrip() + "\n\n" for name in names)
+    return out
+
+
 def build(config: str = "_quarto.yml", *, complete: bool = False) -> None:
     """Run the quartodoc build in the current directory (patches applied on import).
 
@@ -421,6 +492,7 @@ def build(config: str = "_quarto.yml", *, complete: bool = False) -> None:
         quarto = yaml.safe_load(f)
     _expand_autosummary(quarto["quartodoc"], complete=complete)
     _expand_extra_members(quarto["quartodoc"])
+    groups = _pop_groups(quarto["quartodoc"])
     builder = Builder.from_quarto_config(quarto)
     builder.build()
     for page in Path(builder.dir).glob("*.qmd"):
@@ -429,5 +501,7 @@ def build(config: str = "_quarto.yml", *, complete: bool = False) -> None:
             continue
         text = page.read_text(encoding="utf-8")
         stripped = _RE_SUMMARY_TABLE.sub(r"\1\n\n", text)
+        if page.stem in groups:
+            stripped = _group_members(stripped, groups[page.stem], page.name)
         if stripped != text:
             page.write_text(stripped, encoding="utf-8")

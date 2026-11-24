@@ -4973,7 +4973,7 @@ function stripRstRoles(md) {
  * @param {string} md @returns {string}
  */
 function apiHeadings(md) {
-  return md
+  return docSectionCallouts(resolveApiLinks(md))
     .split("\n")
     .map((line) => {
       const h = line.match(/^(#{1,6})\s+(.*)$/);
@@ -4991,6 +4991,73 @@ function apiHeadings(md) {
       return line;
     })
     .join("\n");
+}
+
+/** Point an API page's `#pkg.mod.Name` links (a class's bases, by canonical
+ * path through private modules) at where the object is documented, falling back
+ * to its name within the same package; unlinked when it isn't documented.
+ * @param {string} md @returns {string} */
+function resolveApiLinks(md) {
+  return md.replace(/(?<!!)\[([^\]]*)\]\(#(\w+(?:\.\w+)+)\)(`[^`\n]+`)?/g, (full, text, id, args = "") => {
+    if (apiSymbolIndex.map.has(id.toLowerCase())) return full;
+    const root = id.split(".")[0];
+    const byName = /\._/.test(id) ? resolvePySymbol(id.split(".").pop() ?? "") : null;
+    const sym = resolvePySymbol(id) ?? (byName?.anchor.startsWith(`${root}.`) ? byName : null);
+    if (sym) return `[${text}](#${sym.anchor})${args}`;
+    // A generic base's name and arguments (`Base` `[T]`) rejoin as one code span.
+    return args && /^`[^`]+`$/.test(text) ? `${text.slice(0, -1)}${args.slice(1)}` : `${text}${args}`;
+  });
+}
+
+/** Docstring sections Sphinx's napoleon renders as admonitions (`Warning:`,
+ * `Note:`, `Danger:`, ...; `Notes:`/`Examples:` stay headings), by quartodoc's
+ * `.doc-section-<kind>` class -> <Callout> type. @type {Record<string, string>} */
+const DOC_SECTION_CALLOUT = {
+  ...ADMONITION_TYPE,
+  warnings: "warn",
+  "see-also": "info",
+  todo: "info",
+};
+
+/** Replace quartodoc's admonition-style docstring sections (a heading tagged
+ * `{.doc-section .doc-section-warning}` and the text up to the next heading at
+ * its level or above) with <Callout>s, as admonitions on prose pages.
+ * @param {string} md @returns {string} */
+function docSectionCallouts(md) {
+  const lines = md.split("\n");
+  /** @type {string[]} */
+  const out = [];
+  /** @param {string | null} fence @param {string} line */
+  const toggle = (fence, line) => {
+    const f = line.match(/^(`{3,}|~{3,})/);
+    if (!f) return fence;
+    return fence ? (fence === f[1][0] ? null : fence) : f[1][0];
+  };
+  /** @type {string | null} */
+  let fence = null;
+  for (let i = 0; i < lines.length; i++) {
+    const h = fence
+      ? null
+      : lines[i].match(/^(#{1,6})\s+.*\{\.doc-section \.doc-section-([\w-]+)\}\s*$/);
+    const type = h && DOC_SECTION_CALLOUT[h[2]];
+    if (!h || !type) {
+      fence = toggle(fence, lines[i]);
+      out.push(lines[i]);
+      continue;
+    }
+    let j = i + 1;
+    /** @type {string | null} */
+    let inner = null;
+    for (; j < lines.length; j++) {
+      const level = inner ? null : lines[j].match(/^(#{1,6})\s/)?.[1].length;
+      if (level && level <= h[1].length) break;
+      inner = toggle(inner, lines[j]);
+    }
+    const body = lines.slice(i + 1, j).join("\n").trim();
+    out.push(`<Callout type="${type}">`, "", body, "", "</Callout>", "");
+    i = j - 1;
+  }
+  return out.join("\n");
 }
 
 /**
@@ -5165,16 +5232,24 @@ function convertApiQmd(src, title, mod, urlMap, asSection = false) {
   );
   const lines = linked.split("\n");
   const h1 = lines.findIndex((l) => /^#\s+/.test(l));
+  // A docstring's `# ...` line is prose (RST has no `#` headings), not a 2nd H1.
+  /** @type {string | null} */
+  let docFence = null;
+  for (let i = h1 + 1; i < lines.length; i++) {
+    const f = lines[i].match(/^(`{3,}|~{3,})/);
+    if (f) docFence = docFence ? (docFence === f[1][0] ? null : docFence) : f[1][0];
+    else if (!docFence && /^#\s/.test(lines[i])) lines[i] = `\\${lines[i]}`;
+  }
   if (asSection) {
     // One module of a multi-module page: its heading (with id) becomes an H2,
-    // and quartodoc's id-less `## Classes`/`## Functions` groupings go.
+    // and quartodoc's `## Classes`/`## Functions` groupings go.
     if (h1 !== -1) lines[h1] = `#${lines[h1]}`;
     /** @type {string | null} */
     let fence = null;
     const kept = lines.filter((l) => {
       const f = l.match(/^(`{3,}|~{3,})/);
       if (f) fence = fence ? (fence === f[1][0] ? null : fence) : f[1][0];
-      return fence !== null || !/^##\s+[^[\n]*$/.test(l);
+      return fence !== null || !/^##\s+(Attributes|Classes|Functions|Exceptions)\s*$/.test(l);
     });
     return displayMath(mdxSafe(convertDoctestExamples(kept.join("\n")))).replace(/^\n+/, "");
   }
