@@ -34,6 +34,7 @@ import nbformat
 import yaml
 from nbclient import NotebookClient
 from nbclient.exceptions import CellExecutionError
+from traitlets.config import Config
 
 # Kept in step with collectRst's SKIP_DIRS in generate.mjs.
 SKIP_DIRS = {"_build", "_static", "_templates", "api", "public", "quantinuum-sphinx"}
@@ -91,7 +92,7 @@ def read_mystnb(path: Path):
 
 # Kept in step with INCLUDE_LINE / EXEC_FENCE in generate.mjs.
 INCLUDE_LINE = re.compile(r"^<include>\s*(.+?)\s*</include>[ \t]*$", re.M)
-EXEC_FENCE = re.compile(r"^([ \t]*)(`{3,})python exec[ \t]*$")
+EXEC_FENCE = re.compile(r"^([ \t]*)(`{3,})[ \t]*python[ \t]+exec[ \t]*$")
 
 
 def expand_includes(text: str, base: Path, depth: int = 0) -> str:
@@ -179,25 +180,24 @@ def use_this_python_as_kernel() -> None:
     )
 
 
-def execute(nb, timeout: int, cwd: Path, attempts: int = 3) -> None:
-    """Run `nb` in place, retrying a kernel that dies on startup.
+def execute(nb, timeout: int, cwd: Path) -> None:
+    """Run `nb` in place.
 
-    jupyter_client picks free ports that the kernel binds later, so a concurrent
-    executor (parallel build stages share a network) can take one in between.
+    The kernel talks over Unix sockets rather than TCP, so concurrent executors
+    (parallel build stages share a network) can't race for its ports.
     """
-    for attempt in range(1, attempts + 1):
-        try:
-            NotebookClient(
-                nb,
-                timeout=timeout,
-                kernel_name="python3",
-                resources={"metadata": {"path": str(cwd)}},
-            ).execute()
-            return
-        except RuntimeError as err:
-            if "before replying to kernel_info" not in str(err) or attempt == attempts:
-                raise
-            print(f"execute_notebooks: kernel failed to start, retrying ({err})", flush=True)
+    with tempfile.TemporaryDirectory(prefix="docs-build-ipc-") as sockets:
+        config = Config()
+        config.KernelManager.transport = "ipc"
+        # Absolute: the kernel runs in `cwd`, so a relative path would miss the client.
+        config.KernelManager.ip = os.path.join(sockets, "kernel")
+        NotebookClient(
+            nb,
+            timeout=timeout,
+            kernel_name="python3",
+            resources={"metadata": {"path": str(cwd)}},
+            config=config,
+        ).execute()
 
 
 def main() -> int:
