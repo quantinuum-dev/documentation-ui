@@ -607,6 +607,28 @@ function convertRst(src, freeze = undefined) {
   }
 }
 
+/** Pandoc writes opening fences as ```` ``` python ````; use the conventional
+ * ```` ```python ```` form. Fence-aware, so fences shown inside a code block are kept.
+ * @param {string} md @returns {string} */
+function tightFenceInfo(md) {
+  let open = "";
+  return md
+    .split("\n")
+    .map((line) => {
+      const m = line.match(/^([ \t]*)(`{3,}|~{3,})[ \t]*(.*)$/);
+      if (!m) return line;
+      if (open) {
+        if (m[2][0] === open[0] && m[2].length >= open.length && !m[3].trim()) {
+          open = "";
+        }
+        return line;
+      }
+      open = m[2];
+      return `${m[1]}${m[2]}${m[3]}`;
+    })
+    .join("\n");
+}
+
 /** Pandoc writes math inside raw-HTML blocks (figure captions) as MathJax spans
  * rather than `$…$`; rewrite them so remark-math/KaTeX render them like prose
  * math. `<`/`>` become `\lt`/`\gt` since a literal `<` would read as a JSX tag.
@@ -4164,7 +4186,7 @@ function imageTransform(md, srcDir) {
         .replace(/\s*\/?>$/, " />");
     })
     .replace(/<figure\b[^>]*>/g, (tag) =>
-      inlineAlignCenter(tag).replace(/\sclass=/, " className="),
+      dropAlignCenter(tag).replace(/\sclass=/, " className="),
     )
     // After the `<img>` pass, which would re-quote the JSX style object below.
     .replace(
@@ -4223,7 +4245,8 @@ function buildNumfigIndex(files) {
     let pendingLabel = null;
     /** @type {{ kind: "figure" | "table", number: number } | null} */
     let inOptions = null;
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       if (inOptions) {
         const optM = line.match(/^\s+:([\w-]+):\s*(.*)$/);
         if (optM) {
@@ -4244,8 +4267,14 @@ function buildNumfigIndex(files) {
       const dirM = line.match(dir);
       if (dirM) {
         const kind = dirM[1] === "figure" ? "figure" : "table";
-        const number = kind === "figure" ? (figN += 1) : (tblN += 1);
-        if (pendingLabel) {
+        // Sphinx skips uncaptioned figures when numbering.
+        const number =
+          kind === "table"
+            ? (tblN += 1)
+            : rstFigureHasCaption(lines, i)
+              ? (figN += 1)
+              : null;
+        if (pendingLabel && number) {
           numfigIndex.set(pendingLabel.toLowerCase(), {
             kind,
             number,
@@ -4254,12 +4283,24 @@ function buildNumfigIndex(files) {
           });
         }
         pendingLabel = null;
-        inOptions = { kind, number };
+        inOptions = number ? { kind, number } : null;
         continue;
       }
       if (line.trim() !== "") pendingLabel = null; // only blanks may separate them
     }
   }
+}
+
+/** Whether the `.. figure::` directive at `lines[i]` has a caption: an indented
+ * body after its options and a blank line.
+ * @param {string[]} lines @param {number} i @returns {boolean} */
+function rstFigureHasCaption(lines, i) {
+  const indent = (/** @type {string} */ s) => s.length - s.trimStart().length;
+  let j = i + 1;
+  while (j < lines.length && /^\s+:[\w-]+:/.test(lines[j])) j++;
+  if (j < lines.length && lines[j].trim() !== "") return false;
+  while (j < lines.length && lines[j].trim() === "") j++;
+  return j < lines.length && indent(lines[j]) > indent(lines[i]);
 }
 
 /** Number each RST page's labelled `.. math::` blocks (`:label:` option) in
@@ -4314,21 +4355,20 @@ function figureDivAnchors(md) {
 }
 
 /** Prefix each figure caption with its number (`numfig = True` shows `Fig. N` on
- * every figure). Figures are counted per page in document order, matching
- * buildNumfigIndex, so `:numref:` numbers line up.
+ * every captioned figure). Figures are counted per page in document order,
+ * matching buildNumfigIndex, so `:numref:` numbers line up.
  * @param {string} md @returns {string} */
 function numberFigures(md) {
   let n = 0;
-  return md.replace(/<figure>([\s\S]*?)<\/figure>/g, (_full, inner) => {
+  return md.replace(/(<figure\b[^>]*>)([\s\S]*?)<\/figure>/g, (full, open, inner) => {
+    if (!/<figcaption>/.test(inner)) return full;
     n += 1;
-    const numbered = /<figcaption>/.test(inner)
-      ? inner.replace(
-          /<figcaption>([\s\S]*?)<\/figcaption>/,
-          (_m, cap) =>
-            `<figcaption><strong>Fig. ${n}</strong> ${cap.trim()}</figcaption>`,
-        )
-      : `${inner}<figcaption><strong>Fig. ${n}</strong></figcaption>`;
-    return `<figure>${numbered}</figure>`;
+    const numbered = inner.replace(
+      /<figcaption>([\s\S]*?)<\/figcaption>/,
+      (_m, cap) =>
+        `<figcaption><strong>Fig. ${n}</strong> ${cap.trim()}</figcaption>`,
+    );
+    return `${open}${numbered}</figure>`;
   });
 }
 
@@ -4403,26 +4443,18 @@ function convertStyleAttr(tag) {
   });
 }
 
-/** Pandoc renders RST `:align: center` as `class="align-center"`, but no
- * stylesheet defines that class. Inline the centring instead, so a module's MDX
- * renders the same in any consumer rather than only where this app's CSS is
- * loaded. Flex, not `text-align`, because Tailwind's preflight makes images
- * block elements.
+/** Pandoc renders RST `:align: center` as `class="align-center"`. The docs theme
+ * centres every figure (Sphinx's default), so the class is redundant.
  * @param {string} tag @returns {string} */
-function inlineAlignCenter(tag) {
-  return tag.replace(
-    /\sclass(?:Name)?=(["'])align-center\1/i,
-    ` style=${cssStringToJsxObject(
-      "display: flex; flex-direction: column; align-items: center; text-align: center",
-    )}`,
-  );
+function dropAlignCenter(tag) {
+  return tag.replace(/\sclass(?:Name)?=(["'])align-center\1/i, "");
 }
 
 /** Apply JSX attribute fixes to a raw-HTML tag: convert a string `style` attribute
  * to a JSX object and rename `class` to `className` (React rejects the HTML name).
  * @param {string} tag @returns {string} */
 function fixJsxTag(tag) {
-  return convertStyleAttr(inlineAlignCenter(tag)).replace(
+  return convertStyleAttr(dropAlignCenter(tag)).replace(
     /\sclass=/gi,
     " className=",
   );
@@ -4789,7 +4821,7 @@ function balanceInlineHtml(md) {
  * @param {string} md @returns {string}
  */
 function mdxSafe(md) {
-  const lines = md.split("\n");
+  const lines = tightFenceInfo(md).split("\n");
   /** @type {string[]} */
   const out = [];
   /** @type {{ char: string, len: number } | null} */
@@ -6767,7 +6799,7 @@ function writeFrozenPage(rel, md, includes, source) {
   }
 }
 
-const EXEC_FENCE = /^([ \t]*)(`{3,})python exec[ \t]*$/;
+const EXEC_FENCE = /^([ \t]*)(`{3,})[ \t]*python[ \t]+exec[ \t]*$/;
 
 /** The ```` ```python exec ```` block bodies of an MDX page, in order.
  * @param {string} text @returns {string[]} */

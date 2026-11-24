@@ -285,6 +285,15 @@
   max-width: 100%;
 }
 
+/* Figures are centred with their caption, as in Sphinx. Flex, not `text-align`,
+   because Tailwind's preflight makes images block elements. */
+.quantinuum-docs figure:where(:not(.shiki)) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
 /* An image with a `.dark` variant renders as a pair (remarkDarkImages); the
    wrappers are layout-transparent and only the active theme's image shows. */
 .quantinuum-docs :where(.quantinuum-light-only, .quantinuum-dark-only) {

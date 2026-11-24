@@ -185,8 +185,9 @@ test("RST figure caption math is emitted as KaTeX-ready TeX", (context) => {
   convertModules([{ name: "fixture", sphinxRoot: source, indexFile: "index.rst" }],
     { outputRoot: output, publicRoot: path.join(root, "public") });
   const generated = fs.readFileSync(path.join(output, "fixture/page.mdx"), "utf8");
-  assert.match(generated, /<figcaption>Overlap \$\\text\{Re\}\\Braket\{a \| b\}\$ for \$k\\lt l\$\.<\/figcaption>/);
+  assert.match(generated, /<figcaption><strong>Fig\. 1<\/strong> Overlap \$\\text\{Re\}\\Braket\{a \| b\}\$ for \$k\\lt l\$\.<\/figcaption>/);
   assert.doesNotMatch(generated, /class(Name)?="math/);
+  assert.match(generated, /<figure><img /);
 });
 
 test("RST image :align: and :width: become inline styles", (context) => {
@@ -599,7 +600,7 @@ test("freezing writes exec blocks and include partials that staging re-inlines",
   const part = fs.readFileSync(path.join(committed, "page", "_part.mdx"), "utf8");
   // The include's opening heading stays in the page: its level is the page's.
   assert.match(page, /^## Part\n\n<include>\.\/page\/_part\.mdx<\/include>$/m);
-  assert.match(page, /^``` ?python\ny = 3\n```$/m);
+  assert.match(page, /^```python\ny = 3\n```$/m);
   assert.doesNotMatch(part, /^#/m);
   assert.match(part, /^```python exec\nx = 2\n```$/m);
   assert.equal(fs.existsSync(path.join(committed, "xref-manifest.json")), false);
