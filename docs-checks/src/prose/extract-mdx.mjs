@@ -98,6 +98,24 @@ export function extractMdx(source, config, options = {}) {
 // visible part is an identifier, not prose.
 const MEMBER_HEADING = /\[#[\w.]+\]\s*$/;
 
+// Fumadocs' marker keeping a heading out of the page contents; not prose.
+const NO_TOC = /\s*\[!toc\]\s*$/;
+
+function withoutTocMarker(heading) {
+  const last = heading.children?.at(-1);
+  const match = last?.type === "text" ? NO_TOC.exec(last.value) : null;
+  if (!match) return heading;
+  const trimmed = { ...last, value: last.value.slice(0, match.index) };
+  const end = last.position?.end;
+  if (end?.offset !== undefined) {
+    trimmed.position = {
+      ...last.position,
+      end: { ...end, offset: end.offset - match[0].length },
+    };
+  }
+  return { ...heading, children: [...heading.children.slice(0, -1), trimmed] };
+}
+
 function walk(node, ctx) {
   if (!node || typeof node !== "object") return;
 
@@ -110,7 +128,11 @@ function walk(node, ctx) {
 
   if (PROSE_BLOCKS.has(node.type)) {
     const builder = new SegmentBuilder();
-    collectInline(node, builder, ctx);
+    collectInline(
+      node.type === "heading" ? withoutTocMarker(node) : node,
+      builder,
+      ctx,
+    );
     const segment = builder.build();
     if (!segment) return;
     if (looksLikeMarkup(segment.text)) return;

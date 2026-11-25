@@ -35,6 +35,15 @@ Patches applied on import (quartodoc 0.11.1):
   ``Methods``/``Functions`` summary tables; each member is documented in full
   below them (attributes too, which quartodoc only summarises, leaving the
   table's links without targets) and the site's page contents already lists them.
+* Page contents. Docstring section headings (Parameters, Returns, ...) and the
+  Attributes/Classes/Methods/Functions headings carry Fumadocs' ``[!toc]``, so
+  the page's table of contents lists only the documented objects.
+* Escaped star names. Sphinx docstrings write ``:param \\**kwargs:`` (the
+  backslash is RST escaping); griffe compares the name backslash and all, so it
+  never matches the signature. The backslashes are dropped first.
+
+``build`` ends by printing how many warnings griffe logged (docstrings that
+don't match their signatures, malformed fields, ...) and in how many files.
 
 A content entry may give ``extra_members``: names its module imports but leaves
 out of ``__all__`` (as a Sphinx page's ``.. autoclass::`` lines can document);
@@ -57,16 +66,28 @@ Sphinx docs' ``.. autosummary:: :recursive:`` does with
 """
 from __future__ import annotations
 
+import logging
 import re
 import sys
 from pathlib import Path
 
 import griffe
+from _griffe.docstrings import sphinx as _griffe_sphinx
 import quartodoc.ast as qast
 import yaml
 from quartodoc import Builder, layout
 from quartodoc import parsers as _qd_parsers
-from quartodoc.renderers.md_renderer import MdRenderer, ParamRow, _has_attr_section, dc, ds
+from quartodoc.renderers.md_renderer import (
+    MdRenderer,
+    ParamRow,
+    _has_attr_section,
+    _sanitize_title,
+    dc,
+    ds,
+)
+
+# Fumadocs leaves a heading ending in this out of the page's table of contents.
+_NO_TOC = "[!toc]"
 
 # griffe's Google parser starts a NEW return item at every unindented line of a
 # `Returns:` block, so a description wrapped over several lines becomes several
@@ -74,6 +95,38 @@ from quartodoc.renderers.md_renderer import MdRenderer, ParamRow, _has_attr_sect
 # IndexError, aborting the build. One item per section also matches how these
 # docstrings are written.
 _qd_parsers.DEFAULT_OPTIONS.setdefault("google", {})["returns_multiple_items"] = False
+
+# "Escaped star names" in the module docstring.
+_parse_sphinx_directive = _griffe_sphinx._parse_directive
+
+
+def _parse_sphinx_directive_unescaped(docstring, offset: int):
+    parsed = _parse_sphinx_directive(docstring, offset)
+    parsed.directive_parts = [part.replace("\\*", "*") for part in parsed.directive_parts]
+    return parsed
+
+
+_griffe_sphinx._parse_directive = _parse_sphinx_directive_unescaped
+
+
+class _WarningTally(logging.StreamHandler):
+    """Prints griffe's warnings as its default handler would, counting them."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setLevel(logging.WARNING)
+        self.count = 0
+        self.files: set[str] = set()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.count += 1
+        if m := re.match(r"(\S+):\d+: ", record.getMessage()):
+            self.files.add(m[1])
+        super().emit(record)
+
+
+_griffe_warnings = _WarningTally()
+logging.getLogger("griffe").addHandler(_griffe_warnings)
 
 
 def _bases_line(target) -> str:
@@ -121,6 +174,13 @@ def _render_class_with_init(self: MdRenderer, el, target) -> str:
             )
 
     return "\n\n".join([p for p in parts if p])
+
+
+@MdRenderer.render_header.dispatch
+def render_header(self: MdRenderer, el: ds.DocstringSection) -> str:
+    title = el.title or el.kind.value.title()
+    classes = f".doc-section .doc-section-{_sanitize_title(title.lower())}"
+    return f"{'#' * self.crnt_header_level} {title} {_NO_TOC} {{{classes}}}"
 
 
 @MdRenderer.render.dispatch
@@ -293,7 +353,9 @@ def _render_doc_members(self: MdRenderer, el) -> str:
             if not members or (name == "Attributes" and _has_attr_section(el.obj.docstring)):
                 continue
             rows = "\n".join(map(self.summarize, members))
-            parts.append(f"{sub_header} {name}\n\n| Name | Description |\n| --- | --- |\n{rows}")
+            parts.append(
+                f"{sub_header} {name} {_NO_TOC}\n\n| Name | Description |\n| --- | --- |\n{rows}"
+            )
             with self._increment_header(n_incr):
                 parts.extend(self.render(x) for x in members if isinstance(x, layout.Doc))
 
@@ -315,7 +377,7 @@ def render(self: MdRenderer, el: layout.DocModule):  # noqa: F811
 
 # quartodoc's member summary (`## Methods` then `| Name | Description |` rows).
 _RE_SUMMARY_TABLE = re.compile(
-    r"^(#+ (?:Attributes|Classes|Methods|Functions))\n\n\| Name \| Description \|\n\| --- \| --- \|\n(?:\|[^\n]*(?:\n|$))+",
+    r"^(#+ (?:Attributes|Classes|Methods|Functions) \[!toc\])\n\n\| Name \| Description \|\n\| --- \| --- \|\n(?:\|[^\n]*(?:\n|$))+",
     re.M,
 )
 
@@ -448,7 +510,7 @@ def _pop_groups(qd: dict) -> dict[str, list[dict]]:
 
 
 _RE_FENCE = re.compile(r"^(`{3,}|~{3,})")
-_RE_KIND_HEADING = re.compile(r"^## (?:Attributes|Classes|Functions|Exceptions)\s*$")
+_RE_KIND_HEADING = re.compile(r"^## (?:Attributes|Classes|Functions|Exceptions)(?: \[!toc\])?\s*$")
 _RE_MEMBER_HEADING = re.compile(r"^### .*\{ #(?:\w+\.)*(\w+) \}\s*$")
 
 
@@ -505,3 +567,7 @@ def build(config: str = "_quarto.yml", *, complete: bool = False) -> None:
             stripped = _group_members(stripped, groups[page.stem], page.name)
         if stripped != text:
             page.write_text(stripped, encoding="utf-8")
+    print(
+        f"griffe: {_griffe_warnings.count} warning(s) in {len(_griffe_warnings.files)} file(s)",
+        file=sys.stderr,
+    )

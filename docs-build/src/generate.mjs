@@ -5304,7 +5304,7 @@ function convertApiQmd(src, title, mod, urlMap, asSection = false) {
     const kept = lines.filter((l) => {
       const f = l.match(/^(`{3,}|~{3,})/);
       if (f) fence = fence ? (fence === f[1][0] ? null : fence) : f[1][0];
-      return fence !== null || !/^##\s+(Attributes|Classes|Functions|Exceptions)\s*$/.test(l);
+      return fence !== null || !/^##\s+(Attributes|Classes|Functions|Exceptions)(?:\s+\[!toc\])?\s*$/.test(l);
     });
     return displayMath(mdxSafe(convertDoctestExamples(kept.join("\n")))).replace(/^\n+/, "");
   }
