@@ -1,7 +1,7 @@
 /* Visit https://aka.ms/tsconfig to read more about this file */
 {
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist", "storybook-static", "sphinx-ui"],
+  "exclude": ["node_modules", "dist", "storybook-static"],
   "compilerOptions": {
     "target": "es2016",
     "strict": true,

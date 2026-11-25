@@ -1,7 +1,19 @@
 # documentation-ui
 
-Monorepo containing the Quantinuum documentation UI component library
-(`documentation-ui/`) and the Sphinx theme (`sphinx-ui/`).
+Monorepo for the shared tooling behind Quantinuum's product documentation.
+It is a pnpm workspace containing these packages:
+
+| Package | npm name | Purpose |
+| --- | --- | --- |
+| [`documentation-ui/`](documentation-ui/) | `@quantinuum/documentation-ui` | React component library and Fumadocs theme for the documentation sites. |
+| [`docs-build/`](docs-build/) | `@quantinuum/docs-build` | `docs-build` CLI: converts Sphinx RST/MyST, Jupyter notebooks and quartodoc API reference into Fumadocs MDX. |
+| [`docs-preview/`](docs-preview/) | `@quantinuum/docs-preview` | `docs-preview` CLI: standalone Fumadocs harness for previewing (`dev`) or statically exporting (`build`) a product repo's docs. |
+| [`docs-checks/`](docs-checks/) | `@quantinuum/docs-checks` | `docs-check-spelling`, `docs-check-prose` and `docs-check-links` CLIs, with the company-wide word list and house style. |
+
+The `docs-*` CLIs are run from a product documentation repo's root. Each
+script's usage is documented at the top of its file in the package's `bin/`
+directory. [`docs-build/README.md`](docs-build/README.md) describes porting a
+product's RST prose to committed MDX while keeping its git history.
 
 ## Pre-commit hooks
 
