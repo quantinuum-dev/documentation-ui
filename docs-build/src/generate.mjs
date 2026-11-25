@@ -617,16 +617,17 @@ function tightFenceInfo(md) {
   return md
     .split("\n")
     .map((line) => {
-      const m = line.match(/^([ \t]*)(`{3,}|~{3,})[ \t]*(.*)$/);
+      const m = line.match(/^([ \t]*)(`{3,}|~{3,})(.*)$/);
       if (!m) return line;
+      const info = m[3].replace(/^[ \t]+/, "");
       if (open) {
-        if (m[2][0] === open[0] && m[2].length >= open.length && !m[3].trim()) {
+        if (m[2][0] === open[0] && m[2].length >= open.length && !info.trim()) {
           open = "";
         }
         return line;
       }
       open = m[2];
-      return `${m[1]}${m[2]}${m[3]}`;
+      return `${m[1]}${m[2]}${info}`;
     })
     .join("\n");
 }
@@ -1822,9 +1823,7 @@ const XML_ATTR = /([\w.:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
  * CDATA). Hand-rolled to avoid adding an XML dependency for one module.
  * @param {string} xml @returns {XmlElement} */
 function parseXml(xml) {
-  const clean = xml
-    .replace(/<\?[\s\S]*?\?>/g, "")
-    .replace(/<!--[\s\S]*?-->/g, "");
+  const clean = stripHtmlComments(xml.replace(/<\?[\s\S]*?\?>/g, ""));
   /** @type {XmlElement} */
   const root = { tag: "#root", attrs: {}, children: [] };
   /** @type {XmlElement[]} */
@@ -1882,10 +1881,14 @@ function xmlTextOf(node, tag) {
 /** Flatten Markdown for a table cell (pipes escaped, one line).
  * @param {string} s @returns {string} */
 function mdCell(s) {
-  return s
-    .replace(/\s*\n+\s*/g, " ")
-    .replace(/\|/g, "\\|")
-    .trim();
+  return escapeTablePipes(s.replace(/\s+/g, (ws) => (ws.includes("\n") ? " " : ws))).trim();
+}
+
+/** Escape the pipes in GFM table cell text that aren't already escaped. Escape
+ * pairs are consumed together, as micromark's table tokenizer does.
+ * @param {string} s @returns {string} */
+function escapeTablePipes(s) {
+  return s.replace(/\\[\\|]|\|/g, (m) => (m === "|" ? "\\|" : m));
 }
 
 /** Render Doxygen inline markup to Markdown.
@@ -2427,21 +2430,22 @@ function renderListTable(caption, body) {
   if (rows.length === 0) return [];
   /** @param {string[]} lines */
   const cellText = (lines) =>
-    lines
-      .join("\n")
-      .trim()
-      .split(/\n[ \t]*\n/)
-      .map((para) =>
-        para
-          .split("\n")
-          .map((l) => l.trimStart())
-          .join("\n")
-          .replace(/(?: {2,}|\\)\n/g, "<br />")
-          .replace(/\n/g, " ")
-          .trim(),
-      )
-      .join("<br /><br />")
-      .replace(/\|/g, "\\|");
+    escapeTablePipes(
+      lines
+        .join("\n")
+        .trim()
+        .split(/\n[ \t]*\n/)
+        .map((para) =>
+          para
+            .split("\n")
+            .map((l) => l.trimStart())
+            .join("\n")
+            .replace(/(?: {2,}|\\)\n/g, "<br />")
+            .replace(/\n/g, " ")
+            .trim(),
+        )
+        .join("<br /><br />"),
+    );
   const width = Math.max(...rows.map((r) => r.length));
   /** @param {string[][]} cells */
   const tableRow = (cells) =>
@@ -2701,6 +2705,18 @@ function convertMystDirectives(md, srcDir, opts = {}) {
   return out.join("\n");
 }
 
+/** Remove HTML comments, repeating until none are left (removing one can join
+ * the pieces of another), and an unterminated `<!--` with everything after it.
+ * @param {string} s @returns {string} */
+function stripHtmlComments(s) {
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(/<!--[\s\S]*?(?:-->|$)/g, "");
+  } while (s !== prev);
+  return s;
+}
+
 /** Drop MyST line comments — a line whose first character is `%`. Fence- and
  * math-aware so a `%` inside a code fence or a `$$…$$` display-math block (a LaTeX
  * comment) is preserved.
@@ -2799,7 +2815,7 @@ function convertMyst(src, index, relNoExt) {
   // neither is valid MDX, so they'd otherwise leak as visible text (e.g. the
   // commitizen note atop the qnexus CHANGELOG).
   let md = convertMystDirectives(
-    stripMystComments(body.replace(/<!--[\s\S]*?-->/g, "")),
+    stripMystComments(stripHtmlComments(body)),
     srcDir,
     { toc: { index, relNoExt } },
   );
@@ -2868,9 +2884,7 @@ function convertNotebookViaQuarto(
       if (cell.cell_type === "markdown") {
         let s = convertMystDirectives(
           separateListsFromParagraphs(
-            stripMystComments(
-              nbText(cell.source).replace(/<!--[\s\S]*?-->/g, ""),
-            ),
+            stripMystComments(stripHtmlComments(nbText(cell.source))),
           ),
           nbDir,
           {
@@ -4614,7 +4628,11 @@ function normalizeHtmlBlock(block) {
   // before the end of paragraph"). Collapse newlines to spaces, then squeeze
   // inter-tag whitespace.
   return sanitizeRawHtml(
-    wrapTableRows(block.replace(/\s*\n\s*/g, " ").replace(/>\s+</g, "><")),
+    wrapTableRows(
+      block
+        .replace(/\s+/g, (ws) => (ws.includes("\n") ? " " : ws))
+        .replace(/>\s+</g, "><"),
+    ),
   );
 }
 
@@ -4874,7 +4892,8 @@ function mdxSafe(md) {
       const marker = fm[1];
       if (!fence) {
         fence = { char: marker[0], len: marker.length };
-        out.push(raw.replace(/\s*\{[^}]*\}\s*$/, "")); // clean fence attributes
+        const bare = raw.trimEnd();
+        out.push(/\{[^{}]*\}$/.test(bare) ? bare.replace(/\{[^{}]*\}$/, "").trimEnd() : raw); // clean fence attributes
       } else if (marker[0] === fence.char && marker.length >= fence.len) {
         fence = null;
         out.push(raw);
@@ -4943,7 +4962,7 @@ function mdxSafe(md) {
       // RST's default role is title-reference (italic `<cite>`, NOT code —
       // that's double backticks): pandoc writes `` `x` `` as `[x]{.title-ref}`,
       // and the generic attribute-span strip below would leave bare `[x]`.
-      .replace(/\[([^\]]+)\]\{\.title-ref\}/g, "*$1*")
+      .replace(/\[([^[\]]+)\]\{\.title-ref\}/g, "*$1*")
       .replace(/\{[.#][^}]*\}/g, "")
       .replace(/^:{3,}.*$/, "")
       .replace(/<([^<>@\s]+@[^<>\s]+)>/g, "$1")
@@ -6006,7 +6025,7 @@ function isToctreeOnlyPage(abs) {
   } else if (abs.endsWith(".md")) {
     text = stripYamlFrontmatter(fs.readFileSync(abs, "utf8")).body;
   } else return false;
-  const lines = stripMystComments(text.replace(/<!--[\s\S]*?-->/g, "")).split("\n");
+  const lines = stripMystComments(stripHtmlComments(text)).split("\n");
   /** @type {string | null} */
   let fence = null;
   for (const line of lines) {
@@ -6293,9 +6312,13 @@ function emitMystNavMetas(sections, index, apiNavPages, frozenTree) {
 /** Plain text of a Markdown heading, as Fumadocs flattens it for its slug.
  * @param {string} text @returns {string} */
 function markdownHeadingText(text) {
-  return text
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/<[^>]+>/g, "")
+  let plain = text.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1");
+  let prev;
+  do {
+    prev = plain;
+    plain = plain.replace(/<[^>]+>/g, "");
+  } while (plain !== prev);
+  return plain
     .replace(/(\*\*|__|\*|`|\$)/g, "")
     .replace(/\\(.)/g, "$1")
     .trim();

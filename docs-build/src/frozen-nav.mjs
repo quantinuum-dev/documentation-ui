@@ -57,9 +57,10 @@ export function frontmatterFields(text) {
   const out = {};
   const lines = fm.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/^([\w-]+):[ \t]*(.*?)[ \t]*$/);
+    const m = lines[i].match(/^([\w-]+):(.*)$/);
     if (!m) continue;
-    const [, key, value] = m;
+    const key = m[1];
+    const value = m[2].trim();
     if (value.startsWith("[")) {
       out[key] = value.slice(1, -1).split(",").map(scalar).filter(Boolean);
     } else if (value) {
@@ -79,8 +80,10 @@ export function frontmatterFields(text) {
 /** Split a toctree-style entry into its label and target.
  * @param {string} entry @returns {{ label: string, target: string }} */
 export function parseNavEntry(entry) {
-  const m = entry.match(/^(.*?)\s*<([^<>]+)>$/);
-  return m ? { label: m[1].trim(), target: m[2].trim() } : { label: "", target: entry.trim() };
+  const m = entry.match(/<([^<>]+)>$/);
+  return m
+    ? { label: entry.slice(0, m.index).trim(), target: m[1].trim() }
+    : { label: "", target: entry.trim() };
 }
 
 /** @param {string} target */
@@ -151,7 +154,8 @@ export function readNavContent(root) {
  * @returns {{ titles: Record<string, string>, nesting: Record<string, string[]>, tree?: NavTreeNode[] }}
  */
 export function frozenNav({ pages, metas = {}, baseUrl, references = {}, prune = false }) {
-  const base = baseUrl.replace(/\/+$/, "");
+  let base = baseUrl;
+  while (base.endsWith("/")) base = base.slice(0, -1);
   /** @param {string} key */
   const urlOf = (key) => (key ? `${base}/${key}` : base || "/");
   /** @type {Map<string, NavPage>} */
@@ -218,7 +222,7 @@ export function frozenNav({ pages, metas = {}, baseUrl, references = {}, prune =
       tree.push({ type: "separator", name: separator[1] });
       continue;
     }
-    const link = item.match(/^\[(.+)\]\((.+)\)$/);
+    const link = item.match(/^\[([^\]]+)\]\((.+)\)$/);
     if (link) {
       tree.push({ type: "page", name: link[1], url: link[2], external: true });
       continue;
