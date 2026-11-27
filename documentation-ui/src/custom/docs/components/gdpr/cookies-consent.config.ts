@@ -11,7 +11,14 @@ export const CookieCategories: CookieCategory[] = [
     name: CookieCategoryName.Essential,
     description:
       'Required for core functionality and security. Examples: sign-in and session management, fraud prevention, storing your cookie settings and basic preferences.',
-    cookies: [],
+    cookies: [
+      {
+        name: 'site_preferences',
+        description:
+          'Remembers display preferences you choose on the site, such as collapsing a feature banner.',
+        expiry: '1 year',
+      },
+    ],
   },
   {
     alwaysOn: false,
